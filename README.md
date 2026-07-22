@@ -69,7 +69,24 @@ rag-mcp/
 
 ## Evals and test series
 
-No CI yet — the evidence below is manual, from the session that built this:
+Automated: `tests/test_server.py`, ported from Elpis's own test suite for the
+host this was forked from (`tests/test_rag_mcp_host.py` and
+`tests/test_rag_scope.py` in the Elpis repo), adapted to this server's actual
+API. Six tests, no heavy ML deps loaded (the RAG import is mocked out), runs in
+under a tenth of a second:
+
+```bash
+uv sync --group dev
+.venv/bin/python -m pytest tests/ -v
+```
+
+Covers: the tool is advertised read-only with the right annotations; a call
+with no `doc_path` scopes to the workspace root; an explicit `doc_path` keeps
+its own scope; `node_modules` and similar scopes are rejected with an
+actionable message; depth-limit violations are rejected with an actionable
+message; an empty query is rejected before ever touching the RAG pipeline.
+
+Beyond that, manual evidence from the session that built this:
 
 1. **Protocol-level smoke test** (bypasses any client): piped `initialize` /
    `tools/list` / `tools/call` directly at `server.py`'s stdin, checked every
