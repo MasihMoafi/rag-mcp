@@ -69,11 +69,8 @@ rag-mcp/
 
 ## Evals and test series
 
-Automated: `tests/test_server.py`, ported from Elpis's own test suite for the
-host this was forked from (`tests/test_rag_mcp_host.py` and
-`tests/test_rag_scope.py` in the Elpis repo), adapted to this server's actual
-API. Six tests, no heavy ML deps loaded (the RAG import is mocked out), runs in
-under a tenth of a second:
+Automated: `tests/`. Five tests, no heavy ML deps loaded (the RAG import is
+mocked out), runs in under a tenth of a second:
 
 ```bash
 uv sync --group dev
@@ -84,41 +81,23 @@ Covers: the tool is advertised read-only with the right annotations; a call
 with no `doc_path` scopes to the workspace root; an explicit `doc_path` keeps
 its own scope; `node_modules` and similar scopes are rejected with an
 actionable message; depth-limit violations are rejected with an actionable
-message; an empty query is rejected before ever touching the RAG pipeline.
+message.
 
-Beyond that, manual evidence from the session that built this:
-
-1. **Protocol-level smoke test** (bypasses any client): piped `initialize` /
-   `tools/list` / `tools/call` directly at `server.py`'s stdin, checked every
-   stdout line parses as JSON. This is what caught a real bug — the retrieval
-   engine logs via plain `print()`, which was leaking onto the same stdout
-   stream as the protocol frames. Fixed by redirecting that stream to stderr
-   around the library call.
-2. **Through the actual registered tool** in Claude Code
-   (`claude mcp add rag -s user -- ...`, health-checked `✔ Connected`):
-   - Queried a real subdirectory of a 90-crate Rust monorepo
-     (`codex-rs/tui/src/chatwidget`, asking how a UI focus-toggle worked) →
-     returned the exact files implementing it (`context_ledger.rs`,
-     `slash_dispatch.rs`).
-   - Queried a **different, unrelated** local repo (`~/Desktop/p/skills`,
-     asking about skill-authoring conventions) → indexed it fresh on the spot
-     and returned on-topic results, confirming it isn't hardwired to one project.
-   - Queried with `doc_path` pointed at a **single file**
-     (`codex-rs/memories/README.md`) → every result came from that file alone.
-   - Queried the monorepo root with no `doc_path` → correctly **rejected** for
-     exceeding the token-budget guard instead of hanging or truncating silently.
-
-Smallest reproducible check, if you'd rather verify than trust the above:
+Protocol-level check, reproducible against this repo, no client required:
 
 ```bash
-printf '%s\n%s\n' \
+printf '%s\n%s\n%s\n' \
   '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18"}}' \
   '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' \
-  | .venv/bin/python server.py
+  '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"query_knowledge_base","arguments":{"query":"how does reciprocal rank fusion combine bm25 and vector results"}}}' \
+  | RAG_MCP_WORKSPACE_ROOT="$PWD" .venv/bin/python server.py
 ```
 
-Every output line must parse as JSON — if it doesn't, something in the
-dependency chain is writing to stdout again.
+Every stdout line must parse as JSON, and the `tools/call` response should cite
+`rag/core.py`'s `_rrf_fusion` — this repo indexing and querying itself. If a
+line doesn't parse, something in the dependency chain is writing to stdout
+instead of stderr again (this is what the redirect in `query_knowledge_base`
+guards against).
 
 ## Quick start
 
