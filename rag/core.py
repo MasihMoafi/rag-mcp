@@ -397,15 +397,41 @@ class RAGPipelineV2:
         return ' '.join(text.split()).lower()
 
     def _extract_text_from_pdf(self, pdf_path: str) -> str:
-        """Same PDF extraction as V2"""
+        """PDF extraction. Pages are joined with a form-feed marker so a chunk's
+        page number can be recovered later; without this the page boundary is
+        destroyed and every chunk looks like it came from nowhere."""
         try:
             doc = fitz.open(pdf_path)
-            full_text = "".join(page.get_text() for page in doc)
+            pages = [re.sub(r'\s+', ' ', page.get_text()).strip() for page in doc]
             doc.close()
-            return re.sub(r'\s+', ' ', full_text).strip()
+            return "\f".join(pages)
         except Exception as e:
             print(f"Error extracting text from {pdf_path}: {e}")
             return ""
+
+    def _locate_chunk(self, full_text: str, content: str, ext: str, search_from: int) -> tuple:
+        """Recover a human-readable location for a chunk: a page number for PDFs
+        (pages joined with \\f during extraction), a cell number for notebooks
+        (cells joined with \\f), or a line range for everything else, where
+        newlines survive extraction untouched. Returns (location_string, next
+        search_from) so callers can scan the document once, left to right."""
+        start = full_text.find(content, search_from)
+        if start == -1:
+            start = full_text.find(content)
+        if start == -1:
+            return ("", search_from)
+
+        if ext == ".pdf":
+            page = full_text.count("\f", 0, start) + 1
+            location = f"p.{page}"
+        elif ext == ".ipynb":
+            cell = full_text.count("\f", 0, start) + 1
+            location = f"cell {cell}"
+        else:
+            line_start = full_text.count("\n", 0, start) + 1
+            line_end = line_start + content.count("\n")
+            location = f"L{line_start}" if line_end == line_start else f"L{line_start}-L{line_end}"
+        return (location, start)
 
     def _add_context_to_chunk(self, chunk: str, document_context: str) -> str:
         """
@@ -485,16 +511,22 @@ class RAGPipelineV2:
                 chunk_overlap=self.config.get("chunk_overlap")
             )
 
+            ext = os.path.splitext(file_path)[1].lower()
+            search_from = 0
             for i, item in enumerate(chunks):
                 chunk = item["content"]
                 if len(chunk.strip()) > 50:
+                    location, search_from = self._locate_chunk(full_content, chunk, ext, search_from)
+                    clean_chunk = chunk.replace("\f", " ")
+
                     # STEP 7: CONTEXTUAL RETRIEVAL
-                    contextualized_chunk = self._add_context_to_chunk(chunk, full_content)
+                    contextualized_chunk = self._add_context_to_chunk(clean_chunk, full_content)
 
                     doc = {
                         "content": contextualized_chunk,
-                        "original_content": chunk,  # Keep original for comparison
+                        "original_content": clean_chunk,  # Keep original for comparison
                         "source": file_path,
+                        "location": location,
                         "heading": item["heading"],
                         "chunk_id": i,
                         "id": f"{os.path.basename(file_path)}_chunk_{i}"
@@ -536,12 +568,13 @@ class RAGPipelineV2:
                 return ""
 
     def _extract_text_from_notebook(self, notebook_path: str) -> str:
-        """Extract text from Jupyter notebook (.ipynb)"""
+        """Extract text from Jupyter notebook (.ipynb). Cells are joined with a
+        form-feed marker, same as PDF pages, so a chunk's originating cell can
+        be recovered later instead of collapsing into one undifferentiated blob."""
         try:
             from .notebook_chunker import extract_cells_from_notebook
             cells = extract_cells_from_notebook(notebook_path)
-            # Combine all cell contents
-            return "\n\n".join([cell['content'] for cell in cells])
+            return "\f".join(cell['content'] for cell in cells)
         except Exception as e:
             print(f"Error extracting text from {notebook_path}: {e}")
             return ""

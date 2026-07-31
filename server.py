@@ -40,7 +40,7 @@ _INDEXABLE_EXTENSIONS = {
     ".go", ".sh", ".bash", ".zsh", ".css", ".html", ".sql", ".java",
     ".kt", ".proto", ".pdf", ".ipynb", ".rst", ".ini", ".cfg", ".conf",
 }
-_UNSAFE_PATH_COMPONENTS = {"node_modules", ".git", ".venv", "venv", "dist", "build", "target", "__pycache__"}
+_UNSAFE_PATH_COMPONENTS = {"node_modules", ".git", ".venv", "venv", "dist", "build", "target", "__pycache__", "rag_db_v2"}
 _DEFAULT_MAX_DEPTH = 20
 _DEFAULT_MAX_TOKENS = 2_000_000
 
