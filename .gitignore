@@ -3,3 +3,6 @@ __pycache__/
 .venv/
 rag/rag_db_v2/
 .pytest_cache/
+
+# eval fixtures: real books/papers, not ours to redistribute
+evals/*/*.pdf
