@@ -313,7 +313,7 @@ class RAGPipelineV2:
         if embed_provider == "ollama":
             from langchain_community.embeddings import OllamaEmbeddings
             model = OllamaEmbeddings(model=self.config.get("embed_model"))
-            
+
             class OllamaWrapper:
                 def __init__(self, ollama_model):
                     self.model = ollama_model
@@ -321,9 +321,37 @@ class RAGPipelineV2:
                     return self.model.embed_documents(texts)
                 def embed_query(self, text):
                     return self.model.embed_query(text)
-            
+
             self.embedding_fn = OllamaWrapper(model)
             print(f"[RAG V2] Using Ollama embeddings with model: {self.config.get('embed_model')}")
+        elif embed_provider == "openai_compatible":
+            # One client for any provider that speaks the OpenAI embeddings API shape:
+            # real OpenAI, Ollama's own /v1 endpoint, and Qwen/DashScope's and Gemini's
+            # OpenAI-compatible modes all fit here without a provider-specific SDK.
+            # Requires the `openai` package (not a hard dependency of this project) and
+            # leaves the machine over the network -- this is the one provider option
+            # that is not local. Verified against RAGFlow's provider list, where most
+            # of its remote embedding providers are themselves OpenAIEmbed subclasses.
+            from openai import OpenAI
+            client = OpenAI(
+                api_key=self.config.get("embed_api_key") or None,
+                base_url=self.config.get("embed_base_url") or None,
+            )
+            model_name = self.config.get("embed_model")
+
+            class OpenAICompatibleWrapper:
+                def __init__(self, client, model_name):
+                    self.client = client
+                    self.model_name = model_name
+                def embed_documents(self, texts):
+                    resp = self.client.embeddings.create(model=self.model_name, input=texts)
+                    return [item.embedding for item in resp.data]
+                def embed_query(self, text):
+                    resp = self.client.embeddings.create(model=self.model_name, input=[text])
+                    return resp.data[0].embedding
+
+            self.embedding_fn = OpenAICompatibleWrapper(client, model_name)
+            print(f"[RAG V2] Using OpenAI-compatible embeddings with model: {model_name}")
         else:
             model = SentenceTransformer(self.config.get("embed_model"), device=self.device)
             class STWrapper:
@@ -344,7 +372,8 @@ class RAGPipelineV2:
         vector_size_map = {
             "ollama": 768,  # default ollama fallback
             "vllm": 4096,  # e5-mistral-7b-instruct
-            "sentencetransformer": 384  # all-MiniLM-L6-v2
+            "sentencetransformer": 384,  # all-MiniLM-L6-v2
+            "openai_compatible": 1536,  # OpenAI text-embedding-3-small / Qwen text-embedding-v2 default
         }
         vector_size = vector_size_map.get(embed_provider, 384)
         embed_model_name = self.config.get("embed_model", "").lower()
