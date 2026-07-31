@@ -134,13 +134,36 @@ rag-mcp/
 Technical boundaries:
 
 - one MCP tool: `query_knowledge_base(query, doc_path?)`;
-- default embeddings: `all-MiniLM-L6-v2`;
-- reranker: `cross-encoder/ms-marco-MiniLM-L-6-v2`;
+- default embeddings: `all-MiniLM-L6-v2` (~80MB, fast — overridable, see Configuration);
+- reranking runs by default: `cross-encoder/ms-marco-MiniLM-L-6-v2` (~80MB, fast — overridable, or disable it entirely);
 - local embedded/on-disk Qdrant;
 - `doc_path` can scope each call to a file or directory;
 - per-path indexes are persisted under `rag/rag_db_v2/`;
 - common large/build directories such as `.git`, `node_modules`, `.venv`, `dist`, `build`, and `target` are rejected;
 - configurable depth/token limits fail explicitly instead of scanning an unbounded tree.
+
+### Configuration
+
+Every retrieval knob is an environment variable, not a source edit. Unset means the
+default shown:
+
+| Variable | Default | What it controls |
+| --- | --- | --- |
+| `RAG_MCP_EMBED_MODEL` | `all-MiniLM-L6-v2` | sentence-transformers embedding model |
+| `RAG_MCP_EMBED_PROVIDER` | `sentencetransformer` | embedding backend |
+| `RAG_MCP_RERANKER_TYPE` | `cross-encoder` | `cross-encoder`, `llm`, or `disabled` |
+| `RAG_MCP_RERANKER_MODEL` | `cross-encoder/ms-marco-MiniLM-L-6-v2` | reranker model (used when type is `cross-encoder` or `llm`) |
+| `RAG_MCP_TOP_K` | `5` | candidates pulled from vector search before fusion |
+| `RAG_MCP_RERANK_TOP_K` | `5` | results kept after reranking |
+| `RAG_MCP_CHUNK_SIZE` | `700` | characters per chunk before overlap |
+| `RAG_MCP_CHUNK_OVERLAP` | `100` | characters shared between adjacent chunks |
+| `RAG_MCP_RRF_K` | `60` | Reciprocal Rank Fusion constant |
+| `RAG_MCP_MAX_DEPTH` | `20` | directory-scan depth limit |
+| `RAG_MCP_MAX_TOKENS` | `2000000` | directory-scan size limit |
+
+The shipped defaults are the small, fast pair (~80MB each) the evals above were run
+against — not the largest model available. Swapping either is one environment variable in
+the server's MCP registration, no code change.
 
 ## Current state
 
