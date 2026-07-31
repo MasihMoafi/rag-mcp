@@ -149,10 +149,12 @@ default shown:
 
 | Variable | Default | What it controls |
 | --- | --- | --- |
-| `RAG_MCP_EMBED_MODEL` | `all-MiniLM-L6-v2` | sentence-transformers embedding model |
-| `RAG_MCP_EMBED_PROVIDER` | `sentencetransformer` | embedding backend |
-| `RAG_MCP_RERANKER_TYPE` | `cross-encoder` | `cross-encoder`, `llm`, or `disabled` |
-| `RAG_MCP_RERANKER_MODEL` | `cross-encoder/ms-marco-MiniLM-L-6-v2` | reranker model (used when type is `cross-encoder` or `llm`) |
+| `RAG_MCP_EMBED_PROVIDER` | `sentencetransformer` | `sentencetransformer` (local), `ollama` (local server), or `openai_compatible` (remote — see below) |
+| `RAG_MCP_EMBED_MODEL` | `all-MiniLM-L6-v2` | embedding model name, meaning depends on provider |
+| `RAG_MCP_EMBED_API_KEY` | unset | API key, only used by `openai_compatible` |
+| `RAG_MCP_EMBED_BASE_URL` | unset (official OpenAI endpoint) | override endpoint, only used by `openai_compatible` |
+| `RAG_MCP_RERANKER_TYPE` | `cross-encoder` | `cross-encoder` or `disabled` |
+| `RAG_MCP_RERANKER_MODEL` | `cross-encoder/ms-marco-MiniLM-L-6-v2` | reranker model, used when type is `cross-encoder` |
 | `RAG_MCP_TOP_K` | `5` | candidates pulled from vector search before fusion |
 | `RAG_MCP_RERANK_TOP_K` | `5` | results kept after reranking |
 | `RAG_MCP_CHUNK_SIZE` | `700` | characters per chunk before overlap |
@@ -162,8 +164,29 @@ default shown:
 | `RAG_MCP_MAX_TOKENS` | `2000000` | directory-scan size limit |
 
 The shipped defaults are the small, fast pair (~80MB each) the evals above were run
-against — not the largest model available. Swapping either is one environment variable in
-the server's MCP registration, no code change.
+against — not the largest model available, and 100% local: no key, no network call,
+no per-query cost.
+
+`openai_compatible` is the one non-local option: it leaves the machine. One client
+implementation covers real OpenAI, Ollama's own `/v1` endpoint, and Qwen/DashScope's and
+Gemini's OpenAI-compatible modes — install the optional `openai` package
+(`uv sync --extra openai`), then set `RAG_MCP_EMBED_PROVIDER=openai_compatible`,
+`RAG_MCP_EMBED_MODEL` to the provider's model name, `RAG_MCP_EMBED_API_KEY`, and
+`RAG_MCP_EMBED_BASE_URL` if the provider isn't OpenAI itself. The client construction is
+verified; a real embedding call against a paid provider is not — test it against your own
+key before trusting it. A cross-encoder reranker type named `llm` also exists in the code
+but its scoring is unimplemented scaffolding (every passage gets the same score) — do not
+set it, it does nothing useful.
+
+Swapping any of this is an environment variable in the server's MCP registration, no code
+change. Example, in `~/.codex/config.toml`:
+
+```toml
+[mcp_servers.rag.env]
+RAG_MCP_WORKSPACE_ROOT = "/absolute/path/to/your/project"
+RAG_MCP_EMBED_PROVIDER = "ollama"
+RAG_MCP_EMBED_MODEL = "qwen3-embedding:8b"
+```
 
 ## Current state
 
@@ -179,6 +202,8 @@ the server's MCP registration, no code change.
 ### Implemented but not yet covered by the current tests
 
 - The alternative Ollama embedding-provider path in `rag/core.py`.
+- The `openai_compatible` embedding provider: client construction is verified, a real
+  call against a paid provider is not.
 
 ### Planned
 

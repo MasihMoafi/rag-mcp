@@ -33,8 +33,12 @@ RAG_CONFIG_V2 = {
     "chunk_overlap": _env_int("RAG_MCP_CHUNK_OVERLAP", 100),
     "rrf_k": _env_int("RAG_MCP_RRF_K", 60),  # RRF parameter for fusion (better than weighted ensemble)
     "rerank_top_k": _env_int("RAG_MCP_RERANK_TOP_K", 5),
-    "reranker_type": _env_str("RAG_MCP_RERANKER_TYPE", "cross-encoder"),  # cross-encoder | llm | disabled
+    # "llm" exists in core.py's dispatch but _llm_rerank is unimplemented scaffolding
+    # (every doc gets the same score) -- do not expose it as a real option.
+    "reranker_type": _env_str("RAG_MCP_RERANKER_TYPE", "cross-encoder"),  # cross-encoder | disabled
     "reranker_model": _env_str("RAG_MCP_RERANKER_MODEL", "cross-encoder/ms-marco-MiniLM-L-6-v2"),
+    "embed_api_key": _env_str("RAG_MCP_EMBED_API_KEY", ""),
+    "embed_base_url": _env_str("RAG_MCP_EMBED_BASE_URL", ""),
     "force_reindex": False,
     "use_contextual": False,  # Disable contextual retrieval for performance
     "bm25_k1": 1.5,  # BM25 parameters
