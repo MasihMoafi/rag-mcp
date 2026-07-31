@@ -129,7 +129,7 @@ def find_all_indexable_files(
         '.go', '.sh', '.bash', '.zsh', '.css', '.html', '.sql', '.java',
         '.kt', '.proto', '.pdf', '.ipynb', '.rst', '.ini', '.cfg', '.conf'
     )
-    exclude_dirs = {'.git', '__pycache__', 'node_modules', '.venv', 'venv', 'dist', 'build', 'target', '.ipynb_checkpoints', 'migrations'}
+    exclude_dirs = {'.git', '__pycache__', 'node_modules', '.venv', 'venv', 'dist', 'build', 'target', '.ipynb_checkpoints', 'migrations', 'rag_db_v2'}
 
     all_files = []
 
