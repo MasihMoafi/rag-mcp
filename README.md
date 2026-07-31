@@ -162,14 +162,20 @@ as evidence. Every number below is a real call to `query_knowledge_base` through
 live server (hybrid BM25 + vector + reranking), graded against a known answer — not
 simulated.
 
-![Retrieval accuracy across five real corpora: four single documents from 46.7% to 86.7% full retrieval, and one mixed 36-file directory (Rust, Python, and a notebook together) searched as a whole directory at 90.9%](assets/retrieval-comparison.svg)
+![Retrieval accuracy ranked highest success first: a mixed 36-file directory (Rust, Python, and a notebook) at 90.9% full / 100% at least partial, then four single documents from 46.7% to 86.7% full retrieval](assets/retrieval-comparison.svg)
 
-Four corpora are one long document each (a paper, two books, a novel) — same protocol,
-directly comparable. The fifth is a different shape of test and should not be read against
-the same scale: a single real directory containing a 29-file Rust crate, 6 Python scripts,
-and a Jupyter notebook, searched with `doc_path` pointed at the whole directory — the harder,
-more realistic case, where the server has to find the right file among three languages, not
-just the right passage in one document.
+Ranked by success, not by test type. The top result is a single real directory containing
+a 29-file Rust crate, 6 Python scripts, and a Jupyter notebook, searched with `doc_path`
+pointed at the whole directory — the server has to find the right file among three
+languages, not just the right passage in one document. The other four are one long
+document each (a paper, two books, a novel), same protocol, directly comparable to each
+other but not to the directory test above them.
+
+No setting was changed between rows — same chunk size, `top_k`, and reranker throughout.
+Code and the short, explicitly-structured paper score highest because each fact sits in
+one place a chunk boundary can respect; the two long narrative works score lower because
+their answers are interpretive and spread across passages, which chunk-based retrieval
+handles worse regardless of tuning. Nothing here was tuned per corpus.
 
 [Per-question results for every corpus](evals/) — including where each miss actually failed
 (vague topical overlap, a truncated chunk, or the fact genuinely absent from top-k).

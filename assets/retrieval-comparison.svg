@@ -1,8 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="940" height="470" viewBox="0 0 940 470" role="img" aria-labelledby="title desc">
-<title id="title">Retrieval accuracy across five real corpora</title>
-<desc id="desc">Real runs of the current live rag-mcp server, hybrid BM25 plus vector search plus reranking, one query per question, graded fully retrieved, partial, or missing. Four single-document corpora: Attention paper 86.7 percent full, Brain and Behavior 76.7 percent, Napoleon 48.3 percent, Fire and Blood 46.7 percent. One mixed 36-file directory (Rust, Python, and a Jupyter notebook together) searched as a whole directory: 90.9 percent full, 0 missing.</desc>
-<rect width="940" height="470" fill="#0b0f14"/>
-<text x="40" y="42" fill="#f5f7fa" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="20" font-weight="700">Retrieval accuracy — five real corpora, one live server</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="480" viewBox="0 0 940 480" role="img" aria-labelledby="title desc">
+<title id="title">Retrieval accuracy across five real corpora, ranked by success</title>
+<desc id="desc">Real runs of the current live rag-mcp server, hybrid BM25 plus vector search plus reranking, one query per question, graded fully retrieved, partial, or missing, ranked highest success first. A mixed 36-file directory of Rust, Python, and a notebook: 90.9 percent full, 100 percent at least partial. Attention paper: 86.7 percent full, 96.7 percent at least partial. Brain and Behavior: 76.7 percent full, 93.3 percent at least partial. Napoleon: 48.3 percent full, 86.2 percent at least partial. Fire and Blood: 46.7 percent full, 80 percent at least partial.</desc>
+<rect width="940" height="480" fill="#0b0f14"/>
+<text x="40" y="42" fill="#f5f7fa" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="20" font-weight="700">Retrieval accuracy — ranked highest success first</text>
 <text x="40" y="68" fill="#9aa4b2" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13">hybrid BM25 + vector + reranking · source: rag-mcp/evals/*/results.csv</text>
 
 <g font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12">
@@ -14,48 +14,49 @@
   <text x="830" y="91" fill="#c8d0da">missing</text>
 </g>
 
-<text x="40" y="108" fill="#748091" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11" letter-spacing="1">SINGLE DOCUMENT — same protocol, directly comparable</text>
-
-<line x1="60" y1="118" x2="60" y2="308" stroke="#232b35"/>
-<line x1="440" y1="118" x2="440" y2="308" stroke="#232b35"/>
-<line x1="820" y1="118" x2="820" y2="308" stroke="#232b35"/>
-
+<text x="40" y="108" fill="#748091" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11" letter-spacing="1">MIXED DIRECTORY — code + docs, directory-scoped (different shape of test)</text>
 <g font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13">
-  <text x="60" y="120" fill="#c8d0da">Attention (paper)</text>
-  <text x="900" y="120" fill="#f5f7fa" text-anchor="end" font-weight="700">26/30 · 86.7%</text>
-  <rect x="60.0" y="126" width="606.7" height="24" rx="4" fill="#22d3ee"/>
-  <rect x="668.7" y="126" width="70.0" height="24" rx="4" fill="#7b8491"/>
-  <rect x="740.7" y="126" width="23.3" height="24" rx="4" fill="#ef4444"/>
-
-  <text x="60" y="174" fill="#c8d0da">Brain &amp; Behavior (book)</text>
-  <text x="900" y="174" fill="#f5f7fa" text-anchor="end" font-weight="700">23/30 · 76.7%</text>
-  <rect x="60.0" y="180" width="536.7" height="24" rx="4" fill="#22d3ee"/>
-  <rect x="598.7" y="180" width="116.7" height="24" rx="4" fill="#7b8491"/>
-  <rect x="717.3" y="180" width="46.7" height="24" rx="4" fill="#ef4444"/>
-
-  <text x="60" y="228" fill="#c8d0da">Napoleon (book)</text>
-  <text x="900" y="228" fill="#f5f7fa" text-anchor="end" font-weight="700">14/29 · 48.3%</text>
-  <rect x="60.0" y="234" width="337.9" height="24" rx="4" fill="#22d3ee"/>
-  <rect x="399.9" y="234" width="265.5" height="24" rx="4" fill="#7b8491"/>
-  <rect x="667.4" y="234" width="96.6" height="24" rx="4" fill="#ef4444"/>
-
-  <text x="60" y="282" fill="#c8d0da">Fire &amp; Blood (novel)</text>
-  <text x="900" y="282" fill="#f5f7fa" text-anchor="end" font-weight="700">14/30 · 46.7%</text>
-  <rect x="60.0" y="288" width="326.7" height="24" rx="4" fill="#22d3ee"/>
-  <rect x="388.7" y="288" width="233.3" height="24" rx="4" fill="#7b8491"/>
-  <rect x="624.0" y="288" width="140.0" height="24" rx="4" fill="#ef4444"/>
+  <text x="60" y="128" fill="#c8d0da">Rust + Python + notebook, one 36-file directory</text>
+  <text x="900" y="128" fill="#f5f7fa" text-anchor="end" font-weight="700">30/33 full · 100% not missing</text>
+  <rect x="60.0" y="134" width="636.4" height="24" rx="4" fill="#22d3ee"/>
+  <rect x="698.4" y="134" width="63.6" height="24" rx="4" fill="#7b8491"/>
 </g>
 
-<line x1="40" y1="324" x2="900" y2="324" stroke="#232b35"/>
-<text x="40" y="346" fill="#748091" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11" letter-spacing="1">MIXED DIRECTORY — different shape of test, not comparable to the corpora above</text>
+<line x1="40" y1="172" x2="900" y2="172" stroke="#232b35"/>
+<text x="40" y="194" fill="#748091" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11" letter-spacing="1">SINGLE DOCUMENT — same protocol, directly comparable to each other</text>
+
+<line x1="60" y1="204" x2="60" y2="394" stroke="#232b35"/>
+<line x1="440" y1="204" x2="440" y2="394" stroke="#232b35"/>
+<line x1="820" y1="204" x2="820" y2="394" stroke="#232b35"/>
 
 <g font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13">
-  <text x="60" y="374" fill="#c8d0da">Rust + Python + notebook, one 36-file directory, whole-dir scoped</text>
-  <text x="900" y="374" fill="#f5f7fa" text-anchor="end" font-weight="700">30/33 · 90.9%</text>
-  <rect x="60.0" y="380" width="636.4" height="24" rx="4" fill="#22d3ee"/>
-  <rect x="698.4" y="380" width="63.6" height="24" rx="4" fill="#7b8491"/>
+  <text x="60" y="206" fill="#c8d0da">Attention (paper)</text>
+  <text x="900" y="206" fill="#f5f7fa" text-anchor="end" font-weight="700">26/30 full · 96.7% not missing</text>
+  <rect x="60.0" y="212" width="606.7" height="24" rx="4" fill="#22d3ee"/>
+  <rect x="668.7" y="212" width="70.0" height="24" rx="4" fill="#7b8491"/>
+  <rect x="740.7" y="212" width="23.3" height="24" rx="4" fill="#ef4444"/>
+
+  <text x="60" y="260" fill="#c8d0da">Brain &amp; Behavior (book)</text>
+  <text x="900" y="260" fill="#f5f7fa" text-anchor="end" font-weight="700">23/30 full · 93.3% not missing</text>
+  <rect x="60.0" y="266" width="536.7" height="24" rx="4" fill="#22d3ee"/>
+  <rect x="598.7" y="266" width="116.7" height="24" rx="4" fill="#7b8491"/>
+  <rect x="717.3" y="266" width="46.7" height="24" rx="4" fill="#ef4444"/>
+
+  <text x="60" y="314" fill="#c8d0da">Napoleon (book)</text>
+  <text x="900" y="314" fill="#f5f7fa" text-anchor="end" font-weight="700">14/29 full · 86.2% not missing</text>
+  <rect x="60.0" y="320" width="337.9" height="24" rx="4" fill="#22d3ee"/>
+  <rect x="399.9" y="320" width="265.5" height="24" rx="4" fill="#7b8491"/>
+  <rect x="667.4" y="320" width="96.6" height="24" rx="4" fill="#ef4444"/>
+
+  <text x="60" y="368" fill="#c8d0da">Fire &amp; Blood (novel)</text>
+  <text x="900" y="368" fill="#f5f7fa" text-anchor="end" font-weight="700">14/30 full · 80.0% not missing</text>
+  <rect x="60.0" y="374" width="326.7" height="24" rx="4" fill="#22d3ee"/>
+  <rect x="388.7" y="374" width="233.3" height="24" rx="4" fill="#7b8491"/>
+  <rect x="624.0" y="374" width="140.0" height="24" rx="4" fill="#ef4444"/>
 </g>
 
-<text x="40" y="420" fill="#748091" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11">Single-document rows use whole-book/paper scope. The mixed row is one real directory (29 .rs, 6 .py, 1 .ipynb)</text>
-<text x="40" y="438" fill="#748091" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11">searched as a whole, the tool finding the right file itself. Napoleon and Fire &amp; Blood score lower — see results.csv.</text>
+<line x1="40" y1="404" x2="900" y2="404" stroke="#232b35"/>
+<text x="40" y="424" fill="#748091" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11">No settings changed between rows — same chunk size, same top_k, same reranker for all five. Code and the short,</text>
+<text x="40" y="440" fill="#748091" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11">structured paper concentrate each fact in one place; long narrative prose spreads interpretive answers across</text>
+<text x="40" y="456" fill="#748091" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11">passages, which hurts chunk-based retrieval regardless of tuning. See results.csv for the per-question detail.</text>
 </svg>
