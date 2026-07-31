@@ -6,18 +6,35 @@ try:
 except Exception:
     from .core_2 import RAGPipelineV2
 
+def _env_str(name: str, default: str) -> str:
+    value = os.environ.get(name, "").strip()
+    return value if value else default
+
+
+def _env_int(name: str, default: int) -> int:
+    try:
+        return int(os.environ.get(name, default))
+    except ValueError:
+        return default
+
+
+# Every value here is a default, not a ceiling: override any of them with the
+# matching RAG_MCP_* environment variable, no source edit required. The
+# shipped defaults are deliberately small and fast (~80MB each for
+# embedding and reranking) rather than the largest model available.
 RAG_CONFIG_V2 = {
     "version": "v2",
     "persist_dir": "./rag_db_v2",
     "document_paths": ["./files/"],
-    "embed_provider": "sentencetransformer",  # Fast GPU-based embeddings
-    "embed_model": "all-MiniLM-L6-v2",  # Same as V1 for consistency
-    "top_k": 5,
-    "chunk_size": 700,
-    "chunk_overlap": 100,
-    "rrf_k": 60,  # RRF parameter for fusion (better than weighted ensemble)
-    "rerank_top_k": 5,
-    "reranker_model": "cross-encoder/ms-marco-MiniLM-L-6-v2",  # Fast CrossEncoder reranking
+    "embed_provider": _env_str("RAG_MCP_EMBED_PROVIDER", "sentencetransformer"),
+    "embed_model": _env_str("RAG_MCP_EMBED_MODEL", "all-MiniLM-L6-v2"),
+    "top_k": _env_int("RAG_MCP_TOP_K", 5),
+    "chunk_size": _env_int("RAG_MCP_CHUNK_SIZE", 700),
+    "chunk_overlap": _env_int("RAG_MCP_CHUNK_OVERLAP", 100),
+    "rrf_k": _env_int("RAG_MCP_RRF_K", 60),  # RRF parameter for fusion (better than weighted ensemble)
+    "rerank_top_k": _env_int("RAG_MCP_RERANK_TOP_K", 5),
+    "reranker_type": _env_str("RAG_MCP_RERANKER_TYPE", "cross-encoder"),  # cross-encoder | llm | disabled
+    "reranker_model": _env_str("RAG_MCP_RERANKER_MODEL", "cross-encoder/ms-marco-MiniLM-L-6-v2"),
     "force_reindex": False,
     "use_contextual": False,  # Disable contextual retrieval for performance
     "bm25_k1": 1.5,  # BM25 parameters
