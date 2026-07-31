@@ -1,0 +1,11 @@
+Question_ID,Question,Expected_Answer
+nb-01,What GPU accelerator setting does the notebook tell the user to select on Kaggle before starting?,GPU T4 x2
+nb-02,Why does zstd have to be installed before Ollama on the Kaggle image?,"Ollama's installer now requires zstd, which the Kaggle image does not ship, so the install line that used to work fails silently unless zstd is installed first."
+nb-03,Which Ollama model is pulled and used for the experiment runs?,gpt-oss:20b
+nb-04,"Roughly how much GPU memory does gpt-oss:20b need, and how does that map onto Kaggle's two T4s?","About 13GB, so it fits on a single T4; since Kaggle provides two GPUs, one Ollama server runs per GPU, halving the wall clock."
+nb-05,What are the four core experiment arms and what does each one represent?,"en (all English), en_fa (English system prompt, Farsi corpus and turn 2), fr_nosim (French, no simulation frame), fr_sim (French plus simulation, the full attack)."
+nb-06,What statistical interval is used to report each arm's success rate, and why not the standard normal interval?,"A 95% Wilson score interval, because the normal interval misbehaves near 0 and 1 (e.g. it gives a zero-width interval for 10/10 successes)."
+nb-07,What significance test is used to compare arms, and why that test instead of chi-square?,Two-sided Fisher exact tests, because the counts involved are small.
+nb-08,"According to the detection-probability table in Part 5, what is the chance of detecting a real simulation effect at n=10 seeds per arm?",7%
+nb-09,What is N_SEEDS set to for the real campaign, and how many total runs does that mean for the 4 core arms?,N_SEEDS = 100, giving 4 arms x 100 = 400 runs.
+nb-10,What bug did the earlier os.system(... &) approach to starting Ollama servers cause, and how was it fixed?,"It launched servers and carried on regardless, so a dead server only surfaced later as a connection error; it was fixed by starting servers as real child processes via subprocess.Popen and polling each one's /api/tags endpoint until it responded."

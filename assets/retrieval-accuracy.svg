@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="360" viewBox="0 0 760 360" role="img" aria-labelledby="title desc">
+<title id="title">Retrieval accuracy on a book-length biography</title>
+<desc id="desc">30 questions against a full-length Napoleon biography, 1000-character chunks, hybrid BM25 plus vector search, no reranker, top_k 5: 26 fully retrieved, 4 partial, 0 missing.</desc>
+<rect width="760" height="360" fill="#0b0f14"/>
+<text x="40" y="42" fill="#f5f7fa" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="20" font-weight="700">Retrieval accuracy — one book, 30 questions</text>
+<text x="40" y="70" fill="#9aa4b2" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13">Napoleon biography · hybrid BM25 + vector, 1000-char chunks, no reranker, top_k=5</text>
+<line x1="180" y1="302" x2="700" y2="302" stroke="#384250"/>
+<line x1="180" y1="100" x2="180" y2="302" stroke="#384250"/>
+<text x="176" y="322" fill="#9aa4b2" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12" text-anchor="middle">0</text>
+<text x="349" y="322" fill="#9aa4b2" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12" text-anchor="middle">15</text>
+<text x="700" y="322" fill="#9aa4b2" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12" text-anchor="middle">30</text>
+<text x="40" y="139" fill="#c8d0da" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14">fully retrieved</text>
+<rect x="180" y="116" width="450.7" height="34" rx="4" fill="#22d3ee"/>
+<text x="641" y="139" fill="#f5f7fa" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14" font-weight="700">26/30</text>
+<text x="40" y="207" fill="#c8d0da" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14">partial</text>
+<rect x="180" y="184" width="69.3" height="34" rx="4" fill="#7b8491"/>
+<text x="259" y="207" fill="#f5f7fa" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14" font-weight="700">4/30</text>
+<text x="40" y="275" fill="#c8d0da" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14">missing</text>
+<rect x="180" y="252" width="0" height="34" rx="4" fill="#ef4444"/>
+<text x="190" y="275" fill="#f5f7fa" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14" font-weight="700">0/30</text>
+<text x="40" y="345" fill="#748091" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11">qwen3-embedding:8b via Ollama · single corpus, single run — not a cross-tool benchmark · source: evals/napoleon/</text>
+</svg>
