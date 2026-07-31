@@ -8,7 +8,7 @@
 <g font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12">
   <rect x="560" y="80" width="14" height="14" rx="3" fill="#22d3ee"/>
   <text x="580" y="91" fill="#c8d0da">fully retrieved</text>
-  <rect x="710" y="80" width="14" height="14" rx="3" fill="#7b8491"/>
+  <rect x="710" y="80" width="14" height="14" rx="3" fill="#a78bfa"/>
   <text x="730" y="91" fill="#c8d0da">partial</text>
   <rect x="810" y="80" width="14" height="14" rx="3" fill="#ef4444"/>
   <text x="830" y="91" fill="#c8d0da">missing</text>
@@ -19,7 +19,7 @@
   <text x="60" y="128" fill="#c8d0da">Rust + Python + notebook, one 36-file directory</text>
   <text x="900" y="128" fill="#f5f7fa" text-anchor="end" font-weight="700">30/33 full · 100% not missing</text>
   <rect x="60.0" y="134" width="636.4" height="24" rx="4" fill="#22d3ee"/>
-  <rect x="698.4" y="134" width="63.6" height="24" rx="4" fill="#7b8491"/>
+  <rect x="698.4" y="134" width="63.6" height="24" rx="4" fill="#a78bfa"/>
 </g>
 
 <line x1="40" y1="172" x2="900" y2="172" stroke="#232b35"/>
@@ -33,25 +33,25 @@
   <text x="60" y="206" fill="#c8d0da">Attention (paper)</text>
   <text x="900" y="206" fill="#f5f7fa" text-anchor="end" font-weight="700">26/30 full · 96.7% not missing</text>
   <rect x="60.0" y="212" width="606.7" height="24" rx="4" fill="#22d3ee"/>
-  <rect x="668.7" y="212" width="70.0" height="24" rx="4" fill="#7b8491"/>
+  <rect x="668.7" y="212" width="70.0" height="24" rx="4" fill="#a78bfa"/>
   <rect x="740.7" y="212" width="23.3" height="24" rx="4" fill="#ef4444"/>
 
   <text x="60" y="260" fill="#c8d0da">Brain &amp; Behavior (book)</text>
   <text x="900" y="260" fill="#f5f7fa" text-anchor="end" font-weight="700">23/30 full · 93.3% not missing</text>
   <rect x="60.0" y="266" width="536.7" height="24" rx="4" fill="#22d3ee"/>
-  <rect x="598.7" y="266" width="116.7" height="24" rx="4" fill="#7b8491"/>
+  <rect x="598.7" y="266" width="116.7" height="24" rx="4" fill="#a78bfa"/>
   <rect x="717.3" y="266" width="46.7" height="24" rx="4" fill="#ef4444"/>
 
   <text x="60" y="314" fill="#c8d0da">Napoleon (book)</text>
   <text x="900" y="314" fill="#f5f7fa" text-anchor="end" font-weight="700">14/29 full · 86.2% not missing</text>
   <rect x="60.0" y="320" width="337.9" height="24" rx="4" fill="#22d3ee"/>
-  <rect x="399.9" y="320" width="265.5" height="24" rx="4" fill="#7b8491"/>
+  <rect x="399.9" y="320" width="265.5" height="24" rx="4" fill="#a78bfa"/>
   <rect x="667.4" y="320" width="96.6" height="24" rx="4" fill="#ef4444"/>
 
   <text x="60" y="368" fill="#c8d0da">Fire &amp; Blood (novel)</text>
   <text x="900" y="368" fill="#f5f7fa" text-anchor="end" font-weight="700">14/30 full · 80.0% not missing</text>
   <rect x="60.0" y="374" width="326.7" height="24" rx="4" fill="#22d3ee"/>
-  <rect x="388.7" y="374" width="233.3" height="24" rx="4" fill="#7b8491"/>
+  <rect x="388.7" y="374" width="233.3" height="24" rx="4" fill="#a78bfa"/>
   <rect x="624.0" y="374" width="140.0" height="24" rx="4" fill="#ef4444"/>
 </g>
 
