@@ -9,6 +9,41 @@ type: local semantic-search MCP server for coding agents and document workflows
 
 `rag-mcp` is a local hybrid-search MCP server: point it at a file or folder, ask a question, and get back ranked chunks with exact source paths. Embeddings, vector search, and reranking run locally; the server exposes one read-only MCP tool to compatible clients.
 
+## Retrieval accuracy
+
+Recorded, reproducible retrieval runs live under [`evals/`](evals/) — not part of CI, kept
+as evidence. Every number below is a real call to `query_knowledge_base` through today's
+live server (hybrid BM25 + vector + reranking), graded against a known answer — not
+simulated.
+
+![Retrieval accuracy: a mixed 36-file directory (Rust, Python, and a notebook) at 90.9% full / 100% at least partial, then four single documents from 46.7% to 86.7% full retrieval](assets/retrieval-comparison.svg)
+
+The top result is a single real directory containing
+a 29-file Rust crate, 6 Python scripts, and a Jupyter notebook, searched with `doc_path`
+pointed at the whole directory — the server has to find the right file among three
+languages, not just the right passage in one document. The other four are one long
+document each (a paper, two books, a novel), same protocol, directly comparable to each
+other but not to the directory test above them.
+
+No setting was changed between rows — same chunk size, `top_k`, and reranker throughout.
+Code and the short, explicitly-structured paper score highest because each fact sits in
+one place a chunk boundary can respect; the two long narrative works score lower because
+their answers are interpretive and spread across passages, which chunk-based retrieval
+handles worse regardless of tuning. Nothing here was tuned per corpus.
+
+[Per-question results for every corpus](evals/) — including where each miss actually failed
+(vague topical overlap, a truncated chunk, or the fact genuinely absent from top-k).
+
+An earlier, now-superseded Napoleon run with reranking manually disabled scored 93.3% —
+that number describes raw BM25+vector retrieval in isolation, not this server as it actually
+runs, and is kept in [`evals/napoleon/experiment_log.md`](evals/napoleon/experiment_log.md)
+only for its chunk-size finding (1000 characters beat 300). The earlier separate Rust-only
+and notebook-only runs are likewise superseded by the combined directory test above and kept
+under `evals/elpis-memories-crate/` and `evals/notebook/` only as raw evidence.
+
+This is five corpora, one embedding model (`qwen3-embedding:8b`), one point in time — not a
+benchmark against other retrieval tools.
+
 ## Quick start
 
 ```bash
@@ -154,41 +189,6 @@ A successful self-query should return evidence pointing at the RRF implementatio
 What the tests prove: MCP transport/scoping/guardrail behavior covered by those cases.
 
 What they do **not** prove: retrieval quality across arbitrary corpora, cross-client compatibility, or superiority to grep/code-search/RAG alternatives.
-
-### Retrieval accuracy
-
-Recorded, reproducible retrieval runs live under [`evals/`](evals/) — not part of CI, kept
-as evidence. Every number below is a real call to `query_knowledge_base` through today's
-live server (hybrid BM25 + vector + reranking), graded against a known answer — not
-simulated.
-
-![Retrieval accuracy: a mixed 36-file directory (Rust, Python, and a notebook) at 90.9% full / 100% at least partial, then four single documents from 46.7% to 86.7% full retrieval](assets/retrieval-comparison.svg)
-
-The top result is a single real directory containing
-a 29-file Rust crate, 6 Python scripts, and a Jupyter notebook, searched with `doc_path`
-pointed at the whole directory — the server has to find the right file among three
-languages, not just the right passage in one document. The other four are one long
-document each (a paper, two books, a novel), same protocol, directly comparable to each
-other but not to the directory test above them.
-
-No setting was changed between rows — same chunk size, `top_k`, and reranker throughout.
-Code and the short, explicitly-structured paper score highest because each fact sits in
-one place a chunk boundary can respect; the two long narrative works score lower because
-their answers are interpretive and spread across passages, which chunk-based retrieval
-handles worse regardless of tuning. Nothing here was tuned per corpus.
-
-[Per-question results for every corpus](evals/) — including where each miss actually failed
-(vague topical overlap, a truncated chunk, or the fact genuinely absent from top-k).
-
-An earlier, now-superseded Napoleon run with reranking manually disabled scored 93.3% —
-that number describes raw BM25+vector retrieval in isolation, not this server as it actually
-runs, and is kept in [`evals/napoleon/experiment_log.md`](evals/napoleon/experiment_log.md)
-only for its chunk-size finding (1000 characters beat 300). The earlier separate Rust-only
-and notebook-only runs are likewise superseded by the combined directory test above and kept
-under `evals/elpis-memories-crate/` and `evals/notebook/` only as raw evidence.
-
-This is five corpora, one embedding model (`qwen3-embedding:8b`), one point in time — not a
-benchmark against other retrieval tools.
 
 ## Example
 
