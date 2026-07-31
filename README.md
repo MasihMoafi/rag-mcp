@@ -162,9 +162,9 @@ as evidence. Every number below is a real call to `query_knowledge_base` through
 live server (hybrid BM25 + vector + reranking), graded against a known answer — not
 simulated.
 
-![Retrieval accuracy ranked highest success first: a mixed 36-file directory (Rust, Python, and a notebook) at 90.9% full / 100% at least partial, then four single documents from 46.7% to 86.7% full retrieval](assets/retrieval-comparison.svg)
+![Retrieval accuracy: a mixed 36-file directory (Rust, Python, and a notebook) at 90.9% full / 100% at least partial, then four single documents from 46.7% to 86.7% full retrieval](assets/retrieval-comparison.svg)
 
-Ranked by success, not by test type. The top result is a single real directory containing
+The top result is a single real directory containing
 a 29-file Rust crate, 6 Python scripts, and a Jupyter notebook, searched with `doc_path`
 pointed at the whole directory — the server has to find the right file among three
 languages, not just the right passage in one document. The other four are one long
