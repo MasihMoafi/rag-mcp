@@ -3,11 +3,30 @@ name: rag-mcp
 type: local semantic-search MCP server for coding agents and document workflows
 ---
 
-# rag-mcp
+<div align="center">
+
+<img src="assets/retrieval-comparison.svg" alt="rag-mcp retrieval accuracy across five real corpora" width="720">
+
+<br>
+
+[![MCP](https://img.shields.io/badge/protocol-MCP-blue?style=flat-square)](#quick-start)
+[![Local](https://img.shields.io/badge/retrieval-100%25%20local-brightgreen?style=flat-square)](#what-sets-this-apart)
+[![Hybrid search](https://img.shields.io/badge/search-BM25%20%2B%20vector%20%2B%20rerank-orange?style=flat-square)](#how-it-works)
+[![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
 
 **A coding agent should not have to choose between opening files one at a time and dumping an entire repository into context.**
 
-`rag-mcp` is a local hybrid-search MCP server: point it at a file or folder, ask a question, and get back ranked chunks with exact source paths. Embeddings, vector search, and reranking run locally; the server exposes one read-only MCP tool to compatible clients.
+[Install](#quick-start) • [Evals](#retrieval-accuracy) • [How it works](#how-it-works) • [State](#current-state)
+
+</div>
+
+## What is rag-mcp
+
+`rag-mcp` is a local hybrid-search MCP server: point it at a file or folder, ask a question in plain language, and get back the passages that actually answer it — with the exact file and location, not a guess.
+
+Coding agents normally search a codebase by opening files one at a time or dumping an entire repository into the conversation. Both waste time and context. `rag-mcp` replaces that with one tool call: search by meaning, get ranked results with sources, keep going. Embeddings, vector search, and reranking all run locally; the server exposes one read-only MCP tool to compatible clients.
+
+No third-party logo or benchmark — the image above is the actual [retrieval-accuracy evidence](#retrieval-accuracy) this repo ships, not decoration.
 
 ## Retrieval accuracy
 
@@ -15,8 +34,6 @@ Recorded, reproducible retrieval runs live under [`evals/`](evals/) — not part
 as evidence. Every number below is a real call to `query_knowledge_base` through today's
 live server (hybrid BM25 + vector + reranking), graded against a known answer — not
 simulated.
-
-![Retrieval accuracy: a mixed 36-file directory (Rust, Python, and a notebook) at 90.9% full / 100% at least partial, then four single documents from 46.7% to 86.7% full retrieval](assets/retrieval-comparison.svg)
 
 The top result is a single real directory containing
 a 29-file Rust crate, 6 Python scripts, and a Jupyter notebook, searched with `doc_path`
