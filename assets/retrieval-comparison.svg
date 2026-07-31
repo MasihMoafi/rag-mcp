@@ -1,8 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="940" height="480" viewBox="0 0 940 480" role="img" aria-labelledby="title desc">
 <title id="title">Retrieval accuracy across five real corpora, ranked by success</title>
-<desc id="desc">Real runs of the current live rag-mcp server, hybrid BM25 plus vector search plus reranking, one query per question, graded fully retrieved, partial, or missing, ranked highest success first. A mixed 36-file directory of Rust, Python, and a notebook: 90.9 percent full, 100 percent at least partial. Attention paper: 86.7 percent full, 96.7 percent at least partial. Brain and Behavior: 76.7 percent full, 93.3 percent at least partial. Napoleon: 48.3 percent full, 86.2 percent at least partial. Fire and Blood: 46.7 percent full, 80 percent at least partial.</desc>
+<desc id="desc">Real runs of the current live rag-mcp server, hybrid BM25 plus vector search plus reranking, one query per question, graded fully retrieved, partial, or missing. A mixed 36-file directory of Rust, Python, and a notebook: 90.9 percent full, 100 percent at least partial. Attention paper: 86.7 percent full, 96.7 percent at least partial. Brain and Behavior: 76.7 percent full, 93.3 percent at least partial. Napoleon: 48.3 percent full, 86.2 percent at least partial. Fire and Blood: 46.7 percent full, 80 percent at least partial.</desc>
 <rect width="940" height="480" fill="#0b0f14"/>
-<text x="40" y="42" fill="#f5f7fa" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="20" font-weight="700">Retrieval accuracy — ranked highest success first</text>
+<text x="40" y="42" fill="#f5f7fa" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="20" font-weight="700">Retrieval accuracy — five real corpora, one live server</text>
 <text x="40" y="68" fill="#9aa4b2" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13">hybrid BM25 + vector + reranking · source: rag-mcp/evals/*/results.csv</text>
 
 <g font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12">
