@@ -22,15 +22,20 @@ type: local semantic-search MCP server for coding agents and document workflows
 
 ## Quick start
 
+Prerequisites: Python 3.10+ and [`uv`](https://docs.astral.sh/uv/getting-started/installation/).
+
 ```bash
 git clone https://github.com/MasihMoafi/rag-mcp
 cd rag-mcp
-uv sync
+python scripts/bootstrap.py
 ```
 
-Run the automated tests:
+That single command installs dependencies and runs the test suite.
+
+Manual equivalent:
 
 ```bash
+uv sync --group dev
 .venv/bin/python -m pytest tests/ -v
 ```
 
@@ -226,11 +231,10 @@ These are design choices, not novelty claims:
 
 ## Evals and test series
 
-Five lightweight tests live under `tests/`:
+Six lightweight tests live under `tests/`:
 
 ```bash
-uv sync --group dev
-.venv/bin/python -m pytest tests/ -v
+python scripts/bootstrap.py
 ```
 
 They cover:
@@ -239,7 +243,8 @@ They cover:
 - default workspace scoping;
 - explicit `doc_path` scoping;
 - rejection of excluded directories;
-- rejection of depth-limit violations.
+- rejection of depth-limit violations;
+- bootstrap prerequisite checks.
 
 Protocol-level check, without another MCP client:
 
