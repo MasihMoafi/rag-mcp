@@ -148,7 +148,8 @@ def find_all_indexable_files(
         '.rs', '.toml', '.yaml', '.yml', '.py', '.md', '.txt', '.json',
         '.js', '.ts', '.tsx', '.jsx', '.c', '.h', '.cpp', '.hpp',
         '.go', '.sh', '.bash', '.zsh', '.css', '.html', '.sql', '.java',
-        '.kt', '.proto', '.pdf', '.ipynb', '.rst', '.ini', '.cfg', '.conf'
+        '.kt', '.proto', '.pdf', '.ipynb', '.rst', '.ini', '.cfg', '.conf',
+        '.png', '.jpg', '.jpeg', '.webp', '.tiff', '.bmp', '.docx', '.pptx', '.xlsx', '.csv'
     )
     exclude_dirs = {'.git', '__pycache__', 'node_modules', '.venv', 'venv', 'dist', 'build', 'target', '.ipynb_checkpoints', 'migrations', 'rag_db_v2'}
 
@@ -227,7 +228,8 @@ def find_relevant_files(query: str, directory: str, max_files: int = 5) -> list:
         '.rs', '.toml', '.yaml', '.yml', '.py', '.md', '.txt', '.json',
         '.js', '.ts', '.tsx', '.jsx', '.c', '.h', '.cpp', '.hpp',
         '.go', '.sh', '.bash', '.zsh', '.css', '.html', '.sql', '.java',
-        '.kt', '.proto', '.pdf', '.ipynb', '.rst', '.ini', '.cfg', '.conf'
+        '.kt', '.proto', '.pdf', '.ipynb', '.rst', '.ini', '.cfg', '.conf',
+        '.png', '.jpg', '.jpeg', '.webp', '.tiff', '.bmp', '.docx', '.pptx', '.xlsx', '.csv'
     )
     if not query_words:
         all_files = []

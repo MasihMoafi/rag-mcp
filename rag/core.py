@@ -506,10 +506,11 @@ class RAGPipelineV2:
                         '.rs', '.toml', '.yaml', '.yml', '.py', '.md', '.txt', '.json',
                         '.js', '.ts', '.tsx', '.jsx', '.c', '.h', '.cpp', '.hpp',
                         '.go', '.sh', '.bash', '.zsh', '.css', '.html', '.sql', '.java',
-                        '.kt', '.proto', '.pdf', '.ipynb', '.rst', '.ini', '.cfg', '.conf'
+                        '.kt', '.proto', '.pdf', '.ipynb', '.rst', '.ini', '.cfg', '.conf',
+                        '.png', '.jpg', '.jpeg', '.webp', '.tiff', '.bmp', '.docx', '.pptx', '.xlsx', '.csv'
                     )
                     if file.lower().endswith(indexable_exts):
-                        files_to_process.append(file_path)
+                        files_to_process.append(os.path.join(path, file))
             else:
                 files_to_process.append(path)
 
@@ -580,13 +581,54 @@ class RAGPipelineV2:
         self._save_database(all_docs)
         print(f"[RAG V2] Database created with {len(all_docs)} chunks")
 
+    def _extract_text_with_unstructured(self, file_path: str) -> str:
+        """Extract text, tables, and OCR/element descriptions using Unstructured and RapidOCR."""
+        ext = os.path.splitext(file_path)[1].lower()
+        image_exts = {".png", ".jpg", ".jpeg", ".webp", ".tiff", ".bmp"}
+
+        # For standalone image files, run RapidOCR directly
+        if ext in image_exts:
+            try:
+                from rapidocr_onnxruntime import RapidOCR
+                engine = RapidOCR()
+                result, _ = engine(file_path)
+                if result:
+                    return "\n".join([line[1] for line in result])
+            except Exception as e:
+                print(f"[OCR] Warning: RapidOCR failed for {file_path}: {e}")
+
+        try:
+            from unstructured.partition.auto import partition
+            elements = partition(filename=file_path)
+            parts = []
+            for el in elements:
+                text = str(el).strip()
+                if text:
+                    page_num = getattr(getattr(el, 'metadata', None), 'page_number', None)
+                    page_prefix = f"[Page {page_num}] " if page_num else ""
+                    parts.append(f"{page_prefix}{text}")
+            res = "\n\n".join(parts)
+            if res:
+                return res
+        except Exception as e:
+            print(f"[Unstructured] Warning: extraction failed for {file_path}: {e}")
+
+        return ""
+
     def _extract_content(self, file_path: str) -> str:
-        """Extract content from various file types"""
-        if file_path.lower().endswith(".pdf"):
-            return self._extract_text_from_pdf(file_path)
-        elif file_path.lower().endswith(".json"):
+        """Extract content from various file types, using Unstructured for images and complex docs."""
+        ext = os.path.splitext(file_path)[1].lower()
+        unstructured_exts = {".png", ".jpg", ".jpeg", ".webp", ".tiff", ".bmp", ".docx", ".pptx", ".xlsx", ".csv"}
+        if ext in unstructured_exts:
+            return self._extract_text_with_unstructured(file_path)
+        elif ext == ".pdf":
+            text = self._extract_text_from_pdf(file_path)
+            if not text or len(text.strip()) < 50:
+                text = self._extract_text_with_unstructured(file_path)
+            return text
+        elif ext == ".json":
             return self._extract_text_from_json(file_path)
-        elif file_path.lower().endswith(".ipynb"):
+        elif ext == ".ipynb":
             return self._extract_text_from_notebook(file_path)
         else:
             try:
