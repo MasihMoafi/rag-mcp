@@ -202,6 +202,8 @@ RAG_MCP_EMBED_MODEL = "qwen3-embedding:8b"
 - Workspace-root and explicit `doc_path` scoping.
 - Local hybrid retrieval and reranking.
 - Guardrails for excluded directories and oversized scopes.
+- Text extraction for PDF and Jupyter notebooks, plus local OCR for common image
+  formats and structured extraction for DOCX, PPTX, XLSX, and CSV files.
 - End-to-end registration was exercised through a real MCP client during development.
 
 ### Implemented but not yet covered by the current tests
@@ -231,7 +233,7 @@ These are design choices, not novelty claims:
 
 ## Evals and test series
 
-Six lightweight tests live under `tests/`:
+The test suite lives under `tests/`:
 
 ```bash
 python scripts/bootstrap.py
@@ -244,7 +246,9 @@ They cover:
 - explicit `doc_path` scoping;
 - rejection of excluded directories;
 - rejection of depth-limit violations;
-- bootstrap prerequisite checks.
+- bootstrap prerequisite checks;
+- extraction from DOCX, PPTX, XLSX, and CSV files;
+- local OCR extraction from a generated image fixture.
 
 Protocol-level check, without another MCP client:
 

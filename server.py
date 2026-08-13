@@ -39,6 +39,7 @@ _INDEXABLE_EXTENSIONS = {
     ".js", ".ts", ".tsx", ".jsx", ".c", ".h", ".cpp", ".hpp",
     ".go", ".sh", ".bash", ".zsh", ".css", ".html", ".sql", ".java",
     ".kt", ".proto", ".pdf", ".ipynb", ".rst", ".ini", ".cfg", ".conf",
+    ".png", ".jpg", ".jpeg", ".webp", ".tiff", ".bmp", ".docx", ".pptx", ".xlsx", ".csv",
 }
 _UNSAFE_PATH_COMPONENTS = {"node_modules", ".git", ".venv", "venv", "dist", "build", "target", "__pycache__", "rag_db_v2"}
 _DEFAULT_MAX_DEPTH = 20
