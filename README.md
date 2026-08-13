@@ -5,7 +5,7 @@ type: local semantic-search MCP server for coding agents and document workflows
 
 <div align="center">
 
-<img src="assets/retrieval-hero.svg" alt="rag-mcp retrieval accuracy: two best of five real corpora" width="720">
+<img src="assets/retrieval-hero.svg" alt="rag-mcp retrieval reliability: two best of six recorded corpora" width="720">
 
 <br>
 
@@ -72,25 +72,24 @@ No third-party logo or benchmark — the image above is the actual [retrieval-ac
 
 ## Retrieval accuracy
 
-![Retrieval accuracy across five real corpora: a mixed 36-file directory (Rust, Python, and a notebook) at 90.9% full / 100% at least partial, then four single documents from 46.7% to 86.7% full retrieval](assets/retrieval-comparison.svg)
+![Retrieval reliability across six recorded corpora, showing exact full-answer and full-or-partial rates](assets/retrieval-comparison.svg)
 
 Recorded, reproducible retrieval runs live under [`evals/`](evals/) — not part of CI, kept
-as evidence. Every number below is a real call to `query_knowledge_base` through today's
-live server (hybrid BM25 + vector + reranking), graded against a known answer — not
-simulated.
+as evidence. Every point in the chart is a question-level grade from a recorded
+`query_knowledge_base` run, graded against a known answer — not simulated.
 
 The top result is a single real directory containing
 a 29-file Rust crate, 6 Python scripts, and a Jupyter notebook, searched with `doc_path`
 pointed at the whole directory — the server has to find the right file among three
-languages, not just the right passage in one document. The other four are one long
-document each (a paper, two books, a novel), same protocol, directly comparable to each
-other but not to the directory test above them.
+languages, not just the right passage in one document. The other five rows are
+single-document or project-scoped runs: a notebook, two books, a paper, a novel, and
+the rag-mcp codebase itself.
 
-No setting was changed between rows — same chunk size, `top_k`, and reranker throughout.
-Code and the short, explicitly-structured paper score highest because each fact sits in
-one place a chunk boundary can respect; the two long narrative works score lower because
-their answers are interpretive and spread across passages, which chunk-based retrieval
-handles worse regardless of tuning. Nothing here was tuned per corpus.
+The chart reports exact full answers separately from answers that were full or partial.
+The codebase and structured-document rows are easier to retrieve exactly; the long
+narrative rows contain more interpretive answers spread across passages, which makes
+chunk-based retrieval less reliable. This is a description of these recorded runs, not
+a claim about every corpus or a benchmark against other retrieval tools.
 
 [Per-question results for every corpus](evals/) — including where each miss actually failed
 (vague topical overlap, a truncated chunk, or the fact genuinely absent from top-k).
@@ -102,8 +101,8 @@ only for its chunk-size finding (1000 characters beat 300). The earlier separate
 and notebook-only runs are likewise superseded by the combined directory test above and kept
 under `evals/elpis-memories-crate/` and `evals/notebook/` only as raw evidence.
 
-This is five corpora, one embedding model (`qwen3-embedding:8b`), one point in time — not a
-benchmark against other retrieval tools.
+This is six recorded corpora at one point in time — not a benchmark against other
+retrieval tools.
 
 ## The problem
 
