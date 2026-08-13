@@ -1,62 +1,99 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="940" height="480" viewBox="0 0 940 480" role="img" aria-labelledby="title desc">
-<title id="title">Retrieval accuracy across five real corpora, ranked by success</title>
-<desc id="desc">Real runs of the current live rag-mcp server, hybrid BM25 plus vector search plus reranking, one query per question, graded fully retrieved, partial, or missing. A mixed 36-file directory of Rust, Python, and a notebook: 90.9 percent full, 100 percent at least partial. Attention paper: 86.7 percent full, 96.7 percent at least partial. Brain and Behavior: 76.7 percent full, 93.3 percent at least partial. Napoleon: 48.3 percent full, 86.2 percent at least partial. Fire and Blood: 46.7 percent full, 80 percent at least partial.</desc>
-<rect width="940" height="480" fill="#0b0f14"/>
-<text x="40" y="42" fill="#f5f7fa" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="20" font-weight="700">Retrieval accuracy</text>
-<text x="40" y="68" fill="#9aa4b2" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13">hybrid BM25 + vector + reranking · source: rag-mcp/evals/*/results.csv</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="560" viewBox="0 0 1100 560" role="img" aria-labelledby="title desc">
+<title id="title">Retrieval reliability across six recorded corpora</title>
+<desc id="desc">Query-level grades from rag-mcp evaluation result files. Each row shows the percentage of questions with a full answer and the percentage with either a full or partial answer. Mixed codebase: 90.9 percent full and 100 percent full or partial. Notebook: 100 percent and 100 percent. Attention paper: 86.7 percent and 96.7 percent. Brain and Behavior: 76.7 percent and 93.3 percent. Fire and Blood: 46.7 percent and 80 percent. rag-mcp codebase: 80 percent and 93.3 percent.</desc>
+<rect width="1100" height="560" fill="#0b0f14"/>
+<text x="44" y="44" fill="#f5f7fa" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="24" font-weight="700">Retrieval reliability</text>
+<text x="44" y="72" fill="#9aa4b2" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13">exact full answer vs. full + partial · six recorded corpora</text>
 
 <g font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12">
-  <rect x="560" y="80" width="14" height="14" rx="3" fill="#22d3ee"/>
-  <text x="580" y="91" fill="#c8d0da">fully retrieved</text>
-  <rect x="710" y="80" width="14" height="14" rx="3" fill="#a78bfa"/>
-  <text x="730" y="91" fill="#c8d0da">partial</text>
-  <rect x="810" y="80" width="14" height="14" rx="3" fill="#ef4444"/>
-  <text x="830" y="91" fill="#c8d0da">missing</text>
+  <circle cx="808" cy="43" r="6" fill="#22d3ee"/>
+  <text x="822" y="47" fill="#c8d0da">full answer</text>
+  <circle cx="944" cy="43" r="6" fill="#a78bfa"/>
+  <text x="958" y="47" fill="#c8d0da">full + partial</text>
 </g>
 
-<text x="40" y="108" fill="#748091" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11" letter-spacing="1">MIXED DIRECTORY — code + docs, directory-scoped (different shape of test)</text>
-<g font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13">
-  <text x="60" y="128" fill="#c8d0da">Rust + Python + notebook, one 36-file directory</text>
-  <text x="900" y="128" fill="#f5f7fa" text-anchor="end" font-weight="700">30/33 full · 100% not missing</text>
-  <rect x="60.0" y="134" width="636.4" height="24" rx="4" fill="#22d3ee"/>
-  <rect x="698.4" y="134" width="63.6" height="24" rx="4" fill="#a78bfa"/>
+<g font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12" fill="#748091">
+  <text x="300" y="116" text-anchor="middle">0%</text>
+  <text x="650" y="116" text-anchor="middle">50%</text>
+  <text x="1000" y="116" text-anchor="middle">100%</text>
+  <text x="650" y="142" text-anchor="middle" fill="#9aa4b2">questions answered (%)</text>
 </g>
 
-<line x1="40" y1="172" x2="900" y2="172" stroke="#232b35"/>
-<text x="40" y="194" fill="#748091" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11" letter-spacing="1">SINGLE DOCUMENT — same protocol, directly comparable to each other</text>
-
-<line x1="60" y1="204" x2="60" y2="394" stroke="#232b35"/>
-<line x1="440" y1="204" x2="440" y2="394" stroke="#232b35"/>
-<line x1="820" y1="204" x2="820" y2="394" stroke="#232b35"/>
-
-<g font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13">
-  <text x="60" y="206" fill="#c8d0da">Attention (paper)</text>
-  <text x="900" y="206" fill="#f5f7fa" text-anchor="end" font-weight="700">26/30 full · 96.7% not missing</text>
-  <rect x="60.0" y="212" width="606.7" height="24" rx="4" fill="#22d3ee"/>
-  <rect x="668.7" y="212" width="70.0" height="24" rx="4" fill="#a78bfa"/>
-  <rect x="740.7" y="212" width="23.3" height="24" rx="4" fill="#ef4444"/>
-
-  <text x="60" y="260" fill="#c8d0da">Brain &amp; Behavior (book)</text>
-  <text x="900" y="260" fill="#f5f7fa" text-anchor="end" font-weight="700">23/30 full · 93.3% not missing</text>
-  <rect x="60.0" y="266" width="536.7" height="24" rx="4" fill="#22d3ee"/>
-  <rect x="598.7" y="266" width="116.7" height="24" rx="4" fill="#a78bfa"/>
-  <rect x="717.3" y="266" width="46.7" height="24" rx="4" fill="#ef4444"/>
-
-  <text x="60" y="314" fill="#c8d0da">Napoleon (book)</text>
-  <text x="900" y="314" fill="#f5f7fa" text-anchor="end" font-weight="700">14/29 full · 86.2% not missing</text>
-  <rect x="60.0" y="320" width="337.9" height="24" rx="4" fill="#22d3ee"/>
-  <rect x="399.9" y="320" width="265.5" height="24" rx="4" fill="#a78bfa"/>
-  <rect x="667.4" y="320" width="96.6" height="24" rx="4" fill="#ef4444"/>
-
-  <text x="60" y="368" fill="#c8d0da">Fire &amp; Blood (novel)</text>
-  <text x="900" y="368" fill="#f5f7fa" text-anchor="end" font-weight="700">14/30 full · 80.0% not missing</text>
-  <rect x="60.0" y="374" width="326.7" height="24" rx="4" fill="#22d3ee"/>
-  <rect x="388.7" y="374" width="233.3" height="24" rx="4" fill="#a78bfa"/>
-  <rect x="624.0" y="374" width="140.0" height="24" rx="4" fill="#ef4444"/>
+<g stroke="#232b35" stroke-width="1">
+  <line x1="300" y1="128" x2="300" y2="454"/>
+  <line x1="650" y1="128" x2="650" y2="454"/>
+  <line x1="1000" y1="128" x2="1000" y2="454"/>
+  <line x1="300" y1="170" x2="1000" y2="170"/>
+  <line x1="300" y1="222" x2="1000" y2="222"/>
+  <line x1="300" y1="274" x2="1000" y2="274"/>
+  <line x1="300" y1="326" x2="1000" y2="326"/>
+  <line x1="300" y1="378" x2="1000" y2="378"/>
+  <line x1="300" y1="430" x2="1000" y2="430"/>
 </g>
 
-<line x1="40" y1="404" x2="900" y2="404" stroke="#232b35"/>
-<text x="40" y="424" fill="#748091" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11">No settings changed between rows — same chunk size, same top_k, same reranker for all five. Code and the short,</text>
-<text x="40" y="440" fill="#748091" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11">structured paper concentrate each fact in one place; long narrative prose spreads interpretive answers across</text>
-<text x="40" y="456" fill="#748091" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11">passages, which hurts chunk-based retrieval regardless of tuning. See results.csv for the per-question detail.</text>
+<g font-family="ui-monospace, SFMono-Regular, Menlo, monospace">
+  <g fill="#e8ecf1" font-size="14">
+    <text x="44" y="166" font-weight="700">Mixed codebase</text>
+    <text x="44" y="182" fill="#748091" font-size="11">33 questions · Rust + Python + notebook</text>
+    <text x="44" y="218" font-weight="700">Notebook</text>
+    <text x="44" y="234" fill="#748091" font-size="11">10 questions · structured setup</text>
+    <text x="44" y="270" font-weight="700">Attention paper</text>
+    <text x="44" y="286" fill="#748091" font-size="11">30 questions · technical paper</text>
+    <text x="44" y="322" font-weight="700">Brain &amp; Behavior</text>
+    <text x="44" y="338" fill="#748091" font-size="11">30 questions · book-length text</text>
+    <text x="44" y="374" font-weight="700">rag-mcp codebase</text>
+    <text x="44" y="390" fill="#748091" font-size="11">15 questions · local source tree</text>
+    <text x="44" y="426" font-weight="700">Fire &amp; Blood</text>
+    <text x="44" y="442" fill="#748091" font-size="11">30 questions · narrative fiction</text>
+  </g>
+
+  <g stroke="#394452" stroke-width="3">
+    <line x1="936.3" y1="170" x2="1000" y2="170"/>
+    <line x1="1000" y1="222" x2="1000" y2="222"/>
+    <line x1="906.9" y1="274" x2="976.9" y2="274"/>
+    <line x1="836.9" y1="326" x2="953.1" y2="326"/>
+    <line x1="860" y1="378" x2="953.1" y2="378"/>
+    <line x1="626.9" y1="430" x2="860" y2="430"/>
+  </g>
+
+  <g fill="#22d3ee">
+    <circle cx="936.3" cy="170" r="7"/>
+    <circle cx="1000" cy="222" r="7"/>
+    <circle cx="906.9" cy="274" r="7"/>
+    <circle cx="836.9" cy="326" r="7"/>
+    <circle cx="860" cy="378" r="7"/>
+    <circle cx="626.9" cy="430" r="7"/>
+  </g>
+
+  <g fill="#a78bfa">
+    <circle cx="1000" cy="170" r="7"/>
+    <circle cx="1000" cy="222" r="7"/>
+    <circle cx="976.9" cy="274" r="7"/>
+    <circle cx="953.1" cy="326" r="7"/>
+    <circle cx="953.1" cy="378" r="7"/>
+    <circle cx="860" cy="430" r="7"/>
+  </g>
+
+  <g fill="#f5f7fa" font-size="12" font-weight="700">
+    <text x="948" y="158">90.9%</text>
+    <text x="948" y="210">100%</text>
+    <text x="918" y="262">86.7%</text>
+    <text x="848" y="314">76.7%</text>
+    <text x="871" y="366">80%</text>
+    <text x="638" y="418">46.7%</text>
+  </g>
+
+  <g fill="#c8d0da" font-size="12">
+    <text x="1000" y="186" text-anchor="end">100%</text>
+    <text x="1000" y="238" text-anchor="end">100%</text>
+    <text x="976.9" y="290">96.7%</text>
+    <text x="953.1" y="342">93.3%</text>
+    <text x="953.1" y="394">93.3%</text>
+    <text x="860" y="446">80%</text>
+  </g>
+</g>
+
+<line x1="44" y1="480" x2="1056" y2="480" stroke="#232b35"/>
+<text x="44" y="506" fill="#9aa4b2" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12">Recorded query-level grades from evals/*/results.csv.</text>
+<text x="44" y="526" fill="#748091" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11">The rows show retrieval evidence across different corpora, not a benchmark against other tools.</text>
 </svg>

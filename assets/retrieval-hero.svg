@@ -1,9 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="940" height="210" viewBox="0 0 940 210" role="img" aria-labelledby="title desc">
-<title id="title">Retrieval accuracy — the two best of five real corpora</title>
-<desc id="desc">Real runs of the live rag-mcp server. A mixed 36-file code and docs directory: 90.9 percent fully retrieved, 100 percent at least partial. The Attention paper: 86.7 percent fully retrieved, 96.7 percent at least partial. Full five-corpus results are further down in the readme.</desc>
+<title id="title">Retrieval reliability — the two best of six recorded corpora</title>
+<desc id="desc">Recorded runs of the live rag-mcp server. A mixed 36-file code and docs directory: 90.9 percent fully retrieved, 100 percent at least partial. The Attention paper: 86.7 percent fully retrieved, 96.7 percent at least partial. Full six-corpus results are further down in the readme.</desc>
 <rect width="940" height="210" fill="#0b0f14"/>
-<text x="40" y="34" fill="#f5f7fa" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="18" font-weight="700">Retrieval accuracy</text>
-<text x="40" y="54" fill="#9aa4b2" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11">two best of five real corpora · full results below</text>
+<text x="40" y="34" fill="#f5f7fa" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="18" font-weight="700">Retrieval reliability</text>
+<text x="40" y="54" fill="#9aa4b2" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11">two best of six recorded corpora · full results below</text>
 
 <g font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11">
   <rect x="600" y="26" width="12" height="12" rx="3" fill="#22d3ee"/>
