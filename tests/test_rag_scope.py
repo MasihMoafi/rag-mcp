@@ -68,3 +68,55 @@ def test_depth_limit_has_clear_recovery() -> None:
 
     assert "configured 1-folder depth limit" in output
     assert "RAG_MCP_MAX_DEPTH" in output
+
+
+def test_repeated_scope_queries_reuse_manifest_and_invalidate_on_change() -> None:
+    original_import = server.importlib.import_module
+    original_walk = server.os.walk
+    captured = []
+    walk_count = 0
+
+    def counting_walk(*args, **kwargs):
+        nonlocal walk_count
+        walk_count += 1
+        return original_walk(*args, **kwargs)
+
+    try:
+        with tempfile.TemporaryDirectory() as directory:
+            scope = Path(directory)
+            first_file = scope / "first.md"
+            first_file.write_text("first document\n", encoding="utf-8")
+            server._validated_scope_cache.clear()
+            server.os.walk = counting_walk
+            server.importlib.import_module = lambda _name: types.SimpleNamespace(
+                fetchExternalKnowledge=lambda **kwargs: captured.append(kwargs) or "ok"
+            )
+
+            assert json.loads(server.query_knowledge_base("find context", directory)) == {
+                "result": "ok"
+            }
+            assert json.loads(server.query_knowledge_base("find context", directory)) == {
+                "result": "ok"
+            }
+            assert walk_count == 1
+            assert captured[0]["doc_path"] == captured[1]["doc_path"]
+            assert captured[0]["doc_path"] == [str(first_file)]
+
+            second_file = scope / "second.md"
+            second_file.write_text("second document\n", encoding="utf-8")
+            assert json.loads(server.query_knowledge_base("find context", directory)) == {
+                "result": "ok"
+            }
+            assert walk_count == 2
+            assert captured[2]["doc_path"] == [str(first_file), str(second_file)]
+
+            first_file.write_text("updated document\n", encoding="utf-8")
+            assert json.loads(server.query_knowledge_base("find context", directory)) == {
+                "result": "ok"
+            }
+            assert walk_count == 3
+            assert captured[3]["doc_path"] == [str(first_file), str(second_file)]
+    finally:
+        server.importlib.import_module = original_import
+        server.os.walk = original_walk
+        server._validated_scope_cache.clear()

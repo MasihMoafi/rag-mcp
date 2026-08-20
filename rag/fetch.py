@@ -261,15 +261,21 @@ def find_relevant_files(query: str, directory: str, max_files: int = 5) -> list:
 
 def fetchExternalKnowledgeV2(
     query: str,
-    doc_path: Optional[str] = None,
+    doc_path: Optional[str | list[str]] = None,
     exclude_global_archive: bool = False,
 ) -> str:
     try:
         if not isinstance(query, str) or not query:
             return "Error: Invalid or empty query provided."
 
-        # If custom path provided, find all indexable files
-        if doc_path:
+        # The MCP host may pass a validated manifest so a directory is not
+        # recursively enumerated a second time in the same process.
+        if isinstance(doc_path, list):
+            all_files = doc_path
+            if not all_files:
+                return "No indexable files found in provided scope"
+            doc_path = all_files
+        elif doc_path:
             resolved_path = resolve_path(doc_path)
             if not os.path.exists(resolved_path):
                 return f"Error: Path does not exist: {resolved_path}"
@@ -304,7 +310,7 @@ def fetchExternalKnowledgeV2(
 # For compatibility with a unified interface
 def fetchExternalKnowledge(
     query: str,
-    doc_path: Optional[str] = None,
+    doc_path: Optional[str | list[str]] = None,
     exclude_global_archive: bool = False,
 ) -> str:
     return fetchExternalKnowledgeV2(query, doc_path=doc_path, exclude_global_archive=exclude_global_archive)
