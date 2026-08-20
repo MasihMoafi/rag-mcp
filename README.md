@@ -186,9 +186,16 @@ default shown:
 | `RAG_MCP_MAX_DEPTH` | `20` | directory-scan depth limit |
 | `RAG_MCP_MAX_TOKENS` | `2000000` | directory-scan size limit |
 
-The shipped defaults are the small, fast pair (~80MB each) the evals above were run
-against — not the largest model available, and 100% local: no key, no network call,
-no per-query cost.
+The shipped defaults use the lightweight, fast pair (`all-MiniLM-L6-v2` + `ms-marco-MiniLM-L-6-v2`, ~80MB each) for instant zero-dependency local operation out of the box.
+
+To run the higher-capacity pipeline evaluated in the benchmark suite above, switch to Ollama Qwen embeddings:
+
+```toml
+[mcp_servers.rag.env]
+RAG_MCP_WORKSPACE_ROOT = "/absolute/path/to/your/project"
+RAG_MCP_EMBED_PROVIDER = "ollama"
+RAG_MCP_EMBED_MODEL = "qwen3-embedding:8b"
+```
 
 `openai_compatible` is the one non-local option: it leaves the machine. One client
 implementation covers real OpenAI, Ollama's own `/v1` endpoint, and Qwen/DashScope's and
@@ -200,16 +207,6 @@ verified; a real embedding call against a paid provider is not — test it again
 key before trusting it. A cross-encoder reranker type named `llm` also exists in the code
 but its scoring is unimplemented scaffolding (every passage gets the same score) — do not
 set it, it does nothing useful.
-
-Swapping any of this is an environment variable in the server's MCP registration, no code
-change. Example, in `~/.codex/config.toml`:
-
-```toml
-[mcp_servers.rag.env]
-RAG_MCP_WORKSPACE_ROOT = "/absolute/path/to/your/project"
-RAG_MCP_EMBED_PROVIDER = "ollama"
-RAG_MCP_EMBED_MODEL = "qwen3-embedding:8b"
-```
 
 ## Current state
 
