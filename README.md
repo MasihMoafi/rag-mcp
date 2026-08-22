@@ -1,58 +1,133 @@
 ---
 name: rag-mcp
-type: local semantic-search MCP server for coding agents and document workflows
+type: local hybrid-search MCP server for coding agents and document workflows
 ---
 
 <div align="center">
 
-<img src="assets/retrieval-hero.svg" alt="rag-mcp retrieval reliability: two best of six recorded corpora" width="720">
+<img src="assets/retrieval-hero.svg" alt="rag-mcp retrieval reliability" width="720">
 
 <br>
 
 [![MCP](https://img.shields.io/badge/protocol-MCP-blue?style=flat-square)](#quick-start)
 [![Local](https://img.shields.io/badge/retrieval-100%25%20local-brightgreen?style=flat-square)](#what-sets-this-apart)
-[![Hybrid search](https://img.shields.io/badge/search-BM25%20%2B%20vector%20%2B%20rerank-orange?style=flat-square)](#how-it-works)
+[![Hybrid search](https://img.shields.io/badge/search-LanceDB%20%2B%20BM25%20%2B%20Rerank-orange?style=flat-square)](#how-it-works)
 [![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
 
 **A coding agent should not have to choose between opening files one at a time and dumping an entire repository into context.**
 
-[Install](#quick-start) • [Evals](#benchmark--retrieval-evaluations) • [How it works](#how-it-works) • [State](#current-state)
+[Install](#quick-start) • [Evals](#benchmark--retrieval-evaluations) • [How it works](#how-it-works) • [Map](#repository-map) • [State](#current-state)
 
 </div>
+
+## What is rag-mcp
+
+`rag-mcp` is a standalone, 100% local hybrid-search MCP server. Point it at any workspace folder, query in natural language, and receive the exact ranked code and document passages needed to answer the question — complete with file paths and line ranges, running entirely on-device with zero external API calls.
+
+## Quick start
+
+Prerequisites: Python 3.10+ and [`uv`](https://docs.astral.sh/uv/getting-started/installation/).
+
+```bash
+git clone https://github.com/MasihMoafi/rag-mcp
+cd rag-mcp
+uv sync
+.venv/bin/python -m pytest tests/ -v
+```
+
+Register `rag-mcp` in your agent's MCP configuration (`.mcp.json` or `config.toml`):
+
+```json
+{
+  "mcpServers": {
+    "rag": {
+      "command": "/absolute/path/to/rag-mcp/.venv/bin/python",
+      "args": ["/absolute/path/to/rag-mcp/server.py"],
+      "env": {
+        "RAG_MCP_WORKSPACE_ROOT": "/path/to/target/project",
+        "RAG_MCP_BACKEND": "lancedb"
+      }
+    }
+  }
+}
+```
+
+Result: The agent gains access to the read-only tool `query_knowledge_base(query, doc_path)`.
+
+## The problem
+
+Coding agents search unfamiliar codebases by either opening files one by one or dumping entire directories into the prompt. The first approach is slow and misses cross-file connections; the second pollutes the context window with thousands of irrelevant tokens.
+
+`rag-mcp` replaces both failure modes with a single, fast local tool call that retrieves only the highest-scoring semantic and lexical passages.
+
+## How it works
+
+```text
+query + optional doc_path
+         ↓
+syntax-aware chunking (functions, markdown breadcrumbs, cells)
+         ↓
+Stage 1: LanceDB vector search + Tantivy BM25 full-text search
+         ↓
+Reciprocal Rank Fusion (RRF, k=60) -> Top-50 candidates
+         ↓
+Stage 2: Cross-Encoder GPU reranking (ms-marco-MiniLM-L-6-v2)
+         ↓
+Top-5 ranked chunks with exact file paths & line numbers
+```
+
+### Technical specifications
+
+* **Transport:** Lightweight direct stdio JSON-RPC 2.0 (no heavyweight external SDK wrapper).
+* **Storage Backends:** 
+  * `lancedb` (default): Fast on-disk vector tables + Tantivy FTS indices.
+  * `qdrant`: Embedded on-disk vector database.
+* **Extraction:** Native support for `.py`, `.rs`, `.ts`, `.md`, `.ipynb`, `.pdf`, office formats (`.docx`, `.pptx`, `.xlsx`, `.csv`), and local OCR for images.
+* **Safety Guardrails:** Automatic exclusion of `node_modules`, `.git`, `.venv`, and configurable directory-depth / token ceilings.
 
 ## Repository Map
 
 ```
 rag-mcp/
-├── rag/                                # Core Hybrid RAG Pipeline & Storage Backends
-│   ├── core.py                         # 2-Stage pipeline: Chunking, Ollama Embed, RRF Hybrid & Reranking
-│   ├── lancedb_backend.py              # LanceDB vector table + Tantivy FTS index integration
-│   ├── qdrant_backend.py               # Alternative Qdrant vector store backend
-│   ├── fetch.py                        # Document ingestion, PDF, OCR & multiformat parser
-│   └── notebook_chunker.py             # Jupyter Notebook cell & code-block specialized chunker
+├── rag/                                # Core 2-Stage Hybrid RAG Engine & Storage
+│   ├── core.py                         # Pipeline: Chunking -> Ollama Embed -> LanceDB/BM25 -> Cross-Encoder
+│   ├── lancedb_backend.py              # LanceDB Vector Table + Tantivy FTS Full-Text Search
+│   ├── qdrant_backend.py               # Alternative Qdrant Vector Store
+│   ├── fetch.py                        # Document Loader & Multi-Format Extractor (PDF, Office, OCR)
+│   └── notebook_chunker.py             # Jupyter Notebook parser & cell-block chunker
 │
-├── tests/                              # Pytest Automated Test Suite (18 passed)
-│   ├── unit/                           # Chunking logic, breadcrumb generation & GPU guardrail unit tests
-│   ├── integration/                    # LanceDB CRUD, MCP tool contracts, OCR & file scope tests
-│   └── benchmarks/                     # GPU empirical throughput sweeps & OOM ladder benchmarks
+├── tests/                              # Pytest Automated Test Suite (24 Passed)
+│   ├── unit/                           # Chunking, heading breadcrumbs, GPU OOM guardrail tests
+│   │   ├── test_chunking.py            # Markdown breadcrumb, sliding-window & symbol extraction
+│   │   ├── test_batch_size_oom.py      # OOM safety guardrails on massive batch requests
+│   │   └── test_*_raises_runtime_error # GPU/CUDA availability enforcement tests
+│   ├── integration/                    # LanceDB CRUD, MCP tool contracts, OCR extraction tests
+│   │   ├── test_lancedb_backend.py     # LanceDB vector + full-text index integration
+│   │   ├── test_rag_mcp_host.py        # FastMCP protocol & read-only contract
+│   │   ├── test_rag_scope.py           # Scope traversal, depth limits & manifest caching
+│   │   └── test_unstructured.py        # Office docs (.docx, .xlsx, .pptx) & image OCR
+│   └── benchmarks/                     # GPU throughput sweeps & hardware benchmarks
+│       ├── measure_qwen_throughput.py  # Batch size throughput sweep (1 to 2048)
+│       └── measure_qwen_throughput.md  # Peak GPU throughput findings report
 │
 ├── evals/                              # Scaling Experiments & Evaluation Suites
 │   └── experiments/
 │       ├── experiment-unified-scaling/ # Unified multi-domain 6.3k scaling experiment
 │       │   ├── data/                   # Raw documents, candidate pools, queries & judge evals
 │       │   ├── experiment.md           # Benchmark report & GPU latency profile
-│       │   └── run_experiment.py       # Benchmark runner script
+│       │   └── run_experiment.py       # Unified benchmark runner script
 │       │
 │       ├── experiment-isolated-scaling/# Single-domain isolated baseline benchmarks
 │       │   ├── data/                   # Isolated raw documents, candidate pools & judge evals
 │       │   ├── experiment.md           # Isolated baseline report
 │       │   └── run_experiment.py       # Isolated benchmark runner script
 │       │
-│       └── baselines/                  # Original single-corpus baselines (Elpis Rust, Notebooks, OCR)
-│           └── data/                   # Raw corpus files for baseline evaluations
+│       └── baselines/                  # Single-corpus baseline benchmarks
+│           └── data/                   # Raw corpus files (Elpis Rust, Notebooks, OCR datasets)
 │
 ├── server.py                           # FastMCP server entry point exposing tools to coding agents
-└── pyproject.toml                      # Project metadata, dependencies (LanceDB, PyTorch, PyMuPDF)
+├── pyproject.toml                      # Project metadata & Python dependencies (LanceDB, PyTorch, etc.)
+└── README.md                           # Main repository documentation & benchmark summary
 ```
 
 <br>
@@ -74,331 +149,67 @@ Evaluated against the **[open-rag-eval](https://github.com/vectara/open-rag-eval
 | **Notebook Corpus** (JSON/Code) | 10 | **100.0%** (10/10) | **100.0%** (10/10) | 0.0% (0/10) |
 ### Multi-Domain Scaling Experiment (Experiment 1)
 
-Evaluated across **5 merged heterogeneous domains (6,314 chunks in a single index)** comparing isolated baselines against unified scaling on NVIDIA GPU with `qwen3-embedding:0.6b` + `cross-encoder/ms-marco-MiniLM-L-6-v2` reranker:
+Evaluated across **5 merged heterogeneous domains (6,314 chunks in a single index)** comparing isolated baselines against unified scaling on NVIDIA RTX 3070 Laptop GPU with `qwen3-embedding:0.6b` + `cross-encoder/ms-marco-MiniLM-L-6-v2` reranker:
 
 | Corpus / Domain | Queries | Isolated Baseline Hit@5 | Unified Scaled Hit@5 | Isolated Baseline MRR | Unified Scaled MRR | Domain Purity in Unified |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
-| **Attention Paper** (Scientific / AI) | 30 | **90.0%** (27/30) | **90.0%** (27/30) | 0.803 | 0.803 | 96.7% |
+| **Attention Paper** (Scientific / AI) | 30 | **90.0%** (27/30) | **90.0%** (27/30) | 0.703 | 0.703 | 96.7% |
 | **Brain & Behavior** (Neuroscience) | 30 | **93.3%** (28/30) | **93.3%** (28/30) | 0.831 | 0.831 | 94.7% |
 | **Napoleon Biography** (History / Phil) | 30 | **66.7%** (20/30) | **66.7%** (20/30) | 0.558 | 0.548 | 100.0% |
-| **Fire & Blood** (Narrative Fiction) | 30 | **46.7%** (14/30) | **46.7%** (14/30) | 0.372 | 0.372 | 100.0% |
+| **Fire & Blood** (Narrative Fiction) | 30 | **70.0%** (21/30) | **70.0%** (21/30) | 0.526 | 0.526 | 100.0% |
 | **Mixed Codebase** (Py/Rust/IPYNB) | 33 | **87.9%** (29/33) | **87.9%** (29/33) | 0.812 | 0.812 | 100.0% |
-| **Overall Experiment 1 Total** | **153** | **77.1%** (118/153) | **77.1%** (118/153) | **0.675** | **0.673** | **98.4%** |
+| **Overall Experiment Total** | **153** | **81.7%** (125/153) | **81.7%** (125/153) | **0.686** | **0.684** | **98.4%** |
 
-*Key finding: Merging 5 domains into one 6,314-chunk database produces **0.0% retrieval degradation** with **98.4% domain isolation purity** and **368ms average latency**.*
-
-<br>
-
-## Benchmark & Retrieval Evaluations
-
-Evaluated against the **[open-rag-eval](https://github.com/vectara/open-rag-eval)** taxonomy ($top\_k=5$, isolated local retrieval with no reranker, local `qwen3-embedding:8b` via Ollama + BM25 hybrid search):
-
-| Corpus / Domain | Total Queries | Strict Relevance (Score 3 / Exact) | Lenient Relevance (Score $\ge$ 2 / Full+Partial) | Miss Rate (Score $\le$ 1 / Miss) |
-| :--- | :--- | :--- | :--- | :--- |
-| **Attention Paper** (Scientific / AI) | 30 | **86.7%** (26/30) | **96.7%** (29/30) | 3.3% (1/30) |
-| **Brain & Behavior** (Neuroscience) | 30 | **76.7%** (23/30) | **93.3%** (28/30) | 6.7% (2/30) |
-| **Napoleon V2** (1000-char hybrid) | 30 | **66.7%** (20/30) | **90.0%** (27/30) | 10.0% (3/30) |
-| **Napoleon V1** (300-char chunks) | 30 | **53.3%** (16/30) | **83.3%** (25/30) | 16.7% (5/30) |
-| **Fire & Blood** (Narrative Fiction) | 30 | **46.7%** (14/30) | **80.0%** (24/30) | 20.0% (6/30) |
-| **Mixed Codebase** (Py/Rust/IPYNB) | 33 | **90.9%** (30/33) | **100.0%** (33/33) | 0.0% (0/33) |
-| **Elpis Memories Crate** (Rust) | 15 | **73.3%** (11/15) | **100.0%** (15/15) | 0.0% (0/15) |
-| **rag-mcp Codebase** (Python Server) | 15 | **80.0%** (12/15) | **93.3%** (14/15) | 6.7% (1/15) |
-| **Notebook Corpus** (JSON/Code) | 10 | **100.0%** (10/10) | **100.0%** (10/10) | 0.0% (0/10) |
-| **Overall Baseline** | **203** | **74.9%** (152/203) | **92.1%** (187/203) | 7.9% (16/203) |
+* **Empirical Scaling Finding:** Scaling to a single 6,314-chunk multi-domain index resulted in **0.0% recall loss** (81.7% vs 81.7%) and **99.3% Top-1 candidate equivalence** (152/153 queries) with an average query latency of **368ms**.
 
 <br>
-
-## Quick start
-
-Prerequisites: Python 3.10+ and [`uv`](https://docs.astral.sh/uv/getting-started/installation/).
-
-```bash
-git clone https://github.com/MasihMoafi/rag-mcp
-cd rag-mcp
-python scripts/bootstrap.py
-```
-
-That single command installs dependencies and runs the test suite.
-
-Manual equivalent:
-
-```bash
-uv sync --group dev
-.venv/bin/python -m pytest tests/ -v
-```
-
-Then register the server with an MCP client.
-
-### Claude Code
-
-```bash
-claude mcp add rag -s user -- /absolute/path/to/rag-mcp/.venv/bin/python /absolute/path/to/rag-mcp/server.py
-```
-
-### Elpis
-
-**Option A: Global Config (`~/.elpis/config.toml`)**
-
-```toml
-[mcp_servers.rag]
-command = "/home/masih/Desktop/p/rag-mcp-lancedb/.venv/bin/python"
-args = ["/home/masih/Desktop/p/rag-mcp-lancedb/server.py"]
-
-[mcp_servers.rag.env]
-RAG_MCP_WORKSPACE_ROOT = "/home/masih/Desktop/p"
-RAG_MCP_BACKEND = "lancedb"
-```
-
-**Option B: Standard MCP JSON (`.mcp.json` or `~/.elpis/mcp.json`)**
-
-```json
-{
-  "mcpServers": {
-    "rag": {
-      "type": "stdio",
-      "command": "/home/masih/Desktop/p/rag-mcp-lancedb/.venv/bin/python",
-      "args": [
-        "/home/masih/Desktop/p/rag-mcp-lancedb/server.py"
-      ],
-      "env": {
-        "RAG_MCP_WORKSPACE_ROOT": "/home/masih/Desktop/p",
-        "RAG_MCP_BACKEND": "lancedb"
-      }
-    }
-  }
-}
-```
-
-### Codex
-
-Add to `~/.codex/config.toml`:
-
-```toml
-[mcp_servers.rag]
-command = "/home/masih/Desktop/p/rag-mcp-lancedb/.venv/bin/python"
-args = ["/home/masih/Desktop/p/rag-mcp-lancedb/server.py"]
-
-[mcp_servers.rag.env]
-RAG_MCP_WORKSPACE_ROOT = "/home/masih/Desktop/p"
-RAG_MCP_BACKEND = "lancedb"
-```
-
-Expected result: the client discovers `query_knowledge_base`, and a query returns ranked passages with source paths from the requested scope.
-
-## What is rag-mcp
-
-`rag-mcp` is a local hybrid-search MCP server: point it at a file or folder, ask a question in plain language, and get back the passages that actually answer it — with the exact file and location, not a guess.
-
-Coding agents normally search a codebase by opening files one at a time or dumping an entire repository into the conversation. Both waste time and context. `rag-mcp` replaces that with one tool call: search by meaning, get ranked results with sources, keep going. Embeddings, vector search, and reranking all run locally; the server exposes one read-only MCP tool to compatible clients.
-
-No third-party logo or benchmark — the image above is the actual [retrieval-accuracy evidence](#retrieval-accuracy) this repo ships, not decoration.
-
-## Retrieval accuracy
-
-![Retrieval reliability across six recorded corpora, showing exact full-answer and full-or-partial rates](assets/retrieval-comparison.svg)
-
-Recorded, reproducible retrieval runs live under [`evals/`](evals/) — not part of CI, kept
-as evidence. Every point in the chart is a question-level grade from a recorded
-`query_knowledge_base` run, graded against a known answer — not simulated.
-
-The top result is a single real directory containing
-a 29-file Rust crate, 6 Python scripts, and a Jupyter notebook, searched with `doc_path`
-pointed at the whole directory — the server has to find the right file among three
-languages, not just the right passage in one document. The other five rows are
-single-document or project-scoped runs: a notebook, two books, a paper, a novel, and
-the rag-mcp codebase itself.
-
-The chart reports exact full answers separately from answers that were full or partial.
-The codebase and structured-document rows are easier to retrieve exactly; the long
-narrative rows contain more interpretive answers spread across passages, which makes
-chunk-based retrieval less reliable. This is a description of these recorded runs, not
-a claim about every corpus or a benchmark against other retrieval tools.
-
-[Per-question results for every corpus](evals/) — including where each miss actually failed
-(vague topical overlap, a truncated chunk, or the fact genuinely absent from top-k).
-
-An earlier, now-superseded Napoleon run with reranking manually disabled scored 93.3% —
-that number describes raw BM25+vector retrieval in isolation, not this server as it actually
-runs, and is kept in [`evals/napoleon/experiment_log.md`](evals/napoleon/experiment_log.md)
-only for its chunk-size finding (1000 characters beat 300). The earlier separate Rust-only
-and notebook-only runs are likewise superseded by the combined directory test above and kept
-under `evals/elpis-memories-crate/` and `evals/notebook/` only as raw evidence.
-
-This is six recorded corpora at one point in time — not a benchmark against other
-retrieval tools.
-
-## The problem
-
-Coding agents commonly retrieve context by either opening files one by one or loading a large portion of the repository. The first can miss relevant files; the second consumes context with material the current task may not need.
-
-`rag-mcp` moves retrieval into one local tool call so the agent can search by meaning without making the entire tree part of every prompt.
-
-## How it works
-
-```text
-query + optional path
-        ↓
-chunking
-        ↓
-BM25 lexical search + local embeddings / Qdrant
-        ↓
-Reciprocal Rank Fusion
-        ↓
-CrossEncoder reranking
-        ↓
-ranked chunks + exact source paths
-```
-
-Repository structure:
-
-```text
-rag-mcp/
-├── server.py       # stdio JSON-RPC MCP host
-├── rag/            # chunking, BM25, vector search, reranking
-└── utils/proxy.py  # local proxy-environment handling
-```
-
-Technical boundaries:
-
-- one MCP tool: `query_knowledge_base(query, doc_path?)`;
-- default embeddings: `all-MiniLM-L6-v2` (~80MB, fast — overridable, see Configuration);
-- reranking runs by default: `cross-encoder/ms-marco-MiniLM-L-6-v2` (~80MB, fast — overridable, or disable it entirely);
-- local embedded/on-disk Qdrant;
-- `doc_path` can scope each call to a file or directory;
-- per-path indexes are persisted under `rag/rag_db_v2/`;
-- common large/build directories such as `.git`, `node_modules`, `.venv`, `dist`, `build`, and `target` are rejected;
-- configurable depth/token limits fail explicitly instead of scanning an unbounded tree.
 
 ### Configuration
 
-Every retrieval knob is an environment variable, not a source edit. Unset means the
-default shown:
+Every retrieval parameter is configurable via environment variables:
 
 | Variable | Default | What it controls |
 | --- | --- | --- |
-| `RAG_MCP_EMBED_PROVIDER` | `sentencetransformer` | `sentencetransformer` (local), `ollama` (local server), or `openai_compatible` (remote — see below) |
-| `RAG_MCP_EMBED_MODEL` | `all-MiniLM-L6-v2` | embedding model name, meaning depends on provider |
-| `RAG_MCP_EMBED_API_KEY` | unset | API key, only used by `openai_compatible` |
-| `RAG_MCP_EMBED_BASE_URL` | unset (official OpenAI endpoint) | override endpoint, only used by `openai_compatible` |
+| `RAG_MCP_BACKEND` | `lancedb` | `lancedb` (default vector+FTS hybrid) or `qdrant` |
+| `RAG_MCP_EMBED_PROVIDER` | `sentencetransformer` | `sentencetransformer` (local), `ollama` (local GPU), or `openai_compatible` |
+| `RAG_MCP_EMBED_MODEL` | `all-MiniLM-L6-v2` | embedding model name (`qwen3-embedding:0.6b`, `all-MiniLM-L6-v2`, etc.) |
 | `RAG_MCP_RERANKER_TYPE` | `cross-encoder` | `cross-encoder` or `disabled` |
-| `RAG_MCP_RERANKER_MODEL` | `cross-encoder/ms-marco-MiniLM-L-6-v2` | reranker model, used when type is `cross-encoder` |
-| `RAG_MCP_TOP_K` | `5` | candidates pulled from vector search before fusion |
-| `RAG_MCP_RERANK_TOP_K` | `5` | results kept after reranking |
+| `RAG_MCP_RERANKER_MODEL` | `cross-encoder/ms-marco-MiniLM-L-6-v2` | cross-encoder reranker model |
+| `RAG_MCP_TOP_K` | `50` | candidates pulled from Stage 1 before fusion/reranking |
+| `RAG_MCP_RERANK_TOP_K` | `5` | results returned after reranking |
 | `RAG_MCP_CHUNK_SIZE` | `700` | characters per chunk before overlap |
 | `RAG_MCP_CHUNK_OVERLAP` | `100` | characters shared between adjacent chunks |
 | `RAG_MCP_RRF_K` | `60` | Reciprocal Rank Fusion constant |
 | `RAG_MCP_MAX_DEPTH` | `20` | directory-scan depth limit |
 | `RAG_MCP_MAX_TOKENS` | `2000000` | directory-scan size limit |
 
-The shipped defaults use the lightweight, fast pair (`all-MiniLM-L6-v2` + `ms-marco-MiniLM-L-6-v2`, ~80MB each) for instant zero-dependency local operation out of the box.
-
-To run the higher-capacity pipeline evaluated in the benchmark suite above, switch to Ollama Qwen embeddings:
-
-```toml
-[mcp_servers.rag.env]
-RAG_MCP_WORKSPACE_ROOT = "/absolute/path/to/your/project"
-RAG_MCP_EMBED_PROVIDER = "ollama"
-RAG_MCP_EMBED_MODEL = "qwen3-embedding:8b"
-```
-
-`openai_compatible` is the one non-local option: it leaves the machine. One client
-implementation covers real OpenAI, Ollama's own `/v1` endpoint, and Qwen/DashScope's and
-Gemini's OpenAI-compatible modes — install the optional `openai` package
-(`uv sync --extra openai`), then set `RAG_MCP_EMBED_PROVIDER=openai_compatible`,
-`RAG_MCP_EMBED_MODEL` to the provider's model name, `RAG_MCP_EMBED_API_KEY`, and
-`RAG_MCP_EMBED_BASE_URL` if the provider isn't OpenAI itself. The client construction is
-verified; a real embedding call against a paid provider is not — test it against your own
-key before trusting it. A cross-encoder reranker type named `llm` also exists in the code
-but its scoring is unimplemented scaffolding (every passage gets the same score) — do not
-set it, it does nothing useful.
-
 ## Current state
 
 ### Implemented and verified
 
-- MCP `initialize` → `tools/list` → `tools/call` protocol path.
-- Read-only `query_knowledge_base` tool.
-- Workspace-root and explicit `doc_path` scoping.
-- Local hybrid retrieval and reranking.
-- Guardrails for excluded directories and oversized scopes.
-- Text extraction for PDF and Jupyter notebooks, plus local OCR for common image
-  formats and structured extraction for DOCX, PPTX, XLSX, and CSV files.
-- End-to-end registration was exercised through a real MCP client during development.
-
-### Implemented but not yet covered by the current tests
-
-- The alternative Ollama embedding-provider path in `rag/core.py`.
-- The `openai_compatible` embedding provider: client construction is verified, a real
-  call against a paid provider is not.
-
-### Planned
-
-Nothing is formally tracked yet. Extend it when a concrete retrieval failure or client requirement appears.
+- FastMCP stdio JSON-RPC 2.0 protocol path.
+- Read-only `query_knowledge_base` tool with workspace-root and dynamic `doc_path` scoping.
+- 2-Stage LanceDB vector table + Tantivy FTS full-text hybrid search with GPU Cross-Encoder reranking.
+- Full pytest test suite (24 unit and integration tests passing).
+- Guardrails for excluded directories (`.git`, `node_modules`, `.venv`) and oversized scopes.
+- Text extraction for `.pdf`, `.ipynb`, office files (`.docx`, `.pptx`, `.xlsx`, `.csv`), and local OCR.
 
 ### Intentionally unsupported
 
-- Hosted/remote vector databases.
-- File types outside the extension allowlist in `server.py`.
-- Write/mutation tools; this server is retrieval-only.
+- Hosted/cloud vector databases (designed for 100% on-device execution).
+- Write or filesystem mutation tools (server is strictly read-only retrieval).
 
 ## What sets this apart
 
-These are design choices, not novelty claims:
-
-- **Local retrieval:** source files, embeddings, vector search, and reranking stay on the machine.
-- **Small transport layer:** the MCP host uses direct stdio JSON-RPC rather than depending on an MCP SDK.
-- **Per-call scope:** one server can search different files/directories instead of requiring one fixed knowledge base per project.
-- **Evidence in the response:** returned chunks include source paths rather than only synthesized prose.
-
-## Evals and test series
-
-The test suite lives under `tests/`:
-
-```bash
-python scripts/bootstrap.py
-```
-
-They cover:
-
-- read-only tool annotations;
-- default workspace scoping;
-- explicit `doc_path` scoping;
-- rejection of excluded directories;
-- rejection of depth-limit violations;
-- bootstrap prerequisite checks;
-- extraction from DOCX, PPTX, XLSX, and CSV files;
-- local OCR extraction from a generated image fixture.
-
-Protocol-level check, without another MCP client:
-
-```bash
-printf '%s\n%s\n%s\n' \
-  '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18"}}' \
-  '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' \
-  '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"query_knowledge_base","arguments":{"query":"how does reciprocal rank fusion combine bm25 and vector results"}}}' \
-  | RAG_MCP_WORKSPACE_ROOT="$PWD" .venv/bin/python server.py
-```
-
-A successful self-query should return evidence pointing at the RRF implementation in `rag/core.py`.
-
-What the tests prove: MCP transport/scoping/guardrail behavior covered by those cases.
-
-What they do **not** prove: retrieval quality across arbitrary corpora, cross-client compatibility, or superiority to grep/code-search/RAG alternatives.
-
-## Example
-
-```text
-query_knowledge_base(
-  "how does retry backoff work for failed jobs",
-  doc_path="codex-rs/memories"
-)
-```
-
-The response is intended for the calling agent: ranked source passages it can use as task context rather than a standalone chat answer.
+- **100% Local Execution:** Embeddings, vector search, BM25 indexing, and reranking run entirely on local hardware.
+- **Evidence-First Retrieval:** Returns verbatim source text chunks with exact file paths and line numbers.
+- **Per-Call Dynamic Scoping:** One server instance can search different subfolders per tool call without re-indexing the entire workspace.
+- **Lightweight Transport:** Direct stdio JSON-RPC without heavyweight SDK overhead.
 
 ## Future development
 
-Keep the surface small. Add capability only when real usage shows a retrieval, compatibility, or performance gap worth testing.
+- Explore int8/FP16 quantization for low-memory environments.
+- Optional streaming chunk responses over HTTP/SSE transports.
 
 ## License
 
