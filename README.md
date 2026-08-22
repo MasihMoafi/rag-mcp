@@ -1,42 +1,48 @@
 ---
 name: rag-mcp
-type: local hybrid-search MCP server for coding agents and document workflows
+type: local hybrid-search MCP server for AI coding agents & document workflows
 ---
 
 <div align="center">
 
+<!-- TODO: Insert Experiment 1 Unified Multi-Domain Scaling & Throughput Visualizations -->
 <img src="assets/retrieval-hero.svg" alt="rag-mcp retrieval reliability" width="720">
 
 <br>
 
 [![MCP](https://img.shields.io/badge/protocol-MCP-blue?style=flat-square)](#quick-start)
-[![Local](https://img.shields.io/badge/retrieval-100%25%20local-brightgreen?style=flat-square)](#what-sets-this-apart)
+[![Local](https://img.shields.io/badge/retrieval-100%25%20local-brightgreen?style=flat-square)](#core-features)
 [![Hybrid search](https://img.shields.io/badge/search-LanceDB%20%2B%20BM25%20%2B%20Rerank-orange?style=flat-square)](#how-it-works)
 [![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
 
-**A coding agent should not have to choose between opening files one at a time and dumping an entire repository into context.**
-
-[Install](#quick-start) • [Evals](#benchmark--retrieval-evaluations) • [How it works](#how-it-works) • [Map](#repository-map) • [State](#current-state)
+[Quick Start](#quick-start) • [Features](#core-features) • [Evals](#benchmark--retrieval-evaluations) • [How It Works](#how-it-works) • [Map](#repository-map) • [State](#current-state)
 
 </div>
 
-## What is rag-mcp
+## Core Features
 
-`rag-mcp` is a standalone, 100% local hybrid-search MCP server. Point it at any workspace folder, query in natural language, and receive the exact ranked code and document passages needed to answer the question — complete with file paths and line ranges, running entirely on-device with zero external API calls.
+| Feature | Specification | Impact |
+| :--- | :--- | :--- |
+| **100% Local Execution** | On-device Ollama + LanceDB + Cross-Encoder | Zero cloud API dependencies, zero telemetry, zero data egress. |
+| **2-Stage Hybrid Search** | Vector proximity + Tantivy BM25 FTS $\rightarrow$ RRF ($k=60$) | Combines semantic intent with exact keyword and symbol matching. |
+| **Cross-Encoder Reranking** | `cross-encoder/ms-marco-MiniLM-L-6-v2` on CUDA | Reranks Top-50 candidates down to Top-5 with pinpoint accuracy. |
+| **Per-Call Dynamic Scoping** | Target subdirectories/files via `doc_path` per tool call | Avoids full-workspace re-indexing on every search. |
+| **Rich Multi-Format Support** | Native code, Markdown, PDF, IPYNB, Office & OCR | Parses `.py`, `.rs`, `.ts`, `.docx`, `.xlsx`, `.pptx`, `.png`, `.jpg`. |
+| **Safety Guardrails** | Exclusion filters + token & depth limits | Blocks `.git`, `node_modules`, `.venv`, and directory traversal loops. |
 
-## Quick start
+---
 
-Prerequisites: Python 3.10+ and [`uv`](https://docs.astral.sh/uv/getting-started/installation/).
+## Quick Start: Agent Installation
 
+Add `rag-mcp` to your coding agent of choice:
+
+### 1. Claude Code
 ```bash
-git clone https://github.com/MasihMoafi/rag-mcp
-cd rag-mcp
-uv sync
-.venv/bin/python -m pytest tests/ -v
+claude mcp add rag -s user -- /absolute/path/to/rag-mcp/.venv/bin/python /absolute/path/to/rag-mcp/server.py
 ```
 
-Register `rag-mcp` in your agent's MCP configuration (`.mcp.json` or `config.toml`):
-
+### 2. Antigravity / Google AGY
+Add to `~/.gemini/antigravity-cli/mcp/rag-mcp/config.json` (or `.mcp.json`):
 ```json
 {
   "mcpServers": {
@@ -44,7 +50,7 @@ Register `rag-mcp` in your agent's MCP configuration (`.mcp.json` or `config.tom
       "command": "/absolute/path/to/rag-mcp/.venv/bin/python",
       "args": ["/absolute/path/to/rag-mcp/server.py"],
       "env": {
-        "RAG_MCP_WORKSPACE_ROOT": "/path/to/target/project",
+        "RAG_MCP_WORKSPACE_ROOT": "/path/to/your/workspace",
         "RAG_MCP_BACKEND": "lancedb"
       }
     }
@@ -52,15 +58,29 @@ Register `rag-mcp` in your agent's MCP configuration (`.mcp.json` or `config.tom
 }
 ```
 
-Result: The agent gains access to the read-only tool `query_knowledge_base(query, doc_path)`.
+### 3. Codex & Elpis
+Add to `~/.codex/config.toml` or `~/.elpis/config.toml`:
+```toml
+[mcp_servers.rag]
+command = "/absolute/path/to/rag-mcp/.venv/bin/python"
+args = ["/absolute/path/to/rag-mcp/server.py"]
 
-## The problem
+[mcp_servers.rag.env]
+RAG_MCP_WORKSPACE_ROOT = "/path/to/your/workspace"
+RAG_MCP_BACKEND = "lancedb"
+```
 
-Coding agents search unfamiliar codebases by either opening files one by one or dumping entire directories into the prompt. The first approach is slow and misses cross-file connections; the second pollutes the context window with thousands of irrelevant tokens.
+### 4. Local Setup & Verification
+```bash
+git clone https://github.com/MasihMoafi/rag-mcp
+cd rag-mcp
+uv sync
+.venv/bin/python -m pytest tests/ -v
+```
 
-`rag-mcp` replaces both failure modes with a single, fast local tool call that retrieves only the highest-scoring semantic and lexical passages.
+---
 
-## How it works
+## How It Works
 
 ```text
 query + optional doc_path
@@ -76,14 +96,7 @@ Stage 2: Cross-Encoder GPU reranking (ms-marco-MiniLM-L-6-v2)
 Top-5 ranked chunks with exact file paths & line numbers
 ```
 
-### Technical specifications
-
-* **Transport:** Lightweight direct stdio JSON-RPC 2.0 (no heavyweight external SDK wrapper).
-* **Storage Backends:** 
-  * `lancedb` (default): Fast on-disk vector tables + Tantivy FTS indices.
-  * `qdrant`: Embedded on-disk vector database.
-* **Extraction:** Native support for `.py`, `.rs`, `.ts`, `.md`, `.ipynb`, `.pdf`, office formats (`.docx`, `.pptx`, `.xlsx`, `.csv`), and local OCR for images.
-* **Safety Guardrails:** Automatic exclusion of `node_modules`, `.git`, `.venv`, and configurable directory-depth / token ceilings.
+---
 
 ## Repository Map
 
