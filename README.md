@@ -34,23 +34,25 @@ type: local hybrid-search MCP server for AI coding agents & document workflows
 
 ## Quick Start: Agent Installation
 
-Add `rag-mcp` to your coding agent of choice:
+Add `rag-mcp` to your AI coding agent with a single command (no manual virtualenv paths required):
 
 ### 1. Claude Code
 ```bash
-claude mcp add rag -s user -- /absolute/path/to/rag-mcp/.venv/bin/python /absolute/path/to/rag-mcp/server.py
+claude mcp add rag -- uv run --directory /path/to/rag-mcp python server.py
 ```
 
 ### 2. Antigravity / Google AGY
-Add to `~/.gemini/antigravity-cli/mcp/rag-mcp/config.json` (or `.mcp.json`):
+```bash
+agy mcp add rag -- uv run --directory /path/to/rag-mcp python server.py
+```
+*Or add to `.mcp.json`:*
 ```json
 {
   "mcpServers": {
     "rag": {
-      "command": "/absolute/path/to/rag-mcp/.venv/bin/python",
-      "args": ["/absolute/path/to/rag-mcp/server.py"],
+      "command": "uv",
+      "args": ["run", "--directory", "/path/to/rag-mcp", "python", "server.py"],
       "env": {
-        "RAG_MCP_WORKSPACE_ROOT": "/path/to/your/workspace",
         "RAG_MCP_BACKEND": "lancedb"
       }
     }
@@ -59,23 +61,24 @@ Add to `~/.gemini/antigravity-cli/mcp/rag-mcp/config.json` (or `.mcp.json`):
 ```
 
 ### 3. Codex & Elpis
-Add to `~/.codex/config.toml` or `~/.elpis/config.toml`:
+```bash
+codex mcp add rag -- uv run --directory /path/to/rag-mcp python server.py
+```
+*Or add to `config.toml`:*
 ```toml
 [mcp_servers.rag]
-command = "/absolute/path/to/rag-mcp/.venv/bin/python"
-args = ["/absolute/path/to/rag-mcp/server.py"]
+command = "uv"
+args = ["run", "--directory", "/path/to/rag-mcp", "python", "server.py"]
 
 [mcp_servers.rag.env]
-RAG_MCP_WORKSPACE_ROOT = "/path/to/your/workspace"
 RAG_MCP_BACKEND = "lancedb"
 ```
 
-### 4. Local Setup & Verification
+### 4. Verification & Self-Test
 ```bash
 git clone https://github.com/MasihMoafi/rag-mcp
 cd rag-mcp
-uv sync
-.venv/bin/python -m pytest tests/ -v
+uv run pytest tests/ -v
 ```
 
 ---
