@@ -18,9 +18,11 @@ type: local semantic-search MCP server for coding agents and document workflows
 
 [Install](#quick-start) • [Evals](#benchmark--retrieval-evaluations) • [How it works](#how-it-works) • [State](#current-state)
 
+</div>
+
 ## Repository Map
 
-```text
+```
 rag-mcp/
 ├── rag/                                # Core Hybrid RAG Pipeline & Storage Backends
 │   ├── core.py                         # 2-Stage pipeline: Chunking, Ollama Embed, RRF Hybrid & Reranking
