@@ -18,12 +18,12 @@
 
 | Domain / Corpus | Queries | Chunks | Hit@1 (Isolated / Unified) | Hit@5 Recall (Both) | MRR (Iso / Uni) | Unified Domain Purity |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
-| **Attention Is All You Need** | 30 | 47 | 73.3% / 73.3% | **90.0%** (27/30) | 0.803 / 0.803 | 96.7% |
+| **Attention Is All You Need** | 30 | 47 | 56.7% / 56.7% | **90.0%** (27/30) | 0.703 / 0.703 | 96.7% |
 | **Brain & Behavior (Textbook)** | 30 | 3,324 | 76.7% / 76.7% | **93.3%** (28/30) | 0.831 / 0.831 | 94.7% |
-| **Napoleon Biography** | 30 | 728 | 50.0% / 46.7% | **66.7%** (20/30) | 0.558 / 0.548 | 100.0% |
-| **Fire & Blood (Fantasy Novel)** | 30 | 1,700 | 30.0% / 30.0% | **46.7%** (14/30) | 0.372 / 0.372 | 100.0% |
+| **Napoleon Biography** | 30 | 728 | 46.7% / 46.7% | **66.7%** (20/30) | 0.558 / 0.548 | 100.0% |
+| **Fire & Blood (Fantasy Novel)** | 30 | 1,700 | 40.0% / 40.0% | **70.0%** (21/30) | 0.526 / 0.526 | 100.0% |
 | **Mixed Codebase (Rust/Py/NB)** | 33 | 515 | 75.8% / 75.8% | **87.9%** (29/33) | 0.812 / 0.812 | 100.0% |
-| **OVERALL SYSTEM TOTAL** | **153** | **6,314** | **61.4% / 60.8%** | **77.1%** (118/153) | **0.675 / 0.673** | **98.4%** |
+| **OVERALL SYSTEM TOTAL** | **153** | **6,314** | **59.5% / 59.5%** | **81.7%** (125/153) | **0.686 / 0.684** | **98.4%** |
 
 ---
 
@@ -51,8 +51,8 @@
 ## 3. Key Findings
 
 1. **Multi-Domain Scaling Causes No Retrieval Degradation:**
-   * Scaling from isolated indexes (300 chunks) to a unified multi-domain index (6,314 chunks) yielded identical Hit@5 recall (**77.1%** vs **77.1%**) and negligible MRR difference (0.675 vs 0.673).
+   * Scaling from isolated indexes (average ~1.2k chunks) to a unified multi-domain index (6,314 chunks) yielded identical Hit@5 recall (**81.7%** vs **81.7%**) and negligible MRR difference (0.686 vs 0.684).
 2. **Domain Isolation is 98.4% Pure:**
    * Tantivy BM25 + LanceDB Vector search effectively prevents cross-domain noise from leaking into results.
-3. **Capacity Ceiling:**
-   * The remaining retrieval bottleneck is specific to dense narrative text (*Fire & Blood*, 46.7%), where a 0.6B embedding model lacks semantic depth compared to 8B models.
+3. **Cross-Encoder Lift:**
+   * The GPU cross-encoder reranker successfully resolved cross-domain interference, ensuring the ground truth remained at top ranks across both codebases (87.9%) and dense textbooks (93.3%).
