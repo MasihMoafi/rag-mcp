@@ -137,7 +137,7 @@ class QdrantVectorDB:
         from concurrent.futures import ThreadPoolExecutor
         import os
 
-        max_workers = min(os.cpu_count() or 4, 8)  # Use up to 8 cores
+        max_workers = 2
 
         def embed_chunk(text):
             return self._embed_single(text)

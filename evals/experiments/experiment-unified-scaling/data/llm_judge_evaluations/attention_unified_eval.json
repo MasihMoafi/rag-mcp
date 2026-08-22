@@ -1,0 +1,155 @@
+{
+  "domain": "attention_unified",
+  "evaluations": [
+    {
+      "query_id": "att_01",
+      "hit_rank": 3,
+      "reasoning": "Rank 3 states that the Transformer eschews recurrence to allow significantly more parallelization and reduces operations between distant positions to a constant number."
+    },
+    {
+      "query_id": "att_02",
+      "hit_rank": 3,
+      "reasoning": "Rank 3 explains that multi-head attention allows the model to jointly attend to information from different representation subspaces at different positions, which single-head averaging inhibits."
+    },
+    {
+      "query_id": "att_03",
+      "hit_rank": 1,
+      "reasoning": "Rank 1 explicitly defines the auto-regressive property as consuming previously generated symbols as additional input when generating the next symbol."
+    },
+    {
+      "query_id": "att_04",
+      "hit_rank": 1,
+      "reasoning": "Rank 1 directly states the hypothesis that for any fixed offset k, PE_{pos+k} can be represented as a linear function of PE_{pos}."
+    },
+    {
+      "query_id": "att_05",
+      "hit_rank": 1,
+      "reasoning": "Rank 1 explains that label smoothing hurts perplexity because the model learns to be more unsure, but improves accuracy and BLEU score."
+    },
+    {
+      "query_id": "att_06",
+      "hit_rank": 1,
+      "reasoning": "Rank 1 explains that operations grow linearly with distance for ConvS2S, whereas the Transformer reduces this to a constant number of operations."
+    },
+    {
+      "query_id": "att_07",
+      "hit_rank": 1,
+      "reasoning": "Rank 1 states that scaling by 1/sqrt(d_k) counteracts dot products growing large in magnitude and pushing softmax into regions with extremely small gradients."
+    },
+    {
+      "query_id": "att_08",
+      "hit_rank": 0,
+      "reasoning": "None of the candidate chunks contain information about inspecting attention distributions to achieve model interpretability."
+    },
+    {
+      "query_id": "att_09",
+      "hit_rank": 2,
+      "reasoning": "Rank 2 explicitly notes that the sinusoidal version was chosen because it may allow the model to extrapolate to longer sequence lengths than those encountered during training."
+    },
+    {
+      "query_id": "att_10",
+      "hit_rank": 3,
+      "reasoning": "Rank 3 describes the decoder inserting a third sub-layer performing multi-head attention over the encoder stack and masking self-attention to prevent looking ahead."
+    },
+    {
+      "query_id": "att_11",
+      "hit_rank": 2,
+      "reasoning": "Rank 2 directly reports that the model achieves 28.4 BLEU on the WMT 2014 English-to-German translation task."
+    },
+    {
+      "query_id": "att_12",
+      "hit_rank": 1,
+      "reasoning": "Rank 1 mentions that the model was trained on eight P100 GPUs."
+    },
+    {
+      "query_id": "att_13",
+      "hit_rank": 1,
+      "reasoning": "Rank 1 explicitly states that the inner-layer of the feed-forward network has dimensionality d_ff = 2048."
+    },
+    {
+      "query_id": "att_14",
+      "hit_rank": 2,
+      "reasoning": "Rank 2 states that the Adam optimizer was used during training."
+    },
+    {
+      "query_id": "att_15",
+      "hit_rank": 1,
+      "reasoning": "Rank 1 states that warmup_steps = 4000 was used in the learning rate schedule."
+    },
+    {
+      "query_id": "att_16",
+      "hit_rank": 0,
+      "reasoning": "None of the candidate chunks provide the beam size used for the machine translation experiments."
+    },
+    {
+      "query_id": "att_17",
+      "hit_rank": 3,
+      "reasoning": "Rank 3 displays Table 1 listing the complexity per layer for Self-Attention as O(n^2 * d)."
+    },
+    {
+      "query_id": "att_18",
+      "hit_rank": 1,
+      "reasoning": "Rank 1 mentions that the encoder is composed of a stack of N = 6 identical layers."
+    },
+    {
+      "query_id": "att_19",
+      "hit_rank": 2,
+      "reasoning": "Rank 2 identifies tensor2tensor as the codebase used to implement and train the models."
+    },
+    {
+      "query_id": "att_20",
+      "hit_rank": 2,
+      "reasoning": "Rank 2 explicitly specifies a dropout rate of P_drop = 0.1 for the base model."
+    },
+    {
+      "query_id": "att_21",
+      "hit_rank": 1,
+      "reasoning": "Rank 1 states that dot products are scaled by dividing by \\sqrt{d_k}."
+    },
+    {
+      "query_id": "att_22",
+      "hit_rank": 1,
+      "reasoning": "Rank 1 explains that positional encodings are added to input embeddings to inject sequence order in the absence of recurrence."
+    },
+    {
+      "query_id": "att_23",
+      "hit_rank": 1,
+      "reasoning": "Rank 1 states that the big model achieved a 41.8 BLEU score after training for 3.5 days on eight GPUs on the English-to-French task."
+    },
+    {
+      "query_id": "att_24",
+      "hit_rank": 1,
+      "reasoning": "Rank 1 states that scaled dot-product attention in the decoder masks out (setting to -\\infty) illegal connections in the softmax input."
+    },
+    {
+      "query_id": "att_25",
+      "hit_rank": 1,
+      "reasoning": "Rank 1 lists the semi-supervised 4-layer Transformer achieving an F1 score of 92.7 on constituency parsing."
+    },
+    {
+      "query_id": "att_26",
+      "hit_rank": 1,
+      "reasoning": "Rank 1 specifies sharing the same weight matrix between the two embedding layers and the pre-softmax linear transformation."
+    },
+    {
+      "query_id": "att_27",
+      "hit_rank": 0,
+      "reasoning": "None of the candidate chunks contain Figure 4 or discuss resolving anaphora."
+    },
+    {
+      "query_id": "att_28",
+      "hit_rank": 1,
+      "reasoning": "Rank 1 provides Table 3 showing that reducing the number of attention heads to 1 resulted in a BLEU score of 24.9."
+    },
+    {
+      "query_id": "att_29",
+      "hit_rank": 4,
+      "reasoning": "Rank 4 provides Table 1 showing the Maximum Path Length is O(1) for Self-Attention and O(n) for Recurrent layers."
+    },
+    {
+      "query_id": "att_30",
+      "hit_rank": 1,
+      "reasoning": "Rank 1 explains that reducing head dimensions to d_k = d_v = d_model / h = 64 keeps computational cost similar to full-dimensional single-head attention."
+    }
+  ]
+}

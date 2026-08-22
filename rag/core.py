@@ -14,6 +14,7 @@ clear_proxy_settings()
 from collections import Counter
 from sentence_transformers import SentenceTransformer, CrossEncoder
 from .qdrant_backend import QdrantVectorDB
+from .lancedb_backend import LanceDBBackend
 
 
 def chunk_text(text: str, chunk_size: int = 700, chunk_overlap: int = 100) -> List[str]:
@@ -301,29 +302,85 @@ class RAGPipelineV2:
     
     def __init__(self, config: dict):
         self.config = config
-        print(f"[RAG V2] Initializing with config: {config.get('version', 'unknown')}")
+        import torch
+        # Auto-switch to GPU and enforce CUDA availability
+        if not torch.cuda.is_available():
 
-        # Determine device (CUDA if available, else CPU)
-        self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
-        print(f"[RAG V2] Using device: {self.device}")
+            import subprocess
+            subprocess.run(["pkexec", "prime-select", "nvidia"])
+            if not torch.cuda.is_available():
+                raise RuntimeError("Dedicated GPU (CUDA) is not available. Please verify NVIDIA driver status.")
+
+        self.device = 'cuda'
+
+
+
 
         # Initialize embedding function based on provider
         embed_provider = self.config.get("embed_provider", "sentencetransformer")
 
         if embed_provider == "ollama":
-            from langchain_community.embeddings import OllamaEmbeddings
-            model = OllamaEmbeddings(model=self.config.get("embed_model"))
+            import requests
 
-            class OllamaWrapper:
-                def __init__(self, ollama_model):
-                    self.model = ollama_model
+            model_name = self.config.get("embed_model")
+            ollama_url = self.config.get("ollama_url", "http://localhost:11434")
+
+            class DirectOllamaGPUWrapper:
+                def __init__(self, model, base_url):
+                    self.model = model
+                    self.base_url = base_url
+
+                def _verify_gpu(self):
+                    try:
+                        resp = requests.get(f"{self.base_url}/api/ps", timeout=5)
+                        if resp.status_code == 200:
+                            models = resp.json().get("models", [])
+                            for m in models:
+                                if self.model in m.get("name", ""):
+                                    proc = m.get("details", {}).get("processor", "") or m.get("processor", "")
+                                    if "CPU" in str(proc) and "100% CPU" in str(proc):
+                                        raise RuntimeError(f"OLLAMA GPU FAILURE: {self.model} is running on {proc}! Aborting.")
+                    except Exception as e:
+                        if "OLLAMA GPU FAILURE" in str(e):
+                            raise
+
                 def embed_documents(self, texts):
-                    return self.model.embed_documents(texts)
-                def embed_query(self, text):
-                    return self.model.embed_query(text)
+                    """Send true vector batches directly to /api/embed on GPU."""
+                    if not texts:
+                        return []
+                    # Process in GPU batches of 512
+                    batch_size = 512
+                    all_embeddings = []
+                    for i in range(0, len(texts), batch_size):
+                        batch = texts[i:i + batch_size]
+                        resp = requests.post(
+                            f"{self.base_url}/api/embed",
+                            json={"model": self.model, "input": batch},
+                            timeout=180
+                        )
+                        if resp.status_code != 200:
+                            raise RuntimeError(f"Ollama embedding failed ({resp.status_code}): {resp.text}")
+                        embeddings = resp.json().get("embeddings", [])
+                        all_embeddings.extend(embeddings)
+                    self._verify_gpu()
+                    return all_embeddings
 
-            self.embedding_fn = OllamaWrapper(model)
-            print(f"[RAG V2] Using Ollama embeddings with model: {self.config.get('embed_model')}")
+                def embed_query(self, text):
+                    resp = requests.post(
+                        f"{self.base_url}/api/embed",
+                        json={"model": self.model, "input": [text]},
+                        timeout=60
+                    )
+                    if resp.status_code != 200:
+                        raise RuntimeError(f"Ollama query embedding failed ({resp.status_code}): {resp.text}")
+                    embeddings = resp.json().get("embeddings", [])
+                    self._verify_gpu()
+                    return embeddings[0] if embeddings else []
+
+            self.embedding_fn = DirectOllamaGPUWrapper(model_name, ollama_url)
+            print(f"[RAG V2] Using Direct Ollama GPU Batched Embeddings with model: {model_name}")
+
+
         elif embed_provider == "openai_compatible":
             # One client for any provider that speaks the OpenAI embeddings API shape:
             # real OpenAI, Ollama's own /v1 endpoint, and Qwen/DashScope's and Gemini's
@@ -343,11 +400,20 @@ class RAGPipelineV2:
                 def __init__(self, client, model_name):
                     self.client = client
                     self.model_name = model_name
+                def _create_with_retry(self, input_val, max_retries=6):
+                    import time as _time
+                    for attempt in range(max_retries):
+                        try:
+                            return self.client.embeddings.create(model=self.model_name, input=input_val)
+                        except Exception:
+                            if attempt == max_retries - 1:
+                                raise
+                            _time.sleep(min(3 * (attempt + 1), 20))
                 def embed_documents(self, texts):
-                    resp = self.client.embeddings.create(model=self.model_name, input=texts)
+                    resp = self._create_with_retry(texts)
                     return [item.embedding for item in resp.data]
                 def embed_query(self, text):
-                    resp = self.client.embeddings.create(model=self.model_name, input=[text])
+                    resp = self._create_with_retry([text])
                     return resp.data[0].embedding
 
             self.embedding_fn = OpenAICompatibleWrapper(client, model_name)
@@ -365,8 +431,9 @@ class RAGPipelineV2:
             self.embedding_fn = STWrapper(model)
             print(f"[RAG V2] Using SentenceTransformer embeddings with model: {self.config.get('embed_model')}")
 
-        # Initialize Qdrant vector DB (replaces custom VectorIndex)
-        qdrant_path = os.path.join(self.config.get("persist_dir"), "qdrant_storage")
+        # Determine vector database backend (LanceDB by default, or Qdrant)
+        self.backend_type = self.config.get("backend", os.environ.get("RAG_MCP_BACKEND", "lancedb")).lower()
+        print(f"[RAG V2] Using backend: {self.backend_type}")
 
         # Determine vector size based on model
         vector_size_map = {
@@ -384,19 +451,30 @@ class RAGPipelineV2:
         persist_dir_name = os.path.basename(self.config.get("persist_dir"))
         collection_name = f"rag_v2_{persist_dir_name}" if persist_dir_name != "rag_db_v2" else "rag_v2_default"
 
-        self.vector_db = QdrantVectorDB(
-            collection_name=collection_name,
-            embedding_fn=self.embedding_fn,
-            vector_size=vector_size,
-            distance=self.config.get("distance_metric", "cosine"),
-            persist_path=qdrant_path
-        )
-
-        # Keep BM25 (still valuable for lexical search)
-        self.bm25_index = BM25Index(
-            k1=self.config.get("bm25_k1", 1.5),
-            b=self.config.get("bm25_b", 0.75)
-        )
+        if self.backend_type == "lancedb":
+            lance_path = os.path.join(self.config.get("persist_dir"), "lancedb_storage")
+            self.vector_db = LanceDBBackend(
+                table_name=collection_name,
+                embedding_fn=self.embedding_fn,
+                vector_size=vector_size,
+                distance=self.config.get("distance_metric", "cosine"),
+                persist_path=lance_path,
+            )
+            self.bm25_index = None
+        else:
+            qdrant_path = os.path.join(self.config.get("persist_dir"), "qdrant_storage")
+            self.vector_db = QdrantVectorDB(
+                collection_name=collection_name,
+                embedding_fn=self.embedding_fn,
+                vector_size=vector_size,
+                distance=self.config.get("distance_metric", "cosine"),
+                persist_path=qdrant_path
+            )
+            # Keep BM25 (still valuable for lexical search)
+            self.bm25_index = BM25Index(
+                k1=self.config.get("bm25_k1", 1.5),
+                b=self.config.get("bm25_b", 0.75)
+            )
 
         # Add CrossEncoder / LLM for fast reranking
         reranker_model = self.config.get('reranker_model')
@@ -404,10 +482,21 @@ class RAGPipelineV2:
         if reranker_model:
             if "qwen3-reranker" in reranker_model.lower():
                 self.reranker_type = "qwen3"
+                import torch
                 from transformers import AutoModelForCausalLM, AutoTokenizer
-                print(f"[RAG V2] Loading Qwen3 LLM Reranker: {reranker_model}")
-                self.reranker_tokenizer = AutoTokenizer.from_pretrained(reranker_model, padding_side='left')
-                self.reranker_model = AutoModelForCausalLM.from_pretrained(reranker_model, load_in_8bit=True, device_map="auto").eval()
+                print(f"[RAG V2] Loading Qwen3 Reranker on GPU from local cache: {reranker_model}")
+                self.reranker_tokenizer = AutoTokenizer.from_pretrained(
+                    reranker_model,
+                    padding_side='left',
+                    local_files_only=True
+                )
+                self.reranker_model = AutoModelForCausalLM.from_pretrained(
+                    reranker_model,
+                    torch_dtype=torch.float16,
+                    device_map="cuda",
+                    local_files_only=True
+                ).eval()
+
             else:
                 self.reranker = CrossEncoder(
                     reranker_model,
@@ -569,13 +658,15 @@ class RAGPipelineV2:
         # Add documents to indexes
         print(f"[RAG V2] Indexing {len(all_docs)} chunks...")
 
-        # STEP 2: VECTOR SEARCH - Batch indexing with Qdrant (FAST)
-        self.vector_db.add_documents_batch(all_docs, batch_size=100)
+        # STEP 2 & 4: Indexing into vector database and lexical index
+        self.vector_db.add_documents_batch(all_docs, batch_size=512)
 
-        # STEP 4: BM25 - Sequential (lightweight, fast enough)
-        print(f"[RAG V2] Building BM25 index...")
-        for doc in all_docs:
-            self.bm25_index.add_document(doc)
+
+        if self.bm25_index is not None:
+            print(f"[RAG V2] Building BM25 index...")
+            for doc in all_docs:
+                self.bm25_index.add_document(doc)
+            self.bm25_index._build_index()
 
         # Save database
         self._save_database(all_docs)
@@ -692,19 +783,19 @@ class RAGPipelineV2:
         persist_dir = self.config.get("persist_dir")
         docs_file = os.path.join(persist_dir, "docs.json")
 
-        # Check if Qdrant collection has data
-        qdrant_count = self.vector_db.count()
+        db_count = self.vector_db.count()
 
-        if qdrant_count > 0 and os.path.exists(docs_file):
-            # Qdrant already loaded, just rebuild BM25
+        if db_count > 0 and os.path.exists(docs_file):
             with open(docs_file, 'r') as f:
                 docs = json.load(f)
 
-            print(f"[RAG V2] Loading {len(docs)} chunks from existing database...")
-            for doc in docs:
-                self.bm25_index.add_document(doc)
+            if self.bm25_index is not None:
+                print(f"[RAG V2] Loading {len(docs)} chunks and rebuilding BM25...")
+                for doc in docs:
+                    self.bm25_index.add_document(doc)
+                self.bm25_index._build_index()
 
-            print(f"[RAG V2] Loaded {len(docs)} chunks (Qdrant: {qdrant_count}, BM25: {len(docs)})")
+            print(f"[RAG V2] Loaded {len(docs)} chunks from existing database ({self.backend_type}: {db_count})")
         else:
             # Database directory exists but empty - trigger indexing
             print(f"[RAG V2] Database empty. Triggering indexing...")
@@ -887,17 +978,28 @@ class RAGPipelineV2:
             top_k = self.config.get("top_k", 20)
             rerank_top_k = self.config.get("rerank_top_k", 3)
             
-            print(f"[RAG V2] Searching with query: '{query[:50]}...'")
+            print(f"[RAG V2] Searching with query: '{query[:50]}...' (backend: {self.backend_type})")
             
-            # STEP 3: QDRANT VECTOR SEARCH
-            print("[RAG V2] Step 3: Vector search...")
-            vector_results_qdrant = self.vector_db.search(query, top_k=top_k)
-            # Convert to tuple format for RRF
-            vector_results = [(doc, doc.get("score", 0)) for doc in vector_results_qdrant]
+            if self.backend_type == "lancedb":
+                # STEP 3: LANCEDB VECTOR SEARCH
+                print("[RAG V2] Step 3: LanceDB Vector search...")
+                vector_results_raw = self.vector_db.search_vector(query, top_k=top_k)
+                vector_results = [(doc, doc.get("score", 0)) for doc in vector_results_raw]
 
-            # STEP 4: BM25 SEARCH
-            print("[RAG V2] Step 4: BM25 search...")
-            bm25_results = self.bm25_index.search(query, k=top_k)
+                # STEP 4: LANCEDB TANTIVY FTS SEARCH
+                print("[RAG V2] Step 4: LanceDB Tantivy FTS search...")
+                bm25_results_raw = self.vector_db.search_fts(query, top_k=top_k)
+                bm25_results = [(doc, doc.get("score", 0)) for doc in bm25_results_raw]
+            else:
+                # STEP 3: QDRANT VECTOR SEARCH
+                print("[RAG V2] Step 3: Vector search...")
+                vector_results_qdrant = self.vector_db.search(query, top_k=top_k)
+                # Convert to tuple format for RRF
+                vector_results = [(doc, doc.get("score", 0)) for doc in vector_results_qdrant]
+
+                # STEP 4: BM25 SEARCH
+                print("[RAG V2] Step 4: BM25 search...")
+                bm25_results = self.bm25_index.search(query, k=top_k)
             
             # STEP 5: HYBRID FUSION with RRF
             print("[RAG V2] Step 5: RRF fusion...")

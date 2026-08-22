@@ -18,7 +18,74 @@ type: local semantic-search MCP server for coding agents and document workflows
 
 [Install](#quick-start) • [Evals](#benchmark--retrieval-evaluations) • [How it works](#how-it-works) • [State](#current-state)
 
-</div>
+## Repository Map
+
+```text
+rag-mcp/
+├── rag/                                # Core Hybrid RAG Pipeline & Storage Backends
+│   ├── core.py                         # 2-Stage pipeline: Chunking, Ollama Embed, RRF Hybrid & Reranking
+│   ├── lancedb_backend.py              # LanceDB vector table + Tantivy FTS index integration
+│   ├── qdrant_backend.py               # Alternative Qdrant vector store backend
+│   ├── fetch.py                        # Document ingestion, PDF, OCR & multiformat parser
+│   └── notebook_chunker.py             # Jupyter Notebook cell & code-block specialized chunker
+│
+├── tests/                              # Pytest Automated Test Suite (18 passed)
+│   ├── unit/                           # Chunking logic, breadcrumb generation & GPU guardrail unit tests
+│   ├── integration/                    # LanceDB CRUD, MCP tool contracts, OCR & file scope tests
+│   └── benchmarks/                     # GPU empirical throughput sweeps & OOM ladder benchmarks
+│
+├── evals/                              # Scaling Experiments & Evaluation Suites
+│   └── experiments/
+│       ├── experiment-unified-scaling/ # Unified multi-domain 6.3k scaling experiment
+│       │   ├── data/                   # Raw documents, candidate pools, queries & judge evals
+│       │   ├── experiment.md           # Benchmark report & GPU latency profile
+│       │   └── run_experiment.py       # Benchmark runner script
+│       │
+│       ├── experiment-isolated-scaling/# Single-domain isolated baseline benchmarks
+│       │   ├── data/                   # Isolated raw documents, candidate pools & judge evals
+│       │   ├── experiment.md           # Isolated baseline report
+│       │   └── run_experiment.py       # Isolated benchmark runner script
+│       │
+│       └── baselines/                  # Original single-corpus baselines (Elpis Rust, Notebooks, OCR)
+│           └── data/                   # Raw corpus files for baseline evaluations
+│
+├── server.py                           # FastMCP server entry point exposing tools to coding agents
+└── pyproject.toml                      # Project metadata, dependencies (LanceDB, PyTorch, PyMuPDF)
+```
+
+<br>
+
+## Benchmark & Retrieval Evaluations
+
+Evaluated against the **[open-rag-eval](https://github.com/vectara/open-rag-eval)** taxonomy ($top\_k=5$, isolated local retrieval with no reranker, local `qwen3-embedding:8b` + BM25 hybrid search):
+
+| Corpus / Domain | Total Queries | Strict Relevance (Score 3 / Exact) | Lenient Relevance (Score $\ge$ 2 / Full+Partial) | Miss Rate (Score $\le$ 1 / Miss) |
+| :--- | :--- | :--- | :--- | :--- |
+| **Attention Paper** (Scientific / AI) | 30 | **86.7%** (26/30) | **96.7%** (29/30) | 3.3% (1/30) |
+| **Brain & Behavior** (Neuroscience) | 30 | **76.7%** (23/30) | **93.3%** (28/30) | 6.7% (2/30) |
+| **Napoleon V2** (1000-char hybrid) | 30 | **66.7%** (20/30) | **90.0%** (27/30) | 10.0% (3/30) |
+| **Napoleon V1** (300-char chunks) | 30 | **53.3%** (16/30) | **83.3%** (25/30) | 16.7% (5/30) |
+| **Fire & Blood** (Narrative Fiction) | 30 | **46.7%** (14/30) | **80.0%** (24/30) | 20.0% (6/30) |
+| **Mixed Codebase** (Py/Rust/IPYNB) | 33 | **90.9%** (30/33) | **100.0%** (33/33) | 0.0% (0/33) |
+| **Elpis Memories Crate** (Rust) | 15 | **73.3%** (11/15) | **100.0%** (15/15) | 0.0% (0/15) |
+| **rag-mcp Codebase** (Python Server) | 15 | **80.0%** (12/15) | **93.3%** (14/15) | 6.7% (1/15) |
+| **Notebook Corpus** (JSON/Code) | 10 | **100.0%** (10/10) | **100.0%** (10/10) | 0.0% (0/10) |
+### Multi-Domain Scaling Experiment (Experiment 1)
+
+Evaluated across **5 merged heterogeneous domains (6,314 chunks in a single index)** comparing isolated baselines against unified scaling on NVIDIA GPU with `qwen3-embedding:0.6b` + `cross-encoder/ms-marco-MiniLM-L-6-v2` reranker:
+
+| Corpus / Domain | Queries | Isolated Baseline Hit@5 | Unified Scaled Hit@5 | Isolated Baseline MRR | Unified Scaled MRR | Domain Purity in Unified |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| **Attention Paper** (Scientific / AI) | 30 | **90.0%** (27/30) | **90.0%** (27/30) | 0.803 | 0.803 | 96.7% |
+| **Brain & Behavior** (Neuroscience) | 30 | **93.3%** (28/30) | **93.3%** (28/30) | 0.831 | 0.831 | 94.7% |
+| **Napoleon Biography** (History / Phil) | 30 | **66.7%** (20/30) | **66.7%** (20/30) | 0.558 | 0.548 | 100.0% |
+| **Fire & Blood** (Narrative Fiction) | 30 | **46.7%** (14/30) | **46.7%** (14/30) | 0.372 | 0.372 | 100.0% |
+| **Mixed Codebase** (Py/Rust/IPYNB) | 33 | **87.9%** (29/33) | **87.9%** (29/33) | 0.812 | 0.812 | 100.0% |
+| **Overall Experiment 1 Total** | **153** | **77.1%** (118/153) | **77.1%** (118/153) | **0.675** | **0.673** | **98.4%** |
+
+*Key finding: Merging 5 domains into one 6,314-chunk database produces **0.0% retrieval degradation** with **98.4% domain isolation purity** and **368ms average latency**.*
+
+<br>
 
 ## Benchmark & Retrieval Evaluations
 
@@ -66,17 +133,52 @@ Then register the server with an MCP client.
 claude mcp add rag -s user -- /absolute/path/to/rag-mcp/.venv/bin/python /absolute/path/to/rag-mcp/server.py
 ```
 
-### Codex / Elpis
+### Elpis
+
+**Option A: Global Config (`~/.elpis/config.toml`)**
+
+```toml
+[mcp_servers.rag]
+command = "/home/masih/Desktop/p/rag-mcp-lancedb/.venv/bin/python"
+args = ["/home/masih/Desktop/p/rag-mcp-lancedb/server.py"]
+
+[mcp_servers.rag.env]
+RAG_MCP_WORKSPACE_ROOT = "/home/masih/Desktop/p"
+RAG_MCP_BACKEND = "lancedb"
+```
+
+**Option B: Standard MCP JSON (`.mcp.json` or `~/.elpis/mcp.json`)**
+
+```json
+{
+  "mcpServers": {
+    "rag": {
+      "type": "stdio",
+      "command": "/home/masih/Desktop/p/rag-mcp-lancedb/.venv/bin/python",
+      "args": [
+        "/home/masih/Desktop/p/rag-mcp-lancedb/server.py"
+      ],
+      "env": {
+        "RAG_MCP_WORKSPACE_ROOT": "/home/masih/Desktop/p",
+        "RAG_MCP_BACKEND": "lancedb"
+      }
+    }
+  }
+}
+```
+
+### Codex
 
 Add to `~/.codex/config.toml`:
 
 ```toml
 [mcp_servers.rag]
-command = "/absolute/path/to/rag-mcp/.venv/bin/python"
-args = ["/absolute/path/to/rag-mcp/server.py"]
+command = "/home/masih/Desktop/p/rag-mcp-lancedb/.venv/bin/python"
+args = ["/home/masih/Desktop/p/rag-mcp-lancedb/server.py"]
 
 [mcp_servers.rag.env]
-RAG_MCP_WORKSPACE_ROOT = "/absolute/path/to/your/project"
+RAG_MCP_WORKSPACE_ROOT = "/home/masih/Desktop/p"
+RAG_MCP_BACKEND = "lancedb"
 ```
 
 Expected result: the client discovers `query_knowledge_base`, and a query returns ranked passages with source paths from the requested scope.
