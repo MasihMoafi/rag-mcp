@@ -1,0 +1,96 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="560" viewBox="0 0 1100 560" role="img" aria-labelledby="title desc">
+<title id="title">Retrieval reliability across five recorded corpora (qwen3-embedding:0.6b + cross-encoder)</title>
+<desc id="desc">Query-level grades from rag-mcp evaluation result files with 0.6b embeddings and cross-encoder reranker. Brain and Behavior: 76.7 percent strict Hit@1, 93.3 percent Hit@5. Attention paper: 56.7 percent strict Hit@1, 90.0 percent Hit@5. Mixed codebase: 75.8 percent strict Hit@1, 87.9 percent Hit@5. Fire and Blood: 40.0 percent strict Hit@1, 70.0 percent Hit@5. Napoleon: 46.7 percent strict Hit@1, 66.7 percent Hit@5.</desc>
+<rect width="1100" height="560" fill="#0b0f14"/>
+<text x="44" y="44" fill="#f5f7fa" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="24" font-weight="700">Retrieval reliability (0.6B + Reranker)</text>
+<text x="44" y="72" fill="#9aa4b2" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13">exact full answer vs. full + partial · qwen3-embedding:0.6b + cross-encoder · five recorded corpora</text>
+
+<g font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12">
+  <circle cx="808" cy="43" r="6" fill="#38bdf8"/>
+  <text x="822" y="47" fill="#c8d0da">Hit@1 (exact)</text>
+  <circle cx="944" cy="43" r="6" fill="#ec4899"/>
+  <text x="958" y="47" fill="#c8d0da">Hit@5 (full+partial)</text>
+</g>
+
+<g font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12" fill="#748091">
+  <text x="300" y="116" text-anchor="middle">0%</text>
+  <text x="650" y="116" text-anchor="middle">50%</text>
+  <text x="1000" y="116" text-anchor="middle">100%</text>
+  <text x="650" y="142" text-anchor="middle" fill="#9aa4b2">questions answered (%)</text>
+</g>
+
+<g stroke="#232b35" stroke-width="1">
+  <line x1="300" y1="128" x2="300" y2="410"/>
+  <line x1="650" y1="128" x2="650" y2="410"/>
+  <line x1="1000" y1="128" x2="1000" y2="410"/>
+  <line x1="300" y1="170" x2="1000" y2="170"/>
+  <line x1="300" y1="222" x2="1000" y2="222"/>
+  <line x1="300" y1="274" x2="1000" y2="274"/>
+  <line x1="300" y1="326" x2="1000" y2="326"/>
+  <line x1="300" y1="378" x2="1000" y2="378"/>
+</g>
+
+<g font-family="ui-monospace, SFMono-Regular, Menlo, monospace">
+  <g fill="#e8ecf1" font-size="14">
+    <text x="44" y="166" font-weight="700">Brain &amp; Behavior</text>
+    <text x="44" y="182" fill="#748091" font-size="11">30 questions · book-length text</text>
+    <text x="44" y="218" font-weight="700">Attention paper</text>
+    <text x="44" y="234" fill="#748091" font-size="11">30 questions · technical paper</text>
+    <text x="44" y="270" font-weight="700">Mixed codebase</text>
+    <text x="44" y="286" fill="#748091" font-size="11">33 questions · Rust + Python + notebook</text>
+    <text x="44" y="322" font-weight="700">Fire &amp; Blood</text>
+    <text x="44" y="338" fill="#748091" font-size="11">30 questions · narrative fiction</text>
+    <text x="44" y="374" font-weight="700">Napoleon biography</text>
+    <text x="44" y="390" fill="#748091" font-size="11">30 questions · historical biography</text>
+  </g>
+
+  <!-- Connectors -->
+  <g stroke="#394452" stroke-width="3">
+    <line x1="836.9" y1="170" x2="953.1" y2="170"/>
+    <line x1="696.9" y1="222" x2="930.0" y2="222"/>
+    <line x1="830.6" y1="274" x2="915.3" y2="274"/>
+    <line x1="580.0" y1="326" x2="790.0" y2="326"/>
+    <line x1="626.9" y1="378" x2="766.9" y2="378"/>
+  </g>
+
+  <!-- Hit@1 Dots (Sky Blue #38bdf8) -->
+  <g fill="#38bdf8">
+    <circle cx="836.9" cy="170" r="7"/>
+    <circle cx="696.9" cy="222" r="7"/>
+    <circle cx="830.6" cy="274" r="7"/>
+    <circle cx="580.0" cy="326" r="7"/>
+    <circle cx="626.9" cy="378" r="7"/>
+  </g>
+
+  <!-- Hit@5 Dots (Rose Pink #ec4899) -->
+  <g fill="#ec4899">
+    <circle cx="953.1" cy="170" r="7"/>
+    <circle cx="930.0" cy="222" r="7"/>
+    <circle cx="915.3" cy="274" r="7"/>
+    <circle cx="790.0" cy="326" r="7"/>
+    <circle cx="766.9" cy="378" r="7"/>
+  </g>
+
+  <!-- Hit@1 Labels -->
+  <g fill="#f5f7fa" font-size="12" font-weight="700">
+    <text x="848" y="158">76.7%</text>
+    <text x="708" y="210">56.7%</text>
+    <text x="842" y="262">75.8%</text>
+    <text x="592" y="314">40.0%</text>
+    <text x="638" y="366">46.7%</text>
+  </g>
+
+  <!-- Hit@5 Labels -->
+  <g fill="#c8d0da" font-size="12">
+    <text x="965" y="186">93.3%</text>
+    <text x="942" y="238">90.0%</text>
+    <text x="927" y="290">87.9%</text>
+    <text x="802" y="342">70.0%</text>
+    <text x="778" y="394">66.7%</text>
+  </g>
+</g>
+
+<line x1="44" y1="440" x2="1056" y2="440" stroke="#232b35"/>
+<text x="44" y="466" fill="#9aa4b2" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12">Recorded query-level grades with qwen3-embedding:0.6b + cross-encoder/ms-marco-MiniLM-L-6-v2.</text>
+<text x="44" y="486" fill="#748091" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11">Source evals: evals/experiments/experiment-isolated-scaling/data/ · single corpus runs</text>
+</svg>
