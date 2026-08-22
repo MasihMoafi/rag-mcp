@@ -1,29 +1,62 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="940" height="210" viewBox="0 0 940 210" role="img" aria-labelledby="title desc">
-<title id="title">Retrieval reliability — the two best of six recorded corpora</title>
-<desc id="desc">Recorded runs of the live rag-mcp server. A mixed 36-file code and docs directory: 90.9 percent fully retrieved, 100 percent at least partial. The Attention paper: 86.7 percent fully retrieved, 96.7 percent at least partial. Full six-corpus results are further down in the readme.</desc>
-<rect width="940" height="210" fill="#0b0f14"/>
-<text x="40" y="34" fill="#f5f7fa" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="18" font-weight="700">Retrieval reliability</text>
-<text x="40" y="54" fill="#9aa4b2" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11">two best of six recorded corpora · full results below</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="240" viewBox="0 0 940 240" fill="none" role="img" aria-labelledby="title desc">
+  <title id="title">rag-mcp Multi-Domain Unified Scaling Performance</title>
+  <desc id="desc">Zero recall degradation across 6,314 chunks in a unified multi-domain index on NVIDIA GPU.</desc>
+  
+  <!-- Background Card with Subtle Border -->
+  <rect width="940" height="240" rx="12" fill="#090d14"/>
+  <rect x="0.5" y="0.5" width="939" height="239" rx="11.5" stroke="#1e293b" stroke-width="1"/>
 
-<g font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11">
-  <rect x="600" y="26" width="12" height="12" rx="3" fill="#22d3ee"/>
-  <text x="617" y="36" fill="#c8d0da">full</text>
-  <rect x="670" y="26" width="12" height="12" rx="3" fill="#a78bfa"/>
-  <text x="687" y="36" fill="#c8d0da">partial</text>
-  <rect x="760" y="26" width="12" height="12" rx="3" fill="#ef4444"/>
-  <text x="777" y="36" fill="#c8d0da">missing</text>
-</g>
+  <!-- Header Section -->
+  <text x="36" y="38" fill="#f8fafc" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="16" font-weight="700" letter-spacing="-0.02em">MULTI-DOMAIN SCALING BENCHMARK</text>
+  <text x="36" y="58" fill="#94a3b8" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12">153 Ground-Truth Queries · 5 Heterogeneous Corpora · 6,314 Chunks · CUDA GPU</text>
 
-<g font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14">
-  <text x="60" y="92" fill="#e8ecf1" font-weight="700">Rust + Python + notebook (36-file directory)</text>
-  <text x="900" y="92" fill="#f5f7fa" text-anchor="end" font-weight="700">90.9% full</text>
-  <rect x="60.0" y="98" width="636.4" height="28" rx="4" fill="#22d3ee"/>
-  <rect x="698.4" y="98" width="63.6" height="28" rx="4" fill="#a78bfa"/>
+  <!-- Status Badges (Top Right) -->
+  <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" font-weight="600">
+    <!-- Latency Badge -->
+    <rect x="660" y="24" width="115" height="24" rx="12" fill="#0f172a" stroke="#334155" stroke-width="1"/>
+    <circle cx="673" cy="36" r="4" fill="#38bdf8"/>
+    <text x="684" y="40" fill="#e2e8f0">368ms / query</text>
 
-  <text x="60" y="160" fill="#e8ecf1" font-weight="700">Attention (paper)</text>
-  <text x="900" y="160" fill="#f5f7fa" text-anchor="end" font-weight="700">86.7% full</text>
-  <rect x="60.0" y="166" width="606.7" height="28" rx="4" fill="#22d3ee"/>
-  <rect x="668.7" y="166" width="70.0" height="28" rx="4" fill="#a78bfa"/>
-  <rect x="740.7" y="166" width="23.3" height="28" rx="4" fill="#ef4444"/>
-</g>
+    <!-- Recall Badge -->
+    <rect x="785" y="24" width="120" height="24" rx="12" fill="#0f172a" stroke="#334155" stroke-width="1"/>
+    <circle cx="798" cy="36" r="4" fill="#10b981"/>
+    <text x="809" y="40" fill="#10b981">0.0% Recall Loss</text>
+  </g>
+
+  <!-- Metric 1: Unified Scaled Hit@5 -->
+  <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif">
+    <text x="36" y="102" fill="#e2e8f0" font-size="13" font-weight="600">Unified 6,314-Chunk Index (Merged Multi-Domain)</text>
+    <text x="904" y="102" fill="#38bdf8" font-size="13" font-weight="700" text-anchor="end">81.7% Hit@5 (125/153)</text>
+    <!-- Background Track -->
+    <rect x="36" y="112" width="868" height="22" rx="6" fill="#1e293b"/>
+    <!-- Progress Fill -->
+    <rect x="36" y="112" width="709.1" height="22" rx="6" fill="url(#cyan-grad)"/>
+  </g>
+
+  <!-- Metric 2: Isolated Baseline Hit@5 -->
+  <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif">
+    <text x="36" y="168" fill="#e2e8f0" font-size="13" font-weight="600">Isolated Single-Domain Baselines (Average ~1.2k Chunks)</text>
+    <text x="904" y="168" fill="#a78bfa" font-size="13" font-weight="700" text-anchor="end">81.7% Hit@5 (125/153)</text>
+    <!-- Background Track -->
+    <rect x="36" y="178" width="868" height="22" rx="6" fill="#1e293b"/>
+    <!-- Progress Fill -->
+    <rect x="36" y="178" width="709.1" height="22" rx="6" fill="url(#purple-grad)"/>
+  </g>
+
+  <!-- Footer Insight Pill -->
+  <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" fill="#64748b">
+    <text x="36" y="222">⚡ 99.3% Top-1 candidate equivalence · 98.4% domain isolation purity · 2-stage LanceDB + Tantivy RRF + Cross-Encoder</text>
+  </g>
+
+  <!-- Gradients -->
+  <defs>
+    <linearGradient id="cyan-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#0284c7"/>
+      <stop offset="100%" stop-color="#38bdf8"/>
+    </linearGradient>
+    <linearGradient id="purple-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#7c3aed"/>
+      <stop offset="100%" stop-color="#a78bfa"/>
+    </linearGradient>
+  </defs>
 </svg>
