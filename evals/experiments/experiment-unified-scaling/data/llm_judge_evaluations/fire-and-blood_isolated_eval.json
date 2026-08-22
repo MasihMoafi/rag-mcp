@@ -1,0 +1,155 @@
+{
+  "domain": "fire-and-blood",
+  "evaluations": [
+    {
+      "query_id": "fab_01",
+      "hit_rank": 0,
+      "reasoning": "None of the candidate chunks explain the political strategy of forestalling rebellions and hearing smallfolk grievances during Aegon I's royal progresses."
+    },
+    {
+      "query_id": "fab_02",
+      "hit_rank": 5,
+      "reasoning": "Rank 5 describes Queen Visenya as a grim, stern, and unforgiving warrior rumored to practice dark arts and poisons, contrasting her with her sister."
+    },
+    {
+      "query_id": "fab_03",
+      "hit_rank": 3,
+      "reasoning": "Rank 3 explains the Doctrine of Exceptionalism, stating that Valyrian descent and dragonriding set Targaryens apart from other men and exempt them from Faith prohibitions against incest."
+    },
+    {
+      "query_id": "fab_04",
+      "hit_rank": 0,
+      "reasoning": "None of the candidate chunks mention the thematic motivation of the Winter Wolves seeking death in battle to avoid burdening their kin during winter."
+    },
+    {
+      "query_id": "fab_05",
+      "hit_rank": 0,
+      "reasoning": "None of the candidate chunks discuss the green council's specific fear of the court becoming a brothel under Prince Daemon and Rhaenyra."
+    },
+    {
+      "query_id": "fab_06",
+      "hit_rank": 1,
+      "reasoning": "Rank 1 describes Aegon III as the Broken King, characterizing him as a joyless, enigmatic monarch steeped in lifelong grief and melancholy."
+    },
+    {
+      "query_id": "fab_07",
+      "hit_rank": 0,
+      "reasoning": "None of the candidate chunks explain the specific underlying cause that precipitated the First Quarrel between Jaehaerys and Alysanne."
+    },
+    {
+      "query_id": "fab_08",
+      "hit_rank": 2,
+      "reasoning": "Rank 2 details how the multiple weddings of 49 AC (the Year of the Three Brides) produced mutual resentment and estrangement among Jaehaerys, Queen Alyssa, and Lord Rogar."
+    },
+    {
+      "query_id": "fab_09",
+      "hit_rank": 1,
+      "reasoning": "Rank 1 portrays the Shepherd as a religious populist and anti-dragon leader who held sway over tens of thousands from the Dragonpit ruins."
+    },
+    {
+      "query_id": "fab_10",
+      "hit_rank": 1,
+      "reasoning": "Rank 1 explicitly states that the Great Council of 101 established the precedent that the Iron Throne could not pass to a woman or through a woman to her male descendants."
+    },
+    {
+      "query_id": "fab_11",
+      "hit_rank": 2,
+      "reasoning": "Rank 2 identifies Queen Visenya's Valyrian steel longsword as Dark Sister."
+    },
+    {
+      "query_id": "fab_12",
+      "hit_rank": 1,
+      "reasoning": "Rank 1 explicitly states that the dragon Caraxes was called the Blood Wyrm."
+    },
+    {
+      "query_id": "fab_13",
+      "hit_rank": 1,
+      "reasoning": "Rank 1 identifies Princess Meria Martell as the Yellow Toad of Dorne during the First Dornish War."
+    },
+    {
+      "query_id": "fab_14",
+      "hit_rank": 2,
+      "reasoning": "Rank 2 explicitly states that Elissa Farman used the gold from the stolen dragon eggs to finance the building of the Sun Chaser."
+    },
+    {
+      "query_id": "fab_15",
+      "hit_rank": 0,
+      "reasoning": "None of the candidate chunks name or describe the poison used in the assassination of the dragonriders and Ser Hobert Hightower at Tumbleton."
+    },
+    {
+      "query_id": "fab_16",
+      "hit_rank": 4,
+      "reasoning": "Rank 4 explicitly identifies the squire Pate of Longleaf as the one who mortally wounded Lord Jason Lannister and was knighted as Longleaf the Lionslayer."
+    },
+    {
+      "query_id": "fab_17",
+      "hit_rank": 1,
+      "reasoning": "Rank 1 mentions Sandoq the Shadow defending Maegor's Holdfast."
+    },
+    {
+      "query_id": "fab_18",
+      "hit_rank": 2,
+      "reasoning": "Rank 2 names the Seven Speakers who preached to win over the Faithful regarding the royal marriage."
+    },
+    {
+      "query_id": "fab_19",
+      "hit_rank": 0,
+      "reasoning": "None of the candidate chunks identify the specific location or site of the Butcher's Ball."
+    },
+    {
+      "query_id": "fab_20",
+      "hit_rank": 1,
+      "reasoning": "Rank 1 explicitly names the blacksmith's bastard who mounted Vermithor as Hugh the Hammer (Hard Hugh)."
+    },
+    {
+      "query_id": "fab_21",
+      "hit_rank": 1,
+      "reasoning": "Rank 1 states that the Shivers of 59 AC killed three Small Council members: Albin Massey, Qarl Corbray, and Grand Maester Benifer."
+    },
+    {
+      "query_id": "fab_22",
+      "hit_rank": 1,
+      "reasoning": "Rank 1 explains that Lucerys's death ended the war of ravens and envoys and initiated the war of fire and blood in earnest."
+    },
+    {
+      "query_id": "fab_23",
+      "hit_rank": 0,
+      "reasoning": "None of the candidate chunks describe Addam Velaryon's actions to raise an army and retake Tumbleton to prove his house's loyalty."
+    },
+    {
+      "query_id": "fab_24",
+      "hit_rank": 1,
+      "reasoning": "Rank 1 details the provisions of the Widow's Law of 52 AC protecting widows from being expelled or impoverished by subsequent heirs."
+    },
+    {
+      "query_id": "fab_25",
+      "hit_rank": 1,
+      "reasoning": "Rank 1 outlines the terms of the Pact of Ice and Fire betrothing Jacaerys's future firstborn daughter to Cregan Stark's heir Rickon."
+    },
+    {
+      "query_id": "fab_26",
+      "hit_rank": 1,
+      "reasoning": "Rank 1 details how Queen Helaena's death incited widespread rioting across King's Landing, originating in Flea Bottom."
+    },
+    {
+      "query_id": "fab_27",
+      "hit_rank": 0,
+      "reasoning": "None of the candidate chunks describe the physical symptoms of Aerea Targaryen's affliction or Barth's theories on Valyria."
+    },
+    {
+      "query_id": "fab_28",
+      "hit_rank": 0,
+      "reasoning": "None of the candidate chunks describe the Battle Above the Gods Eye ending the line of Aegon I's original dragons with Vhagar's death."
+    },
+    {
+      "query_id": "fab_29",
+      "hit_rank": 2,
+      "reasoning": "Rank 2 records Larys Strong maneuvering succession politics by advising Aegon II to name Young Aegon as heir."
+    },
+    {
+      "query_id": "fab_30",
+      "hit_rank": 2,
+      "reasoning": "Rank 2 describes the failure of Peake's strategy when Aegon III bypassed the Hand's daughter to choose Lady Daenaera Velaryon."
+    }
+  ]
+}

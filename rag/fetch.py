@@ -43,7 +43,8 @@ RAG_CONFIG_V2 = {
     "use_contextual": False,  # Disable contextual retrieval for performance
     "bm25_k1": 1.5,  # BM25 parameters
     "bm25_b": 0.75,
-    "distance_metric": "cosine"  # Vector distance metric
+    "distance_metric": "cosine",  # Vector distance metric
+    "backend": _env_str("RAG_MCP_BACKEND", "lancedb"),  # lancedb | qdrant
 }
 
 _rag_system_v2_instances: Dict[str, RAGPipelineV2] = {}

@@ -2,7 +2,14 @@ __pycache__/
 *.pyc
 .venv/
 rag/rag_db_v2/
+rag/rag_db_*/
 .pytest_cache/
 
-# eval fixtures: real books/papers, not ours to redistribute
-evals/*/*.pdf
+# Binary data & heavy database storage
+*.pdf
+*.lance
+*.lance/
+lancedb_storage/
+qdrant_storage/
+lancedb_isolated_*/
+lancedb_unified_storage/
