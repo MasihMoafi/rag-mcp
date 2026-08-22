@@ -23,9 +23,9 @@ type: local hybrid-search MCP server for AI coding agents & document workflows
 
 | Feature | Specification | Impact |
 | :--- | :--- | :--- |
-| **100% Local Execution** | On-device Ollama + LanceDB + Cross-Encoder | Zero cloud API dependencies, zero telemetry, zero data egress. |
+| **100% Local Execution** | Configurable local embedding + vector DB + reranker | Zero cloud API dependencies, zero telemetry, zero data egress. |
 | **2-Stage Hybrid Search** | Vector proximity + Tantivy BM25 FTS $\rightarrow$ RRF ($k=60$) | Combines semantic intent with exact keyword and symbol matching. |
-| **Cross-Encoder Reranking** | `cross-encoder/ms-marco-MiniLM-L-6-v2` on CUDA | Reranks Top-50 candidates down to Top-5 with pinpoint accuracy. |
+| **Cross-Encoder Reranking** | GPU/CPU cross-encoder reranking (configurable model) | Reranks Top-50 candidates down to Top-5 with pinpoint accuracy. |
 | **Per-Call Dynamic Scoping** | Target subdirectories/files via `doc_path` per tool call | Avoids full-workspace re-indexing on every search. |
 | **Rich Multi-Format Support** | Native code, Markdown, PDF, IPYNB, Office & OCR | Parses `.py`, `.rs`, `.ts`, `.docx`, `.xlsx`, `.pptx`, `.png`, `.jpg`. |
 | **Safety Guardrails** | Exclusion filters + token & depth limits | Blocks `.git`, `node_modules`, `.venv`, and directory traversal loops. |
@@ -90,11 +90,11 @@ query + optional doc_path
          ↓
 syntax-aware chunking (functions, markdown breadcrumbs, cells)
          ↓
-Stage 1: LanceDB vector search + Tantivy BM25 full-text search
+Stage 1: Vector search + Tantivy BM25 full-text search
          ↓
 Reciprocal Rank Fusion (RRF, k=60) -> Top-50 candidates
          ↓
-Stage 2: Cross-Encoder GPU reranking (ms-marco-MiniLM-L-6-v2)
+Stage 2: Cross-Encoder reranking (configurable model)
          ↓
 Top-5 ranked chunks with exact file paths & line numbers
 ```
