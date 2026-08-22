@@ -1,84 +1,99 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="940" height="420" viewBox="0 0 940 420" fill="none" role="img" aria-labelledby="title desc">
-  <title id="title">Multi-Domain Retrieval Benchmark Results</title>
-  <desc id="desc">Precision (Hit@1), Recall (Hit@5), and MRR across 5 heterogeneous evaluation corpora.</desc>
-  
-  <!-- Background Card -->
-  <rect width="940" height="420" rx="12" fill="#090d14"/>
-  <rect x="0.5" y="0.5" width="939" height="419" rx="11.5" stroke="#1e293b" stroke-width="1"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="560" viewBox="0 0 1100 560" role="img" aria-labelledby="title desc">
+<title id="title">Retrieval reliability across six recorded corpora</title>
+<desc id="desc">Query-level grades from rag-mcp evaluation result files. Each row shows the percentage of questions with a full answer and the percentage with either a full or partial answer. Mixed codebase: 90.9 percent full and 100 percent full or partial. Notebook: 100 percent and 100 percent. Attention paper: 86.7 percent and 96.7 percent. Brain and Behavior: 76.7 percent and 93.3 percent. Fire and Blood: 46.7 percent and 80 percent. rag-mcp codebase: 80 percent and 93.3 percent.</desc>
+<rect width="1100" height="560" fill="#0b0f14"/>
+<text x="44" y="44" fill="#f5f7fa" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="24" font-weight="700">Retrieval reliability</text>
+<text x="44" y="72" fill="#9aa4b2" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13">exact full answer vs. full + partial · six recorded corpora</text>
 
-  <!-- Title & Legend -->
-  <text x="36" y="38" fill="#f8fafc" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="16" font-weight="700">RETRIEVAL ACCURACY &amp; RECALL BREAKDOWN</text>
-  <text x="36" y="58" fill="#94a3b8" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12">LLM Judge Verified across 153 Domain Queries · LanceDB + Tantivy BM25 + Cross-Encoder</text>
+<g font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12">
+  <circle cx="808" cy="43" r="6" fill="#22d3ee"/>
+  <text x="822" y="47" fill="#c8d0da">full answer</text>
+  <circle cx="944" cy="43" r="6" fill="#a78bfa"/>
+  <text x="958" y="47" fill="#c8d0da">full + partial</text>
+</g>
 
-  <!-- Legend -->
-  <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" font-weight="600">
-    <rect x="640" y="32" width="10" height="10" rx="2" fill="#38bdf8"/>
-    <text x="656" y="41" fill="#cbd5e1">Hit@1 (Top-1 Precision)</text>
-    
-    <rect x="800" y="32" width="10" height="10" rx="2" fill="#a78bfa"/>
-    <text x="816" y="41" fill="#cbd5e1">Hit@5 (Full Recall)</text>
+<g font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12" fill="#748091">
+  <text x="300" y="116" text-anchor="middle">0%</text>
+  <text x="650" y="116" text-anchor="middle">50%</text>
+  <text x="1000" y="116" text-anchor="middle">100%</text>
+  <text x="650" y="142" text-anchor="middle" fill="#9aa4b2">questions answered (%)</text>
+</g>
+
+<g stroke="#232b35" stroke-width="1">
+  <line x1="300" y1="128" x2="300" y2="454"/>
+  <line x1="650" y1="128" x2="650" y2="454"/>
+  <line x1="1000" y1="128" x2="1000" y2="454"/>
+  <line x1="300" y1="170" x2="1000" y2="170"/>
+  <line x1="300" y1="222" x2="1000" y2="222"/>
+  <line x1="300" y1="274" x2="1000" y2="274"/>
+  <line x1="300" y1="326" x2="1000" y2="326"/>
+  <line x1="300" y1="378" x2="1000" y2="378"/>
+  <line x1="300" y1="430" x2="1000" y2="430"/>
+</g>
+
+<g font-family="ui-monospace, SFMono-Regular, Menlo, monospace">
+  <g fill="#e8ecf1" font-size="14">
+    <text x="44" y="166" font-weight="700">Mixed codebase</text>
+    <text x="44" y="182" fill="#748091" font-size="11">33 questions · Rust + Python + notebook</text>
+    <text x="44" y="218" font-weight="700">Notebook</text>
+    <text x="44" y="234" fill="#748091" font-size="11">10 questions · structured setup</text>
+    <text x="44" y="270" font-weight="700">Attention paper</text>
+    <text x="44" y="286" fill="#748091" font-size="11">30 questions · technical paper</text>
+    <text x="44" y="322" font-weight="700">Brain &amp; Behavior</text>
+    <text x="44" y="338" fill="#748091" font-size="11">30 questions · book-length text</text>
+    <text x="44" y="374" font-weight="700">rag-mcp codebase</text>
+    <text x="44" y="390" fill="#748091" font-size="11">15 questions · local source tree</text>
+    <text x="44" y="426" font-weight="700">Fire &amp; Blood</text>
+    <text x="44" y="442" fill="#748091" font-size="11">30 questions · narrative fiction</text>
   </g>
 
-  <!-- Domain 1: Brain & Behavior -->
-  <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" transform="translate(36, 85)">
-    <text x="0" y="14" fill="#e2e8f0" font-size="13" font-weight="600">Brain &amp; Behavior (Neuroscience Textbook · 3,324 chunks)</text>
-    <rect x="680" y="0" width="70" height="18" rx="4" fill="#0f172a" stroke="#334155"/>
-    <text x="715" y="13" fill="#38bdf8" font-size="10" font-weight="700" text-anchor="middle">MRR 0.831</text>
-    <text x="868" y="14" fill="#f8fafc" font-size="13" font-weight="700" text-anchor="end">93.3%</text>
-    
-    <!-- Background Track -->
-    <rect x="0" y="24" width="868" height="18" rx="5" fill="#1e293b"/>
-    <!-- Hit@5 Bar -->
-    <rect x="0" y="24" width="809.8" height="18" rx="5" fill="#a78bfa" fill-opacity="0.4"/>
-    <!-- Hit@1 Bar -->
-    <rect x="0" y="24" width="665.7" height="18" rx="5" fill="#38bdf8"/>
+  <g stroke="#394452" stroke-width="3">
+    <line x1="936.3" y1="170" x2="1000" y2="170"/>
+    <line x1="1000" y1="222" x2="1000" y2="222"/>
+    <line x1="906.9" y1="274" x2="976.9" y2="274"/>
+    <line x1="836.9" y1="326" x2="953.1" y2="326"/>
+    <line x1="860" y1="378" x2="953.1" y2="378"/>
+    <line x1="626.9" y1="430" x2="860" y2="430"/>
   </g>
 
-  <!-- Domain 2: Attention Is All You Need -->
-  <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" transform="translate(36, 145)">
-    <text x="0" y="14" fill="#e2e8f0" font-size="13" font-weight="600">Attention Is All You Need (AI / Scientific Paper · 47 chunks)</text>
-    <rect x="680" y="0" width="70" height="18" rx="4" fill="#0f172a" stroke="#334155"/>
-    <text x="715" y="13" fill="#38bdf8" font-size="10" font-weight="700" text-anchor="middle">MRR 0.703</text>
-    <text x="868" y="14" fill="#f8fafc" font-size="13" font-weight="700" text-anchor="end">90.0%</text>
-    
-    <rect x="0" y="24" width="868" height="18" rx="5" fill="#1e293b"/>
-    <rect x="0" y="24" width="781.2" height="18" rx="5" fill="#a78bfa" fill-opacity="0.4"/>
-    <rect x="0" y="24" width="492.1" height="18" rx="5" fill="#38bdf8"/>
+  <g fill="#22d3ee">
+    <circle cx="936.3" cy="170" r="7"/>
+    <circle cx="1000" cy="222" r="7"/>
+    <circle cx="906.9" cy="274" r="7"/>
+    <circle cx="836.9" cy="326" r="7"/>
+    <circle cx="860" cy="378" r="7"/>
+    <circle cx="626.9" cy="430" r="7"/>
   </g>
 
-  <!-- Domain 3: Mixed Codebase -->
-  <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" transform="translate(36, 205)">
-    <text x="0" y="14" fill="#e2e8f0" font-size="13" font-weight="600">Mixed Codebase (Python + Rust + Notebook · 515 chunks)</text>
-    <rect x="680" y="0" width="70" height="18" rx="4" fill="#0f172a" stroke="#334155"/>
-    <text x="715" y="13" fill="#38bdf8" font-size="10" font-weight="700" text-anchor="middle">MRR 0.812</text>
-    <text x="868" y="14" fill="#f8fafc" font-size="13" font-weight="700" text-anchor="end">87.9%</text>
-    
-    <rect x="0" y="24" width="868" height="18" rx="5" fill="#1e293b"/>
-    <rect x="0" y="24" width="762.9" height="18" rx="5" fill="#a78bfa" fill-opacity="0.4"/>
-    <rect x="0" y="24" width="657.9" height="18" rx="5" fill="#38bdf8"/>
+  <g fill="#a78bfa">
+    <circle cx="1000" cy="170" r="7"/>
+    <circle cx="1000" cy="222" r="7"/>
+    <circle cx="976.9" cy="274" r="7"/>
+    <circle cx="953.1" cy="326" r="7"/>
+    <circle cx="953.1" cy="378" r="7"/>
+    <circle cx="860" cy="430" r="7"/>
   </g>
 
-  <!-- Domain 4: Fire & Blood -->
-  <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" transform="translate(36, 265)">
-    <text x="0" y="14" fill="#e2e8f0" font-size="13" font-weight="600">Fire &amp; Blood (George R.R. Martin Fantasy Novel · 1,700 chunks)</text>
-    <rect x="680" y="0" width="70" height="18" rx="4" fill="#0f172a" stroke="#334155"/>
-    <text x="715" y="13" fill="#38bdf8" font-size="10" font-weight="700" text-anchor="middle">MRR 0.526</text>
-    <text x="868" y="14" fill="#f8fafc" font-size="13" font-weight="700" text-anchor="end">70.0%</text>
-    
-    <rect x="0" y="24" width="868" height="18" rx="5" fill="#1e293b"/>
-    <rect x="0" y="24" width="607.6" height="18" rx="5" fill="#a78bfa" fill-opacity="0.4"/>
-    <rect x="0" y="24" width="347.2" height="18" rx="5" fill="#38bdf8"/>
+  <g fill="#f5f7fa" font-size="12" font-weight="700">
+    <text x="948" y="158">90.9%</text>
+    <text x="948" y="210">100%</text>
+    <text x="918" y="262">86.7%</text>
+    <text x="848" y="314">76.7%</text>
+    <text x="871" y="366">80%</text>
+    <text x="638" y="418">46.7%</text>
   </g>
 
-  <!-- Domain 5: Napoleon Biography -->
-  <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" transform="translate(36, 325)">
-    <text x="0" y="14" fill="#e2e8f0" font-size="13" font-weight="600">Napoleon (Historical Biography · 728 chunks)</text>
-    <rect x="680" y="0" width="70" height="18" rx="4" fill="#0f172a" stroke="#334155"/>
-    <text x="715" y="13" fill="#38bdf8" font-size="10" font-weight="700" text-anchor="middle">MRR 0.548</text>
-    <text x="868" y="14" fill="#f8fafc" font-size="13" font-weight="700" text-anchor="end">66.7%</text>
-    
-    <rect x="0" y="24" width="868" height="18" rx="5" fill="#1e293b"/>
-    <rect x="0" y="24" width="578.9" height="18" rx="5" fill="#a78bfa" fill-opacity="0.4"/>
-    <rect x="0" y="24" width="405.3" height="18" rx="5" fill="#38bdf8"/>
+  <g fill="#c8d0da" font-size="12">
+    <text x="1000" y="186" text-anchor="end">100%</text>
+    <text x="1000" y="238" text-anchor="end">100%</text>
+    <text x="976.9" y="290">96.7%</text>
+    <text x="953.1" y="342">93.3%</text>
+    <text x="953.1" y="394">93.3%</text>
+    <text x="860" y="446">80%</text>
   </g>
+</g>
+
+<line x1="44" y1="480" x2="1056" y2="480" stroke="#232b35"/>
+<text x="44" y="506" fill="#9aa4b2" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12">Recorded query-level grades from evals/*/results.csv.</text>
+<text x="44" y="526" fill="#748091" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11">The rows show retrieval evidence across different corpora, not a benchmark against other tools.</text>
 </svg>

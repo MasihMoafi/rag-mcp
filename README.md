@@ -150,7 +150,11 @@ rag-mcp/
 
 ## Benchmark & Retrieval Evaluations
 
-Evaluated against the **[open-rag-eval](https://github.com/vectara/open-rag-eval)** taxonomy ($top\_k=5$, isolated local retrieval with no reranker, local `qwen3-embedding:8b` + BM25 hybrid search):
+### 1. 8B Baseline: `qwen3-embedding:8b` (Isolated Retrieval, No Reranker)
+
+![8B Baseline Retrieval Reliability across Six Corpora](assets/retrieval-comparison.svg)
+
+Evaluated against the **[open-rag-eval](https://github.com/vectara/open-rag-eval)** taxonomy ($top\_k=5$, local `qwen3-embedding:8b` + BM25 hybrid search):
 
 | Corpus / Domain | Total Queries | Strict Relevance (Score 3 / Exact) | Lenient Relevance (Score $\ge$ 2 / Full+Partial) | Miss Rate (Score $\le$ 1 / Miss) |
 | :--- | :--- | :--- | :--- | :--- |
@@ -163,20 +167,30 @@ Evaluated against the **[open-rag-eval](https://github.com/vectara/open-rag-eval
 | **Elpis Memories Crate** (Rust) | 15 | **73.3%** (11/15) | **100.0%** (15/15) | 0.0% (0/15) |
 | **rag-mcp Codebase** (Python Server) | 15 | **80.0%** (12/15) | **93.3%** (14/15) | 6.7% (1/15) |
 | **Notebook Corpus** (JSON/Code) | 10 | **100.0%** (10/10) | **100.0%** (10/10) | 0.0% (0/10) |
-### Multi-Domain Scaling Experiment (Experiment 1)
 
-Evaluated across **5 merged heterogeneous domains (6,314 chunks in a single index)** comparing isolated baselines against unified scaling on NVIDIA RTX 3070 Laptop GPU with `qwen3-embedding:0.6b` + `cross-encoder/ms-marco-MiniLM-L-6-v2` reranker:
+<br>
 
-| Corpus / Domain | Queries | Isolated Baseline Hit@5 | Unified Scaled Hit@5 | Isolated Baseline MRR | Unified Scaled MRR | Domain Purity in Unified |
-| :--- | :---: | :---: | :---: | :---: | :---: | :---: |
-| **Attention Paper** (Scientific / AI) | 30 | **90.0%** (27/30) | **90.0%** (27/30) | 0.703 | 0.703 | 96.7% |
-| **Brain & Behavior** (Neuroscience) | 30 | **93.3%** (28/30) | **93.3%** (28/30) | 0.831 | 0.831 | 94.7% |
-| **Napoleon Biography** (History / Phil) | 30 | **66.7%** (20/30) | **66.7%** (20/30) | 0.558 | 0.548 | 100.0% |
-| **Fire & Blood** (Narrative Fiction) | 30 | **70.0%** (21/30) | **70.0%** (21/30) | 0.526 | 0.526 | 100.0% |
-| **Mixed Codebase** (Py/Rust/IPYNB) | 33 | **87.9%** (29/33) | **87.9%** (29/33) | 0.812 | 0.812 | 100.0% |
-| **Overall Experiment Total** | **153** | **81.7%** (125/153) | **81.7%** (125/153) | **0.686** | **0.684** | **98.4%** |
+### 2. 0.6B + Cross-Encoder Baseline: `qwen3-embedding:0.6b` + Reranker
 
-* **Empirical Scaling Finding:** Scaling to a single 6,314-chunk multi-domain index resulted in **0.0% recall loss** (81.7% vs 81.7%) and **99.3% Top-1 candidate equivalence** (152/153 queries) with an average query latency of **368ms**.
+![0.6B + Cross-Encoder Retrieval Reliability across Five Corpora](assets/retrieval-comparison-0.6b.svg)
+
+Evaluated across **5 isolated domains** comparing local `qwen3-embedding:0.6b` + `cross-encoder/ms-marco-MiniLM-L-6-v2` reranker ($top\_k=5$):
+
+| Corpus / Domain | Queries | Isolated Baseline Hit@1 | Isolated Baseline Hit@5 | Isolated Baseline MRR |
+| :--- | :---: | :---: | :---: | :---: |
+| **Brain & Behavior** (Neuroscience) | 30 | **76.7%** (23/30) | **93.3%** (28/30) | 0.831 |
+| **Attention Paper** (Scientific / AI) | 30 | **56.7%** (17/30) | **90.0%** (27/30) | 0.703 |
+| **Mixed Codebase** (Py/Rust/IPYNB) | 33 | **75.8%** (25/33) | **87.9%** (29/33) | 0.812 |
+| **Fire & Blood** (Narrative Fiction) | 30 | **40.0%** (12/30) | **70.0%** (21/30) | 0.526 |
+| **Napoleon Biography** (History / Phil) | 30 | **46.7%** (14/30) | **66.7%** (20/30) | 0.548 |
+| **Overall Isolated Total** | **153** | **59.5%** (91/153) | **81.7%** (125/153) | **0.686** |
+
+<br>
+
+### 3. Multi-Domain Single-Index Scaling (Experiment 1)
+
+* **Scaling Setup:** Evaluated across **5 merged heterogeneous domains (6,314 chunks in a single index)** comparing isolated baselines against unified scaling on NVIDIA RTX 3070 GPU with `qwen3-embedding:0.6b` + `cross-encoder/ms-marco-MiniLM-L-6-v2` reranker.
+* **Empirical Scaling Finding:** Scaling to a single 6,314-chunk multi-domain index resulted in **identical retrieval accuracy** (81.7% Hit@5 vs 81.7% Hit@5, MRR 0.684 vs 0.686), **99.3% Top-1 candidate equivalence** (152/153 queries), and **98.4% domain purity** with an average query latency of **368ms**.
 
 <br>
 
