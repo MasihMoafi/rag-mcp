@@ -10,13 +10,14 @@ type: local semantic-search MCP server for coding agents and document workflows
 <br>
 
 [![MCP](https://img.shields.io/badge/protocol-MCP-blue?style=flat-square)](#quick-start)
+[![Live Demo](https://img.shields.io/badge/live%20demo-in--browser%20WASM-blueviolet?style=flat-square)](https://rag.masihmoafi.com)
 [![Local](https://img.shields.io/badge/retrieval-100%25%20local-brightgreen?style=flat-square)](#what-sets-this-apart)
 [![Hybrid search](https://img.shields.io/badge/search-BM25%20%2B%20vector%20%2B%20rerank-orange?style=flat-square)](#architecture)
 [![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
 
 **A coding agent should not have to choose between opening files one at a time and dumping an entire repository into context.**
 
-[Install](#quick-start) • [Evals](#benchmark--retrieval-evaluations) • [Architecture](#architecture) • [How it works](#how-it-works) • [Deep-Dive Post](https://masihmoafi.com/projects/rag-mcp)
+[Live Web Demo](https://rag.masihmoafi.com) • [Install](#quick-start) • [Evals](#benchmark--retrieval-evaluations) • [Architecture](#architecture) • [How it works](#how-it-works) • [Deep-Dive Post](https://masihmoafi.com/projects/rag-mcp)
 
 </div>
 
