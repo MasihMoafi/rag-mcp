@@ -1,11 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 720" width="100%" height="100%">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 670" width="100%" height="100%" style="display:block;width:100%;height:auto;margin:1.5rem 0;">
   <defs>
-    <!-- Monochrome Palette -->
-    <linearGradient id="canvas-bg" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#09090b"/>
-      <stop offset="100%" stop-color="#050507"/>
-    </linearGradient>
-
     <linearGradient id="node-bg" x1="0%" y1="0%" x2="0%" y2="100%">
       <stop offset="0%" stop-color="#18181b"/>
       <stop offset="100%" stop-color="#121215"/>
@@ -25,43 +19,42 @@
     .text-group { font-size: 11px; font-weight: 700; fill: #71717a; letter-spacing: 0.08em; text-transform: uppercase; }
   </style>
 
-  <!-- Background Canvas -->
-  <rect width="880" height="720" rx="12" fill="url(#canvas-bg)"/>
-  <rect x="1" y="1" width="878" height="718" rx="11" fill="none" stroke="#27272a" stroke-width="1"/>
+  <!-- Container Box (Edge to Edge) -->
+  <rect width="880" height="670" rx="10" fill="#09090b" stroke="#27272a" stroke-width="1"/>
 
   <!-- ==================== LEFT COLUMN: INGESTION & STORAGE ==================== -->
-  <rect x="30" y="30" width="380" height="660" rx="8" fill="#0c0c0e" stroke="#27272a" stroke-width="1" stroke-dasharray="4,4"/>
-  <text x="50" y="56" class="font-sans text-group">1. Scope Ingestion &amp; Storage</text>
+  <rect x="20" y="20" width="400" height="630" rx="8" fill="#0c0c0e" stroke="#27272a" stroke-width="1" stroke-dasharray="4,4"/>
+  <text x="40" y="46" class="font-sans text-group">1. Scope Ingestion &amp; Storage</text>
 
   <!-- Step 1A: Target Scope -->
-  <g transform="translate(50, 75)">
-    <rect width="340" height="64" rx="6" fill="url(#node-bg)" stroke="#3f3f46" stroke-width="1.2"/>
+  <g transform="translate(40, 65)">
+    <rect width="360" height="64" rx="6" fill="url(#node-bg)" stroke="#3f3f46" stroke-width="1.2"/>
     <text x="20" y="27" class="font-sans text-title">Target Scope (Files / Dirs)</text>
     <text x="20" y="47" class="font-mono text-sub">Allowlist: .rs, .py, .ts, .md, .ipynb, .pdf</text>
   </g>
 
   <!-- Arrow Ingestion 1 -->
-  <line x1="220" y1="139" x2="220" y2="175" stroke="#71717a" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line x1="220" y1="129" x2="220" y2="160" stroke="#71717a" stroke-width="1.5" marker-end="url(#arrow)"/>
 
   <!-- Step 1B: Structure-Aware Chunking -->
-  <g transform="translate(50, 175)">
-    <rect width="340" height="84" rx="6" fill="url(#node-bg)" stroke="#3f3f46" stroke-width="1.2"/>
+  <g transform="translate(40, 160)">
+    <rect width="360" height="84" rx="6" fill="url(#node-bg)" stroke="#3f3f46" stroke-width="1.2"/>
     <text x="20" y="25" class="font-sans text-title">chunk_document()</text>
     <text x="20" y="45" class="font-mono text-code">• _split_markdown_sections()</text>
     <text x="20" y="61" class="font-mono text-code">• _nearest_code_symbol() | _merge_paragraphs()</text>
   </g>
 
   <!-- Arrow Ingestion 2 Split -->
-  <path d="M 135 259 L 135 305" fill="none" stroke="#71717a" stroke-width="1.5" marker-end="url(#arrow)"/>
-  <path d="M 305 259 L 305 305" fill="none" stroke="#71717a" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <path d="M 130 244 L 130 285" fill="none" stroke="#71717a" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <path d="M 310 244 L 310 285" fill="none" stroke="#71717a" stroke-width="1.5" marker-end="url(#arrow)"/>
 
   <!-- Storage Subgraph Container -->
-  <rect x="50" y="305" width="340" height="360" rx="8" fill="#121215" stroke="#3f3f46" stroke-width="1"/>
-  <text x="70" y="332" class="font-sans text-group" style="fill: #a1a1aa;">LanceDB Embedded Backend (.lance)</text>
+  <rect x="40" y="285" width="360" height="345" rx="8" fill="#121215" stroke="#3f3f46" stroke-width="1"/>
+  <text x="60" y="312" class="font-sans text-group" style="fill: #a1a1aa;">LanceDB Embedded Backend (.lance)</text>
 
   <!-- Vector Table -->
-  <g transform="translate(70, 350)">
-    <rect width="300" height="120" rx="6" fill="url(#node-bg)" stroke="#52525b" stroke-width="1"/>
+  <g transform="translate(60, 328)">
+    <rect width="320" height="120" rx="6" fill="url(#node-bg)" stroke="#52525b" stroke-width="1"/>
     <text x="20" y="28" class="font-sans text-title">Dense Vector Table</text>
     <text x="20" y="50" class="font-mono text-sub">Model: all-MiniLM-L6-v2 (384-dim)</text>
     <text x="20" y="70" class="font-mono text-sub">Storage: /rag_db_v2/{hash}/</text>
@@ -69,83 +62,82 @@
   </g>
 
   <!-- FTS Index -->
-  <g transform="translate(70, 490)">
-    <rect width="300" height="120" rx="6" fill="url(#node-bg)" stroke="#52525b" stroke-width="1"/>
+  <g transform="translate(60, 468)">
+    <rect width="320" height="120" rx="6" fill="url(#node-bg)" stroke="#52525b" stroke-width="1"/>
     <text x="20" y="28" class="font-sans text-title">Tantivy Inverted Index</text>
     <text x="20" y="50" class="font-mono text-sub">Engine: Tantivy Full-Text Search</text>
     <text x="20" y="70" class="font-mono text-sub">Scoring: BM25 Lexical Matching</text>
     <text x="20" y="90" class="font-mono text-sub">Field: content + heading tokens</text>
   </g>
 
-
   <!-- ==================== RIGHT COLUMN: RETRIEVAL PIPELINE ==================== -->
-  <rect x="470" y="30" width="380" height="660" rx="8" fill="#0c0c0e" stroke="#27272a" stroke-width="1" stroke-dasharray="4,4"/>
-  <text x="490" y="56" class="font-sans text-group">2. Retrieval &amp; Precision Funnel</text>
+  <rect x="460" y="20" width="400" height="630" rx="8" fill="#0c0c0e" stroke="#27272a" stroke-width="1" stroke-dasharray="4,4"/>
+  <text x="480" y="46" class="font-sans text-group">2. Retrieval &amp; Precision Funnel</text>
 
   <!-- Step 2A: Query Tool Call -->
-  <g transform="translate(490, 75)">
-    <rect width="340" height="64" rx="6" fill="url(#node-bg)" stroke="#3f3f46" stroke-width="1.2"/>
+  <g transform="translate(480, 65)">
+    <rect width="360" height="64" rx="6" fill="url(#node-bg)" stroke="#3f3f46" stroke-width="1.2"/>
     <text x="20" y="27" class="font-sans text-title">query_knowledge_base()</text>
     <text x="20" y="47" class="font-mono text-sub">args: query (str), doc_path (optional)</text>
   </g>
 
   <!-- Arrow Retrieval Split -->
-  <path d="M 575 139 L 575 175" fill="none" stroke="#71717a" stroke-width="1.5" marker-end="url(#arrow)"/>
-  <path d="M 745 139 L 745 175" fill="none" stroke="#71717a" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <path d="M 570 129 L 570 160" fill="none" stroke="#71717a" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <path d="M 750 129 L 750 160" fill="none" stroke="#71717a" stroke-width="1.5" marker-end="url(#arrow)"/>
 
   <!-- Step 2B: Dual Search Subgraph -->
-  <rect x="490" y="175" width="340" height="150" rx="8" fill="#121215" stroke="#3f3f46" stroke-width="1"/>
-  <text x="510" y="200" class="font-sans text-group" style="fill: #a1a1aa;">Parallel Search (top_k = 20)</text>
+  <rect x="480" y="160" width="360" height="145" rx="8" fill="#121215" stroke="#3f3f46" stroke-width="1"/>
+  <text x="500" y="185" class="font-sans text-group" style="fill: #a1a1aa;">Parallel Search (top_k = 20)</text>
 
   <!-- Dense Search Box -->
-  <g transform="translate(505, 215)">
-    <rect width="145" height="90" rx="6" fill="url(#node-bg)" stroke="#52525b" stroke-width="1"/>
+  <g transform="translate(495, 198)">
+    <rect width="155" height="90" rx="6" fill="url(#node-bg)" stroke="#52525b" stroke-width="1"/>
     <text x="15" y="26" class="font-sans text-title" style="font-size:12px;">search_vector()</text>
     <text x="15" y="46" class="font-mono text-sub">Dense Embed</text>
     <text x="15" y="64" class="font-mono text-sub">Cosine Top-20</text>
   </g>
 
   <!-- BM25 Search Box -->
-  <g transform="translate(670, 215)">
-    <rect width="145" height="90" rx="6" fill="url(#node-bg)" stroke="#52525b" stroke-width="1"/>
+  <g transform="translate(670, 198)">
+    <rect width="155" height="90" rx="6" fill="url(#node-bg)" stroke="#52525b" stroke-width="1"/>
     <text x="15" y="26" class="font-sans text-title" style="font-size:12px;">search_fts()</text>
     <text x="15" y="46" class="font-mono text-sub">Tantivy BM25</text>
     <text x="15" y="64" class="font-mono text-sub">Lexical Top-20</text>
   </g>
 
   <!-- Link storage to retrieval -->
-  <path d="M 370 410 C 430 410, 430 260, 505 260" fill="none" stroke="#52525b" stroke-width="1.2" stroke-dasharray="3,3"/>
-  <path d="M 370 550 C 440 550, 440 280, 670 280" fill="none" stroke="#52525b" stroke-width="1.2" stroke-dasharray="3,3"/>
+  <path d="M 380 388 C 440 388, 440 243, 495 243" fill="none" stroke="#52525b" stroke-width="1.2" stroke-dasharray="3,3"/>
+  <path d="M 380 528 C 440 528, 440 263, 670 263" fill="none" stroke="#52525b" stroke-width="1.2" stroke-dasharray="3,3"/>
 
   <!-- Converge to RRF -->
-  <path d="M 577 325 L 577 365 L 660 365 L 660 380" fill="none" stroke="#71717a" stroke-width="1.5" marker-end="url(#arrow)"/>
-  <path d="M 742 325 L 742 365 L 660 365" fill="none" stroke="#71717a" stroke-width="1.5"/>
+  <path d="M 572 305 L 572 340 L 660 340 L 660 355" fill="none" stroke="#71717a" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <path d="M 748 305 L 748 340 L 660 340" fill="none" stroke="#71717a" stroke-width="1.5"/>
 
   <!-- Step 2C: RRF Fusion -->
-  <g transform="translate(490, 380)">
-    <rect width="340" height="76" rx="6" fill="url(#node-bg)" stroke="#3f3f46" stroke-width="1.2"/>
+  <g transform="translate(480, 355)">
+    <rect width="360" height="74" rx="6" fill="url(#node-bg)" stroke="#3f3f46" stroke-width="1.2"/>
     <text x="20" y="26" class="font-sans text-title">_rrf_fusion(k=60)</text>
     <text x="20" y="46" class="font-mono text-code">score = ∑ weight * (1 / (60 + rank))</text>
     <text x="20" y="64" class="font-mono text-sub">Unifies sparse keyword &amp; dense semantic ranks</text>
   </g>
 
   <!-- Arrow to CrossEncoder -->
-  <line x1="660" y1="456" x2="660" y2="488" stroke="#71717a" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line x1="660" y1="429" x2="660" y2="458" stroke="#71717a" stroke-width="1.5" marker-end="url(#arrow)"/>
 
   <!-- Step 2D: CrossEncoder Rerank -->
-  <g transform="translate(490, 488)">
-    <rect width="340" height="76" rx="6" fill="url(#node-bg)" stroke="#3f3f46" stroke-width="1.2"/>
+  <g transform="translate(480, 458)">
+    <rect width="360" height="74" rx="6" fill="url(#node-bg)" stroke="#3f3f46" stroke-width="1.2"/>
     <text x="20" y="26" class="font-sans text-title">_crossencoder_rerank(k=5)</text>
     <text x="20" y="46" class="font-mono text-code">cross-encoder/ms-marco-MiniLM-L-6-v2</text>
     <text x="20" y="64" class="font-mono text-sub">Pairs [query, chunk] for cross-attention scoring</text>
   </g>
 
   <!-- Arrow to Output -->
-  <line x1="660" y1="564" x2="660" y2="596" stroke="#71717a" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line x1="660" y1="532" x2="660" y2="560" stroke="#71717a" stroke-width="1.5" marker-end="url(#arrow)"/>
 
   <!-- Step 2E: Output Payload -->
-  <g transform="translate(490, 596)">
-    <rect width="340" height="68" rx="6" fill="url(#node-bg)" stroke="#52525b" stroke-width="1.2"/>
+  <g transform="translate(480, 560)">
+    <rect width="360" height="68" rx="6" fill="url(#node-bg)" stroke="#52525b" stroke-width="1.2"/>
     <text x="20" y="26" class="font-sans text-title">Top-K Ranked Passages (Dict List)</text>
     <text x="20" y="48" class="font-mono text-sub">Keys: content, file_path, heading, score</text>
   </g>
