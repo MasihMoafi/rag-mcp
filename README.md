@@ -218,9 +218,7 @@ Coding agents commonly retrieve context by either opening files one by one or lo
 
 ## Architecture
 
-<div align="center">
-  <img src="assets/architecture.svg" alt="rag-mcp technical retrieval pipeline architecture" width="800">
-</div>
+<img src="assets/architecture.svg" alt="rag-mcp technical retrieval pipeline architecture" width="100%">
 
 The retrieval pipeline operates across two decoupled stages:
 1. **Scope Ingestion & Storage**: Target files matching the allowlist (`.rs`, `.py`, `.ts`, `.md`, `.ipynb`, `.pdf`) are processed through structure-aware AST chunking (`chunk_document`), preserving markdown heading hierarchies, code symbol scopes, and notebook cells. Chunks are simultaneously indexed into LanceDB's dense vector table (`all-MiniLM-L6-v2`) and embedded Tantivy inverted full-text search (FTS) index.
