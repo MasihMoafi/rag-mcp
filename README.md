@@ -11,14 +11,16 @@ type: local semantic-search MCP server for coding agents and document workflows
 
 [![MCP](https://img.shields.io/badge/protocol-MCP-blue?style=flat-square)](#quick-start)
 [![Local](https://img.shields.io/badge/retrieval-100%25%20local-brightgreen?style=flat-square)](#what-sets-this-apart)
-[![Hybrid search](https://img.shields.io/badge/search-BM25%20%2B%20vector%20%2B%20rerank-orange?style=flat-square)](#how-it-works)
+[![Hybrid search](https://img.shields.io/badge/search-BM25%20%2B%20vector%20%2B%20rerank-orange?style=flat-square)](#architecture)
 [![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
 
 **A coding agent should not have to choose between opening files one at a time and dumping an entire repository into context.**
 
-[Install](#quick-start) • [Evals](#benchmark--retrieval-evaluations) • [Architecture](#architecture) • [How it works](#how-it-works) • [State](#current-state)
+[Install](#quick-start) • [Evals](#benchmark--retrieval-evaluations) • [Architecture](#architecture) • [How it works](#how-it-works) • [Deep-Dive Post](https://masihmoafi.com/projects/rag-mcp)
 
-## Repository Map
+</div>
+
+## Repository Layout
 
 ```text
 rag-mcp/
@@ -44,17 +46,15 @@ rag-mcp/
 │   │   ├── elpis-memories-crate/       # Rust systems codebase
 │   │   └── notebook/                   # JSON / Jupyter scientific notebooks
 │   └── experiments/                    # Multi-Domain Scaling Benchmarks
-│       └── experiment1-unified-scaling/# Experiment 1 scripts, raw candidate logs & LLM judge evals
+│       └── experiment-unified-scaling/ # Scaling experiment logs, candidate outputs & LLM judge evals
 │
 ├── server.py                           # FastMCP server entry point exposing tools to coding agents
 └── pyproject.toml                      # Project metadata, dependencies (LanceDB, PyTorch, PyMuPDF)
 ```
 
-<br>
-
 ## Benchmark & Retrieval Evaluations
 
-Evaluated against the **[open-rag-eval](https://github.com/vectara/open-rag-eval)** taxonomy ($top\_k=5$, isolated local retrieval with no reranker, local `qwen3-embedding:8b` + BM25 hybrid search):
+Evaluated against the **[open-rag-eval](https://github.com/vectara/open-rag-eval)** taxonomy ($top\_k=5$, isolated local retrieval with no reranker, local `qwen3-embedding:8b` via Ollama + BM25 hybrid search). Full methodology in [`evals/README.md`](evals/README.md):
 
 | Corpus / Domain | Total Queries | Strict Relevance (Score 3 / Exact) | Lenient Relevance (Score $\ge$ 2 / Full+Partial) | Miss Rate (Score $\le$ 1 / Miss) |
 | :--- | :--- | :--- | :--- | :--- |
@@ -67,7 +67,11 @@ Evaluated against the **[open-rag-eval](https://github.com/vectara/open-rag-eval
 | **Elpis Memories Crate** (Rust) | 15 | **73.3%** (11/15) | **100.0%** (15/15) | 0.0% (0/15) |
 | **rag-mcp Codebase** (Python Server) | 15 | **80.0%** (12/15) | **93.3%** (14/15) | 6.7% (1/15) |
 | **Notebook Corpus** (JSON/Code) | 10 | **100.0%** (10/10) | **100.0%** (10/10) | 0.0% (0/10) |
-### Multi-Domain Scaling Experiment (Experiment 1)
+| **Overall Baseline** | **203** | **74.9%** (152/203) | **92.1%** (187/203) | 7.9% (16/203) |
+
+### Multi-Domain Scaling Experiment
+
+Detailed evaluation log: [`evals/experiments/experiment-unified-scaling/experiment.md`](evals/experiments/experiment-unified-scaling/experiment.md) and [`Napoleon Experiment Log`](evals/experiments/experiment-unified-scaling/data/napoleon/experiment_log.md).
 
 Evaluated across **5 merged heterogeneous domains (6,314 chunks in a single index)** comparing isolated baselines against unified scaling on NVIDIA GPU with `qwen3-embedding:0.6b` + `cross-encoder/ms-marco-MiniLM-L-6-v2` reranker:
 
@@ -82,24 +86,8 @@ Evaluated across **5 merged heterogeneous domains (6,314 chunks in a single inde
 
 *Key finding: Merging 5 domains into one 6,314-chunk database produces **0.0% retrieval degradation** with **98.4% domain isolation purity** and **368ms average latency**.*
 
-<br>
-
-## Benchmark & Retrieval Evaluations
-
-Evaluated against the **[open-rag-eval](https://github.com/vectara/open-rag-eval)** taxonomy ($top\_k=5$, isolated local retrieval with no reranker, local `qwen3-embedding:8b` via Ollama + BM25 hybrid search):
-
-| Corpus / Domain | Total Queries | Strict Relevance (Score 3 / Exact) | Lenient Relevance (Score $\ge$ 2 / Full+Partial) | Miss Rate (Score $\le$ 1 / Miss) |
-| :--- | :--- | :--- | :--- | :--- |
-| **Attention Paper** (Scientific / AI) | 30 | **86.7%** (26/30) | **96.7%** (29/30) | 3.3% (1/30) |
-| **Brain & Behavior** (Neuroscience) | 30 | **76.7%** (23/30) | **93.3%** (28/30) | 6.7% (2/30) |
-| **Napoleon V2** (1000-char hybrid) | 30 | **66.7%** (20/30) | **90.0%** (27/30) | 10.0% (3/30) |
-| **Napoleon V1** (300-char chunks) | 30 | **53.3%** (16/30) | **83.3%** (25/30) | 16.7% (5/30) |
-| **Fire & Blood** (Narrative Fiction) | 30 | **46.7%** (14/30) | **80.0%** (24/30) | 20.0% (6/30) |
-| **Mixed Codebase** (Py/Rust/IPYNB) | 33 | **90.9%** (30/33) | **100.0%** (33/33) | 0.0% (0/33) |
-| **Elpis Memories Crate** (Rust) | 15 | **73.3%** (11/15) | **100.0%** (15/15) | 0.0% (0/15) |
-| **rag-mcp Codebase** (Python Server) | 15 | **80.0%** (12/15) | **93.3%** (14/15) | 6.7% (1/15) |
-| **Notebook Corpus** (JSON/Code) | 10 | **100.0%** (10/10) | **100.0%** (10/10) | 0.0% (0/10) |
-| **Overall Baseline** | **203** | **74.9%** (152/203) | **92.1%** (187/203) | 7.9% (16/203) |
+> [!TIP]
+> Read the complete architectural walkthrough and benchmark breakdown on the [official blog post](https://masihmoafi.com/projects/rag-mcp).
 
 <br>
 
