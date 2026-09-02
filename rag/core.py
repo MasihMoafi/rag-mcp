@@ -17,6 +17,13 @@ from .qdrant_backend import QdrantVectorDB
 from .lancedb_backend import LanceDBBackend
 
 
+def select_device() -> str:
+    if torch.cuda.is_available():
+        return "cuda"
+    mps = getattr(torch.backends, "mps", None)
+    return "mps" if mps and mps.is_available() else "cpu"
+
+
 def chunk_text(text: str, chunk_size: int = 700, chunk_overlap: int = 100) -> List[str]:
     """Split text into overlapping chunks without langchain."""
     if not text or len(text.strip()) < 50:
@@ -302,19 +309,8 @@ class RAGPipelineV2:
     
     def __init__(self, config: dict):
         self.config = config
-        import torch
-        # Auto-switch to GPU and enforce CUDA availability
-        if not torch.cuda.is_available():
-
-            import subprocess
-            subprocess.run(["pkexec", "prime-select", "nvidia"])
-            if not torch.cuda.is_available():
-                raise RuntimeError("Dedicated GPU (CUDA) is not available. Please verify NVIDIA driver status.")
-
-        self.device = 'cuda'
-
-
-
+        self.device = select_device()
+        print(f"[RAG V2] Using compute device: {self.device}")
 
         # Initialize embedding function based on provider
         embed_provider = self.config.get("embed_provider", "sentencetransformer")
