@@ -197,7 +197,7 @@ def create_companion_server(
                 self._send_json(502, {"error": "Codex could not generate an answer."})
                 return
             events = [
-                {"type": "meta", "mode": "provider", "provider": "codex", "model": MODEL},
+                {"type": "meta", "mode": "provider", "provider": "Codex · Local", "model": MODEL},
                 {"type": "delta", "text": answer},
                 {"type": "done"},
             ]
