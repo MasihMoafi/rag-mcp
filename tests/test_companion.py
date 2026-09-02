@@ -52,7 +52,7 @@ def test_companion_rejects_unpaired_requests_and_streams_grounded_answers():
         with request(f"{base}/generate", body=payload) as response:
             events = [json.loads(line) for line in response.read().decode().splitlines()]
         assert events == [
-            {"type": "meta", "mode": "provider", "provider": "codex", "model": "gpt-5.6-luna"},
+            {"type": "meta", "mode": "provider", "provider": "Codex · Local", "model": "gpt-5.6-luna"},
             {"type": "delta", "text": "Cedar Lantern [1]"},
             {"type": "done"},
         ]
