@@ -39,6 +39,7 @@ def _parser() -> argparse.ArgumentParser:
     query = commands.add_parser("query", help="Query a local file or folder")
     query.add_argument("question")
     query.add_argument("--path", required=True)
+    commands.add_parser("connect-codex", help="Register this RAG server with Codex")
     return parser
 
 
@@ -67,6 +68,52 @@ def main(
             status = "signed in" if codex["authenticated"] else "not signed in"
             print(f"Python {report['python']['version']} · Codex {status}", file=stdout)
         return 0 if report["codex"]["authenticated"] else 1
+
+    if args.command == "connect-codex":
+        executable = shutil.which("codex", path=environ.get("PATH"))
+        if executable is None:
+            print("Codex is not installed or is not on PATH.", file=stderr)
+            return 1
+        import server
+
+        server_path = str(Path(server.__file__).resolve())
+        current = subprocess.run(
+            [executable, "mcp", "get", "rag", "--json"],
+            capture_output=True,
+            check=False,
+            text=True,
+            env=dict(environ),
+        )
+        if current.returncode == 0:
+            try:
+                transport = json.loads(current.stdout)["transport"]
+            except (json.JSONDecodeError, KeyError, TypeError):
+                transport = {}
+            if (
+                transport.get("command") == sys.executable
+                and transport.get("args") == [server_path]
+            ):
+                print("Codex is already connected to this RAG server.", file=stdout)
+                return 0
+            subprocess.run(
+                [executable, "mcp", "remove", "rag"],
+                capture_output=True,
+                check=False,
+                text=True,
+                env=dict(environ),
+            )
+        added = subprocess.run(
+            [executable, "mcp", "add", "rag", "--", sys.executable, server_path],
+            capture_output=True,
+            check=False,
+            text=True,
+            env=dict(environ),
+        )
+        if added.returncode != 0:
+            print((added.stderr or added.stdout).strip(), file=stderr)
+            return added.returncode
+        print("Connected Codex to the local RAG server.", file=stdout)
+        return 0
 
     path = Path(args.path).expanduser().resolve()
     if not path.exists():
