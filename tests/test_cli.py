@@ -93,3 +93,33 @@ def test_connect_codex_registers_the_current_server(tmp_path: Path):
     assert args[:4] == ["mcp", "add", "rag", "--"]
     assert Path(args[4]).resolve() == Path(__import__("sys").executable).resolve()
     assert Path(args[5]).resolve().name == "server.py"
+
+
+def test_studio_opens_a_session_token_and_serves_on_loopback():
+    events = []
+
+    class Server:
+        server_port = 47831
+
+        def serve_forever(self):
+            events.append("served")
+
+        def server_close(self):
+            events.append("closed")
+
+    output = io.StringIO()
+    code = main(
+        ["studio"],
+        stdout=output,
+        token_factory=lambda: "paired-token",
+        server_factory=lambda token, port: events.append((token, port)) or Server(),
+        open_url=lambda url: events.append(url) or True,
+    )
+
+    assert code == 0
+    assert events == [
+        ("paired-token", 47831),
+        "https://rag.masihmoafi.com/studio#local=paired-token",
+        "served",
+        "closed",
+    ]
