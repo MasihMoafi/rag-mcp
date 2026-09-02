@@ -3,9 +3,11 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import secrets
 import shutil
 import subprocess
 import sys
+import webbrowser
 from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from typing import TextIO
@@ -40,6 +42,12 @@ def _parser() -> argparse.ArgumentParser:
     query.add_argument("question")
     query.add_argument("--path", required=True)
     commands.add_parser("connect-codex", help="Register this RAG server with Codex")
+    serve = commands.add_parser("serve", help="Run the local Studio companion")
+    serve.add_argument("--port", type=int, default=47831)
+    studio = commands.add_parser("studio", help="Open Studio with the local companion")
+    studio.add_argument("--port", type=int, default=47831)
+    studio.add_argument("--no-open", action="store_true")
+    commands.add_parser("mcp", help="Run the stdio MCP server")
     return parser
 
 
@@ -50,6 +58,9 @@ def main(
     stderr: TextIO | None = None,
     environ: Mapping[str, str] | None = None,
     query_fn: Callable[[str, str], str] | None = None,
+    token_factory: Callable[[], str] = lambda: secrets.token_urlsafe(32),
+    server_factory: Callable[..., object] | None = None,
+    open_url: Callable[[str], object] = webbrowser.open,
 ) -> int:
     stdout = stdout or sys.stdout
     stderr = stderr or sys.stderr
@@ -113,6 +124,36 @@ def main(
             print((added.stderr or added.stdout).strip(), file=stderr)
             return added.returncode
         print("Connected Codex to the local RAG server.", file=stdout)
+        return 0
+
+    if args.command in {"serve", "studio"}:
+        if server_factory is None:
+            from rag.companion import create_companion_server
+
+            server_factory = create_companion_server
+        token = token_factory()
+        try:
+            server = server_factory(token=token, port=args.port)
+        except OSError as error:
+            print(f"Could not start the local companion: {error}", file=stderr)
+            return 1
+        url = f"https://rag.masihmoafi.com/studio#local={token}"
+        print(f"Local companion: http://127.0.0.1:{server.server_port}", file=stdout)
+        print(f"Studio: {url}", file=stdout)
+        if args.command == "studio" and not args.no_open:
+            open_url(url)
+        try:
+            server.serve_forever()
+        except KeyboardInterrupt:
+            pass
+        finally:
+            server.server_close()
+        return 0
+
+    if args.command == "mcp":
+        from server import main as mcp_main
+
+        mcp_main()
         return 0
 
     path = Path(args.path).expanduser().resolve()
