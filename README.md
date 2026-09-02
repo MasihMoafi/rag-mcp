@@ -104,14 +104,27 @@ python scripts/bootstrap.py
 
 That single command installs dependencies and runs the test suite.
 
-Manual equivalent:
+Use the CLI from this checkout:
+
+```bash
+uv run rag doctor
+uv run rag query "What changed?" --path /absolute/path/to/document-or-folder
+uv run rag connect-codex
+uv run rag studio
+```
+
+`rag studio` starts an authenticated loopback companion and opens the hosted Studio. It reuses the local Codex login for GPT-5.6 Luna without copying Codex credentials into the browser. The Studio keeps its uploaded sources in the browser; `rag query` exercises this repository's Python retrieval engine directly.
+
+To expose `rag` outside the checkout, run `uv tool install .`.
+
+Manual test equivalent:
 
 ```bash
 uv sync --group dev
 .venv/bin/python -m pytest tests/ -v
 ```
 
-Then register the server with an MCP client.
+Other MCP clients can still register the stdio server directly.
 
 ### Claude Code
 
@@ -155,16 +168,8 @@ RAG_MCP_BACKEND = "lancedb"
 
 ### Codex
 
-Add to `~/.codex/config.toml`:
-
-```toml
-[mcp_servers.rag]
-command = "/home/masih/Desktop/p/rag-mcp-lancedb/.venv/bin/python"
-args = ["/home/masih/Desktop/p/rag-mcp-lancedb/server.py"]
-
-[mcp_servers.rag.env]
-RAG_MCP_WORKSPACE_ROOT = "/home/masih/Desktop/p"
-RAG_MCP_BACKEND = "lancedb"
+```bash
+uv run rag connect-codex
 ```
 
 Expected result: the client discovers `query_knowledge_base`, and a query returns ranked passages with source paths from the requested scope.
