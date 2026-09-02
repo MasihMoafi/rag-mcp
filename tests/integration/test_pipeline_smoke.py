@@ -9,7 +9,7 @@ for var in ["HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "http_proxy", "https_proxy
     if var in os.environ:
         del os.environ[var]
 
-sys.path.insert(0, "/home/masih/Desktop/p/rag-mcp-lancedb")
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 from rag.core import RAGPipelineV2
 
 def run_smoke_test():
