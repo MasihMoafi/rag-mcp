@@ -1,0 +1,176 @@
+"""Embedding providers behind one small interface: embed_documents / embed_query.
+
+`build_embedder` turns the user's `rag setup` choice into an object the vector
+backends can call. Heavy imports (fastembed, openai, sentence-transformers) stay
+inside the provider that needs them, so the light install never loads PyTorch.
+"""
+
+from __future__ import annotations
+
+import os
+from collections.abc import Mapping
+from pathlib import Path
+from typing import Any
+
+FULL_EXTRA_HINT = (
+    "Install the full extra (uv tool install 'ragmcp[full]') or pick another option in `rag setup`."
+)
+
+
+class FastEmbedWrapper:
+    """Small ONNX models via fastembed: CPU-only, downloaded once, no PyTorch."""
+
+    def __init__(self, model_name: str):
+        try:
+            from fastembed import TextEmbedding
+        except ImportError as error:
+            raise RuntimeError(
+                "The local embedding model needs the fastembed package. Reinstall ragmcp or run `rag setup`."
+            ) from error
+        cache_dir = os.environ.get("FASTEMBED_CACHE_PATH") or os.path.join(
+            os.environ.get("XDG_CACHE_HOME") or os.path.join(str(Path.home()), ".cache"), "fastembed"
+        )
+        self.model_name = model_name
+        self.model = TextEmbedding(model_name=model_name, cache_dir=cache_dir)
+
+    def embed_documents(self, texts):
+        return [vector.tolist() for vector in self.model.embed(texts, batch_size=64)]
+
+    def embed_query(self, text):
+        return next(iter(self.model.query_embed(text))).tolist()
+
+
+class DirectOllamaGPUWrapper:
+    """Send true vector batches directly to Ollama's /api/embed."""
+
+    def __init__(self, model, base_url):
+        import requests
+
+        self._requests = requests
+        self.model = model
+        self.model_name = model
+        self.base_url = base_url
+
+    def _verify_gpu(self):
+        try:
+            resp = self._requests.get(f"{self.base_url}/api/ps", timeout=5)
+            if resp.status_code == 200:
+                models = resp.json().get("models", [])
+                for m in models:
+                    if self.model in m.get("name", ""):
+                        proc = m.get("details", {}).get("processor", "") or m.get("processor", "")
+                        if "CPU" in str(proc) and "100% CPU" in str(proc):
+                            raise RuntimeError(f"OLLAMA GPU FAILURE: {self.model} is running on {proc}! Aborting.")
+        except Exception as e:
+            if "OLLAMA GPU FAILURE" in str(e):
+                raise
+
+    def embed_documents(self, texts):
+        if not texts:
+            return []
+        # Process in GPU batches of 512
+        batch_size = 512
+        all_embeddings = []
+        for i in range(0, len(texts), batch_size):
+            batch = texts[i:i + batch_size]
+            resp = self._requests.post(
+                f"{self.base_url}/api/embed",
+                json={"model": self.model, "input": batch},
+                timeout=180,
+            )
+            if resp.status_code != 200:
+                raise RuntimeError(f"Ollama embedding failed ({resp.status_code}): {resp.text}")
+            all_embeddings.extend(resp.json().get("embeddings", []))
+        self._verify_gpu()
+        return all_embeddings
+
+    def embed_query(self, text):
+        resp = self._requests.post(
+            f"{self.base_url}/api/embed",
+            json={"model": self.model, "input": [text]},
+            timeout=60,
+        )
+        if resp.status_code != 200:
+            raise RuntimeError(f"Ollama query embedding failed ({resp.status_code}): {resp.text}")
+        embeddings = resp.json().get("embeddings", [])
+        self._verify_gpu()
+        return embeddings[0] if embeddings else []
+
+
+class OpenAICompatibleWrapper:
+    """One client for any provider that speaks the OpenAI embeddings API shape:
+    real OpenAI, Gemini's and OpenRouter's OpenAI-compatible modes, Ollama's /v1.
+    This is the one provider option where text leaves the machine."""
+
+    def __init__(self, model_name, api_key=None, base_url=None):
+        try:
+            from openai import OpenAI
+        except ImportError as error:
+            raise RuntimeError("The API embedding option needs the openai package. Reinstall ragmcp.") from error
+        # Fail fast on a wrong URL or key: the setup probe should answer in seconds.
+        self.client = OpenAI(api_key=api_key, base_url=base_url, max_retries=1, timeout=30)
+        self.model_name = model_name
+
+    def _create_with_retry(self, input_val, max_retries=3):
+        import time as _time
+
+        for attempt in range(max_retries):
+            try:
+                return self.client.embeddings.create(model=self.model_name, input=input_val)
+            except Exception:
+                if attempt == max_retries - 1:
+                    raise
+                _time.sleep(min(3 * (attempt + 1), 20))
+
+    def embed_documents(self, texts):
+        resp = self._create_with_retry(texts)
+        return [item.embedding for item in resp.data]
+
+    def embed_query(self, text):
+        resp = self._create_with_retry([text])
+        return resp.data[0].embedding
+
+
+class STWrapper:
+    """sentence-transformers on the selected device. Needs the [full] extra."""
+
+    def __init__(self, model_name, device):
+        try:
+            from sentence_transformers import SentenceTransformer
+        except ImportError as error:
+            raise RuntimeError(f"sentence-transformers is not installed. {FULL_EXTRA_HINT}") from error
+        self.model_name = model_name
+        self.model = SentenceTransformer(model_name, device=device)
+
+    def embed_documents(self, texts):
+        return self.model.encode(texts, convert_to_numpy=True).tolist()
+
+    def embed_query(self, text):
+        return self.model.encode([text], convert_to_numpy=True)[0].tolist()
+
+
+def build_embedder(config: Mapping[str, Any], device: str = "cpu"):
+    """Return the embedder for this config, or None when only BM25 should run."""
+    provider = str(config.get("embed_provider") or "none").lower()
+    model_name = str(config.get("embed_model") or "")
+    if provider == "none":
+        return None
+    if provider == "fastembed":
+        return FastEmbedWrapper(model_name or "BAAI/bge-small-en-v1.5")
+    if provider == "ollama":
+        return DirectOllamaGPUWrapper(model_name or "nomic-embed-text", config.get("ollama_url") or "http://localhost:11434")
+    if provider == "openai_compatible":
+        return OpenAICompatibleWrapper(
+            model_name or "text-embedding-3-small",
+            api_key=config.get("embed_api_key") or None,
+            base_url=config.get("embed_base_url") or None,
+        )
+    return STWrapper(model_name or "all-MiniLM-L6-v2", device)
+
+
+def probe_dimensions(embedder) -> int:
+    """Embed one sentence to learn the true vector size of any provider/model."""
+    vector = embedder.embed_query("dimension probe")
+    if not vector:
+        raise RuntimeError(f"{embedder.model_name} returned an empty embedding.")
+    return len(vector)

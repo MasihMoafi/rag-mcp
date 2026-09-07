@@ -5,6 +5,7 @@ try:
     from .core import RAGPipelineV2
 except Exception:
     from .core_2 import RAGPipelineV2
+from .settings import embedding_config
 
 def _env_str(name: str, default: str) -> str:
     value = os.environ.get(name, "").strip()
@@ -26,8 +27,8 @@ RAG_CONFIG_V2 = {
     "version": "v2",
     "persist_dir": "./rag_db_v2",
     "document_paths": ["./files/"],
-    "embed_provider": _env_str("RAG_MCP_EMBED_PROVIDER", "sentencetransformer"),
-    "embed_model": _env_str("RAG_MCP_EMBED_MODEL", "all-MiniLM-L6-v2"),
+    # embed_* keys come from rag.settings.embedding_config() at pipeline creation:
+    # the user's `rag setup` choice, overridable by RAG_MCP_EMBED_* variables.
     "top_k": _env_int("RAG_MCP_TOP_K", 5),
     "chunk_size": _env_int("RAG_MCP_CHUNK_SIZE", 700),
     "chunk_overlap": _env_int("RAG_MCP_CHUNK_OVERLAP", 100),
@@ -37,8 +38,6 @@ RAG_CONFIG_V2 = {
     # (every doc gets the same score) -- do not expose it as a real option.
     "reranker_type": _env_str("RAG_MCP_RERANKER_TYPE", "cross-encoder"),  # cross-encoder | disabled
     "reranker_model": _env_str("RAG_MCP_RERANKER_MODEL", "cross-encoder/ms-marco-MiniLM-L-6-v2"),
-    "embed_api_key": _env_str("RAG_MCP_EMBED_API_KEY", ""),
-    "embed_base_url": _env_str("RAG_MCP_EMBED_BASE_URL", ""),
     "force_reindex": False,
     "use_contextual": False,  # Disable contextual retrieval for performance
     "bm25_k1": 1.5,  # BM25 parameters
@@ -75,9 +74,23 @@ def resolve_path(path: str) -> str:
     
     return path
 
-def _safe_dir_name(path: str) -> str:
+def index_root() -> str:
+    """Where indexes live: RAG_MCP_DATA_DIR, else the XDG data dir. Never inside the package."""
+    root = os.environ.get("RAG_MCP_DATA_DIR", "").strip() or os.path.join(
+        os.environ.get("XDG_DATA_HOME", "").strip() or os.path.join(os.path.expanduser("~"), ".local", "share"),
+        "rag",
+        "index",
+    )
+    os.makedirs(root, exist_ok=True)
+    return root
+
+
+def _safe_dir_name(path: str, embedding: Optional[Dict[str, str]] = None) -> str:
     abs_path = os.path.abspath(path)
-    h = hashlib.md5(abs_path.encode("utf-8")).hexdigest()[:8]
+    embedding = embedding or {}
+    # The index depends on the embedding model: a different model (or none) needs its own table.
+    signature = f"{abs_path}\n{embedding.get('embed_provider', '')}\n{embedding.get('embed_model', '')}"
+    h = hashlib.md5(signature.encode("utf-8")).hexdigest()[:8]
     base = os.path.basename(abs_path.rstrip(os.sep)) or "root"
     return f"{base}_{h}"
 
@@ -104,17 +117,19 @@ def get_rag_pipeline_v2(doc_path: Optional[str | list[str]] = None):
     sys.stderr.flush()
     try:
         config = RAG_CONFIG_V2.copy()
-        current_dir = os.path.dirname(os.path.abspath(__file__))
+        embedding = embedding_config()
+        config.update(embedding)
+        current_dir = index_root()
         if isinstance(doc_path, list):
             config["document_paths"] = doc_path
-            scope_dir = os.path.join(current_dir, "rag_db_v2", _safe_dir_name(key))
+            scope_dir = os.path.join(current_dir, _safe_dir_name(key, embedding))
             os.makedirs(scope_dir, exist_ok=True)
             config["persist_dir"] = scope_dir
         elif doc_path:
             # Scope documents to the provided directory
             config["document_paths"] = [doc_path]
             # Create a unique persist dir per doc scope
-            scope_dir = os.path.join(current_dir, "rag_db_v2", _safe_dir_name(doc_path))
+            scope_dir = os.path.join(current_dir, _safe_dir_name(doc_path, embedding))
             os.makedirs(scope_dir, exist_ok=True)
             config["persist_dir"] = scope_dir
         else:

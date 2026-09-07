@@ -1,6 +1,9 @@
 import sys
 import os, re, string, fitz, json, math
-import torch
+try:
+    import torch
+except ImportError:  # light install without PyTorch: CPU only, no sentence-transformers
+    torch = None
 from typing import List, Dict, Tuple, Any, Callable
 
 # --- FIX for Ollama Proxy ---
@@ -12,12 +15,13 @@ def clear_proxy_settings():
 clear_proxy_settings()
 
 from collections import Counter
-from sentence_transformers import SentenceTransformer, CrossEncoder
-from .qdrant_backend import QdrantVectorDB
+from .embeddings import build_embedder, probe_dimensions
 from .lancedb_backend import LanceDBBackend
 
 
 def select_device() -> str:
+    if torch is None:
+        return "cpu"
     if torch.cuda.is_available():
         return "cuda"
     mps = getattr(torch.backends, "mps", None)
@@ -312,136 +316,21 @@ class RAGPipelineV2:
         self.device = select_device()
         print(f"[RAG V2] Using compute device: {self.device}")
 
-        # Initialize embedding function based on provider
-        embed_provider = self.config.get("embed_provider", "sentencetransformer")
-
-        if embed_provider == "ollama":
-            import requests
-
-            model_name = self.config.get("embed_model")
-            ollama_url = self.config.get("ollama_url", "http://localhost:11434")
-
-            class DirectOllamaGPUWrapper:
-                def __init__(self, model, base_url):
-                    self.model = model
-                    self.base_url = base_url
-
-                def _verify_gpu(self):
-                    try:
-                        resp = requests.get(f"{self.base_url}/api/ps", timeout=5)
-                        if resp.status_code == 200:
-                            models = resp.json().get("models", [])
-                            for m in models:
-                                if self.model in m.get("name", ""):
-                                    proc = m.get("details", {}).get("processor", "") or m.get("processor", "")
-                                    if "CPU" in str(proc) and "100% CPU" in str(proc):
-                                        raise RuntimeError(f"OLLAMA GPU FAILURE: {self.model} is running on {proc}! Aborting.")
-                    except Exception as e:
-                        if "OLLAMA GPU FAILURE" in str(e):
-                            raise
-
-                def embed_documents(self, texts):
-                    """Send true vector batches directly to /api/embed on GPU."""
-                    if not texts:
-                        return []
-                    # Process in GPU batches of 512
-                    batch_size = 512
-                    all_embeddings = []
-                    for i in range(0, len(texts), batch_size):
-                        batch = texts[i:i + batch_size]
-                        resp = requests.post(
-                            f"{self.base_url}/api/embed",
-                            json={"model": self.model, "input": batch},
-                            timeout=180
-                        )
-                        if resp.status_code != 200:
-                            raise RuntimeError(f"Ollama embedding failed ({resp.status_code}): {resp.text}")
-                        embeddings = resp.json().get("embeddings", [])
-                        all_embeddings.extend(embeddings)
-                    self._verify_gpu()
-                    return all_embeddings
-
-                def embed_query(self, text):
-                    resp = requests.post(
-                        f"{self.base_url}/api/embed",
-                        json={"model": self.model, "input": [text]},
-                        timeout=60
-                    )
-                    if resp.status_code != 200:
-                        raise RuntimeError(f"Ollama query embedding failed ({resp.status_code}): {resp.text}")
-                    embeddings = resp.json().get("embeddings", [])
-                    self._verify_gpu()
-                    return embeddings[0] if embeddings else []
-
-            self.embedding_fn = DirectOllamaGPUWrapper(model_name, ollama_url)
-            print(f"[RAG V2] Using Direct Ollama GPU Batched Embeddings with model: {model_name}")
-
-
-        elif embed_provider == "openai_compatible":
-            # One client for any provider that speaks the OpenAI embeddings API shape:
-            # real OpenAI, Ollama's own /v1 endpoint, and Qwen/DashScope's and Gemini's
-            # OpenAI-compatible modes all fit here without a provider-specific SDK.
-            # Requires the `openai` package (not a hard dependency of this project) and
-            # leaves the machine over the network -- this is the one provider option
-            # that is not local. Verified against RAGFlow's provider list, where most
-            # of its remote embedding providers are themselves OpenAIEmbed subclasses.
-            from openai import OpenAI
-            client = OpenAI(
-                api_key=self.config.get("embed_api_key") or None,
-                base_url=self.config.get("embed_base_url") or None,
-            )
-            model_name = self.config.get("embed_model")
-
-            class OpenAICompatibleWrapper:
-                def __init__(self, client, model_name):
-                    self.client = client
-                    self.model_name = model_name
-                def _create_with_retry(self, input_val, max_retries=6):
-                    import time as _time
-                    for attempt in range(max_retries):
-                        try:
-                            return self.client.embeddings.create(model=self.model_name, input=input_val)
-                        except Exception:
-                            if attempt == max_retries - 1:
-                                raise
-                            _time.sleep(min(3 * (attempt + 1), 20))
-                def embed_documents(self, texts):
-                    resp = self._create_with_retry(texts)
-                    return [item.embedding for item in resp.data]
-                def embed_query(self, text):
-                    resp = self._create_with_retry([text])
-                    return resp.data[0].embedding
-
-            self.embedding_fn = OpenAICompatibleWrapper(client, model_name)
-            print(f"[RAG V2] Using OpenAI-compatible embeddings with model: {model_name}")
+        # Embeddings come from the user's `rag setup` choice (or RAG_MCP_* env).
+        # None means exact-word (BM25) search only.
+        embed_provider = str(self.config.get("embed_provider") or "none").lower()
+        self.embedding_fn = build_embedder(self.config, device=self.device)
+        if self.embedding_fn is None:
+            print("[RAG V2] No embedding model configured: exact-word (BM25) search only. Run `rag setup` to add meaning-based search.")
         else:
-            model = SentenceTransformer(self.config.get("embed_model"), device=self.device)
-            class STWrapper:
-                def __init__(self, st_model):
-                    self.model = st_model
-                def embed_documents(self, texts):
-                    return self.model.encode(texts, convert_to_numpy=True).tolist()
-                def embed_query(self, text):
-                    return self.model.encode([text], convert_to_numpy=True)[0].tolist()
-            
-            self.embedding_fn = STWrapper(model)
-            print(f"[RAG V2] Using SentenceTransformer embeddings with model: {self.config.get('embed_model')}")
+            print(f"[RAG V2] Using {embed_provider} embeddings with model: {self.embedding_fn.model_name}")
 
         # Determine vector database backend (LanceDB by default, or Qdrant)
         self.backend_type = self.config.get("backend", os.environ.get("RAG_MCP_BACKEND", "lancedb")).lower()
         print(f"[RAG V2] Using backend: {self.backend_type}")
 
-        # Determine vector size based on model
-        vector_size_map = {
-            "ollama": 768,  # default ollama fallback
-            "vllm": 4096,  # e5-mistral-7b-instruct
-            "sentencetransformer": 384,  # all-MiniLM-L6-v2
-            "openai_compatible": 1536,  # OpenAI text-embedding-3-small / Qwen text-embedding-v2 default
-        }
-        vector_size = vector_size_map.get(embed_provider, 384)
-        embed_model_name = self.config.get("embed_model", "").lower()
-        if "qwen3-embedding" in embed_model_name:
-            vector_size = 4096
+        # One probe embedding tells the real vector size for any provider/model.
+        vector_size = probe_dimensions(self.embedding_fn) if self.embedding_fn is not None else 0
 
         # Create unique collection name from persist_dir to avoid conflicts
         persist_dir_name = os.path.basename(self.config.get("persist_dir"))
@@ -458,6 +347,10 @@ class RAGPipelineV2:
             )
             self.bm25_index = None
         else:
+            if self.embedding_fn is None:
+                raise ValueError("The Qdrant backend needs an embedding model. Run `rag setup` or use the LanceDB backend.")
+            from .qdrant_backend import QdrantVectorDB
+
             qdrant_path = os.path.join(self.config.get("persist_dir"), "qdrant_storage")
             self.vector_db = QdrantVectorDB(
                 collection_name=collection_name,
@@ -474,8 +367,10 @@ class RAGPipelineV2:
 
         # Add CrossEncoder / LLM for fast reranking
         reranker_model = self.config.get('reranker_model')
+        reranker_setting = str(self.config.get("reranker_type", "cross-encoder")).lower()
         self.reranker_type = "cross-encoder"
-        if reranker_model:
+        self.reranker = None
+        if reranker_model and reranker_setting not in {"disabled", "none"}:
             if "qwen3-reranker" in reranker_model.lower():
                 self.reranker_type = "qwen3"
                 import torch
@@ -494,11 +389,16 @@ class RAGPipelineV2:
                 ).eval()
 
             else:
-                self.reranker = CrossEncoder(
-                    reranker_model,
-                    device=self.device
-                )
-                print(f"[RAG V2] Using CrossEncoder reranking with model: {reranker_model}")
+                try:
+                    from sentence_transformers import CrossEncoder
+                except ImportError:
+                    print("[RAG V2] Reranker skipped: sentence-transformers is not installed (full extra). Results keep their fusion order.")
+                else:
+                    self.reranker = CrossEncoder(
+                        reranker_model,
+                        device=self.device
+                    )
+                    print(f"[RAG V2] Using CrossEncoder reranking with model: {reranker_model}")
 
         # Load or create database
         self._load_or_create_database()
@@ -977,10 +877,14 @@ class RAGPipelineV2:
             print(f"[RAG V2] Searching with query: '{query[:50]}...' (backend: {self.backend_type})")
             
             if self.backend_type == "lancedb":
-                # STEP 3: LANCEDB VECTOR SEARCH
-                print("[RAG V2] Step 3: LanceDB Vector search...")
-                vector_results_raw = self.vector_db.search_vector(query, top_k=top_k)
-                vector_results = [(doc, doc.get("score", 0)) for doc in vector_results_raw]
+                vector_results = []
+                if self.embedding_fn is not None:
+                    # STEP 3: LANCEDB VECTOR SEARCH
+                    print("[RAG V2] Step 3: LanceDB Vector search...")
+                    vector_results_raw = self.vector_db.search_vector(query, top_k=top_k)
+                    vector_results = [(doc, doc.get("score", 0)) for doc in vector_results_raw]
+                else:
+                    print("[RAG V2] Step 3: skipped (no embedding model; exact-word search only)")
 
                 # STEP 4: LANCEDB TANTIVY FTS SEARCH
                 print("[RAG V2] Step 4: LanceDB Tantivy FTS search...")
@@ -1007,6 +911,9 @@ class RAGPipelineV2:
             reranker_type = self.config.get("reranker_type", "cross-encoder").lower()
             
             if reranker_type == "disabled" or reranker_type == "none":
+                final_docs = fused_docs[:rerank_top_k]
+            elif self.reranker_type != "qwen3" and getattr(self, "reranker", None) is None:
+                # No reranker model is loaded (light install): keep the fusion order.
                 final_docs = fused_docs[:rerank_top_k]
             elif reranker_type == "llm":
                 print(f"[RAG Core] Reranking {len(fused_docs)} initial results using LLM Reranker...")

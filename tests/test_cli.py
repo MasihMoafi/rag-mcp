@@ -10,11 +10,12 @@ def test_doctor_reports_codex_login_as_json(tmp_path: Path):
     codex.write_text("#!/bin/sh\nprintf 'Logged in using ChatGPT\\n'\n")
     codex.chmod(0o755)
     output = io.StringIO()
+    config_path = tmp_path / "config.json"
 
     code = main(
         ["doctor", "--json"],
         stdout=output,
-        environ={"PATH": str(tmp_path)},
+        environ={"PATH": str(tmp_path), "RAG_MCP_CONFIG": str(config_path)},
     )
 
     report = json.loads(output.getvalue())
@@ -24,6 +25,88 @@ def test_doctor_reports_codex_login_as_json(tmp_path: Path):
         "authenticated": True,
         "method": "ChatGPT",
     }
+    assert report["embedding"]["provider"] == "none"
+    assert report["embedding"]["configured"] is False
+    assert report["embedding"]["config_path"] == str(config_path)
+    assert isinstance(report["embedding"]["full_extra"], bool)
+
+
+def test_setup_flags_save_every_embedding_field_without_asking(tmp_path: Path):
+    config_path = tmp_path / "config.json"
+    probes = []
+    output = io.StringIO()
+
+    code = main(
+        [
+            "setup",
+            "--provider", "openai_compatible",
+            "--model", "text-embedding-3-large",
+            "--base-url", "https://example.test/v1",
+            "--api-key", "sk-test",
+        ],
+        stdout=output,
+        environ={"RAG_MCP_CONFIG": str(config_path)},
+        embedding_probe=lambda config: probes.append(dict(config)) or 3072,
+    )
+
+    assert code == 0
+    assert "Works: 3072 dimensions." in output.getvalue()
+    assert json.loads(config_path.read_text()) == {
+        "embed_provider": "openai_compatible",
+        "embed_model": "text-embedding-3-large",
+        "embed_base_url": "https://example.test/v1",
+        "embed_api_key": "sk-test",
+        "ollama_url": "http://localhost:11434",
+    }
+    assert probes == [json.loads(config_path.read_text())]
+
+
+def test_setup_ollama_url_and_default_model_and_no_verify(tmp_path: Path):
+    config_path = tmp_path / "config.json"
+
+    code = main(
+        ["setup", "--provider", "ollama", "--ollama-url", "http://gpu-box:11434", "--no-verify"],
+        stdout=io.StringIO(),
+        environ={"RAG_MCP_CONFIG": str(config_path)},
+        embedding_probe=lambda _config: (_ for _ in ()).throw(AssertionError("must not verify")),
+    )
+
+    assert code == 0
+    saved = json.loads(config_path.read_text())
+    assert saved["embed_provider"] == "ollama"
+    assert saved["embed_model"] == "nomic-embed-text"
+    assert saved["ollama_url"] == "http://gpu-box:11434"
+
+
+def test_setup_api_option_requires_a_key(tmp_path: Path):
+    stderr = io.StringIO()
+    code = main(
+        ["setup", "--provider", "openai_compatible", "--no-verify"],
+        stdout=io.StringIO(),
+        stderr=stderr,
+        environ={"RAG_MCP_CONFIG": str(tmp_path / "config.json")},
+    )
+    assert code == 2
+    assert "--api-key is required" in stderr.getvalue()
+    assert not (tmp_path / "config.json").exists()
+
+
+def test_query_warns_when_only_exact_word_search_is_configured(tmp_path: Path):
+    document = tmp_path / "facts.md"
+    document.write_text("The launch codename is Cedar Lantern.")
+    stderr = io.StringIO()
+
+    code = main(
+        ["query", "codename?", "--path", str(document)],
+        stdout=io.StringIO(),
+        stderr=stderr,
+        environ={"RAG_MCP_CONFIG": str(tmp_path / "config.json")},
+        query_fn=lambda query, path: json.dumps({"result": []}),
+    )
+
+    assert code == 0
+    assert "Exact-word search (BM25) only" in stderr.getvalue()
+    assert "rag setup" in stderr.getvalue()
 
 
 def test_query_prints_the_real_query_result_contract(tmp_path: Path):
