@@ -94,42 +94,59 @@ Evaluated across **5 merged heterogeneous domains (6,314 chunks in a single inde
 
 ## Quick start
 
-Prerequisites: Python 3.10+ and [`uv`](https://docs.astral.sh/uv/getting-started/installation/).
+Exact-word search (BM25) is always on. Meaning-based search needs an embedding model, and `rag setup` asks you to pick one: a small local model downloaded once and run on the CPU, Ollama, your own API key (OpenAI, Gemini, OpenRouter or any OpenAI-compatible endpoint), or exact words only for now. The default install is light: no PyTorch.
+
+Prerequisite for every path: [`uv`](https://docs.astral.sh/uv/getting-started/installation/), the Python package runner. The npm package is a thin launcher that calls it.
+
+```bash
+uvx ragmcp setup                                    # pick an embedding model once
+uvx ragmcp query "What changed?" --path ./docs       # any file or folder
+```
+
+```bash
+npx ragmcp setup                                    # same, from the Node ecosystem
+pnpm dlx ragmcp query "What changed?" --path ./docs
+```
+
+Install permanently and use plain `rag`:
+
+```bash
+uv tool install ragmcp        # or: pipx install ragmcp · npm install -g ragmcp
+rag setup
+rag doctor
+rag query "What changed?" --path /absolute/path/to/document-or-folder
+rag connect-codex             # register the MCP server with Codex
+rag studio                    # pair the hosted Studio with this machine
+```
+
+`rag setup --provider <none|fastembed|ollama|openai_compatible|sentencetransformer> [--model M] [--base-url URL] [--api-key KEY] [--ollama-url URL]` sets the same choice without questions. The saved choice lives in `~/.config/rag/config.json` (owner-readable only); `RAG_MCP_EMBED_*` environment variables override it per process.
+
+Extras: `ragmcp[full]` adds PyTorch, sentence-transformers and the cross-encoder reranker (GPU); `ragmcp[office]` parses DOCX/PPTX/XLSX/CSV; `ragmcp[ocr]` reads images and scanned PDFs; `ragmcp[qdrant]` adds the Qdrant backend. With npm: `RAGMCP_EXTRAS=full npx ragmcp ...`.
+
+`rag studio` starts an authenticated loopback companion and opens the hosted Studio. It reuses the local Codex login for GPT-5.6 Luna without copying Codex credentials into the browser, and serves embeddings from your chosen model to the Studio. The Studio keeps its uploaded sources in the browser; `rag query` exercises this repository's Python retrieval engine directly.
+
+### From a checkout
 
 ```bash
 git clone https://github.com/MasihMoafi/rag-mcp
 cd rag-mcp
-python scripts/bootstrap.py
-```
-
-That single command installs dependencies and runs the test suite.
-
-Use the CLI from this checkout:
-
-```bash
+python scripts/bootstrap.py       # uv sync --all-extras --group dev, then the test suite
 uv run rag doctor
-uv run rag query "What changed?" --path /absolute/path/to/document-or-folder
-uv run rag connect-codex
-uv run rag studio
 ```
-
-`rag studio` starts an authenticated loopback companion and opens the hosted Studio. It reuses the local Codex login for GPT-5.6 Luna without copying Codex credentials into the browser. The Studio keeps its uploaded sources in the browser; `rag query` exercises this repository's Python retrieval engine directly.
-
-To expose `rag` outside the checkout, run `uv tool install .`.
 
 Manual test equivalent:
 
 ```bash
-uv sync --group dev
+uv sync --all-extras --group dev
 .venv/bin/python -m pytest tests/ -v
 ```
 
-Other MCP clients can still register the stdio server directly.
+Any MCP client can register the stdio server as the command `rag` with the single argument `mcp` (after `uv tool install ragmcp`), or as `uvx` with arguments `ragmcp mcp` without installing.
 
 ### Claude Code
 
 ```bash
-claude mcp add rag -s user -- /absolute/path/to/rag-mcp/.venv/bin/python /absolute/path/to/rag-mcp/server.py
+claude mcp add rag -s user -- rag mcp
 ```
 
 ### Elpis
@@ -138,12 +155,11 @@ claude mcp add rag -s user -- /absolute/path/to/rag-mcp/.venv/bin/python /absolu
 
 ```toml
 [mcp_servers.rag]
-command = "/home/masih/Desktop/p/rag-mcp-lancedb/.venv/bin/python"
-args = ["/home/masih/Desktop/p/rag-mcp-lancedb/server.py"]
+command = "rag"
+args = ["mcp"]
 
 [mcp_servers.rag.env]
-RAG_MCP_WORKSPACE_ROOT = "/home/masih/Desktop/p"
-RAG_MCP_BACKEND = "lancedb"
+RAG_MCP_WORKSPACE_ROOT = "/absolute/path/to/your/workspace"
 ```
 
 **Option B: Standard MCP JSON (`.mcp.json` or `~/.elpis/mcp.json`)**
@@ -153,23 +169,22 @@ RAG_MCP_BACKEND = "lancedb"
   "mcpServers": {
     "rag": {
       "type": "stdio",
-      "command": "/home/masih/Desktop/p/rag-mcp-lancedb/.venv/bin/python",
-      "args": [
-        "/home/masih/Desktop/p/rag-mcp-lancedb/server.py"
-      ],
+      "command": "rag",
+      "args": ["mcp"],
       "env": {
-        "RAG_MCP_WORKSPACE_ROOT": "/home/masih/Desktop/p",
-        "RAG_MCP_BACKEND": "lancedb"
+        "RAG_MCP_WORKSPACE_ROOT": "/absolute/path/to/your/workspace"
       }
     }
   }
 }
 ```
 
+From a checkout, use `/absolute/path/to/rag-mcp/.venv/bin/python /absolute/path/to/rag-mcp/server.py` as the command instead.
+
 ### Codex
 
 ```bash
-uv run rag connect-codex
+rag connect-codex
 ```
 
 Expected result: the client discovers `query_knowledge_base`, and a query returns ranked passages with source paths from the requested scope.

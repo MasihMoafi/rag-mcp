@@ -1,0 +1,7 @@
+# The install test image only needs the built wheel, the npm launcher and the test scripts.
+*
+!dist/ragmcp-*.whl
+!npm/
+!tests/install/
+npm/node_modules
+npm/*.tgz
