@@ -63,7 +63,7 @@ def main() -> int:
             return 0
 
         print("Installing dependencies with uv...")
-        _run(["uv", "sync", "--group", "dev"], cwd=repo_root)
+        _run(["uv", "sync", "--all-extras", "--group", "dev"], cwd=repo_root)
 
         venv_python = _venv_python(repo_root)
         if not venv_python.exists():

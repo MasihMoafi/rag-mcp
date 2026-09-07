@@ -7,3 +7,10 @@ rag/rag_db_v2/
 # eval fixtures: real books/papers, not ours to redistribute
 evals/*/*.pdf
 ES.md
+
+# build and launcher artefacts
+dist/
+npm/node_modules/
+npm/*.tgz
+# local indexes and eval databases next to the code
+rag/rag_db_*/

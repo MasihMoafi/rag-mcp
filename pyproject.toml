@@ -1,39 +1,72 @@
 [project]
-name = "rag-mcp"
-version = "0.1.0"
-description = "Standalone local hybrid-RAG MCP server (BM25 + vector search + reranking)"
+name = "ragmcp"
+version = "0.2.0"
+description = "Local hybrid-RAG CLI and MCP server: exact-word BM25 always on, plus the embedding model you choose"
+readme = "README.md"
+license = { text = "MIT" }
 requires-python = ">=3.10"
+authors = [{ name = "Masih Moafi" }]
+keywords = ["rag", "mcp", "retrieval", "bm25", "embeddings", "lancedb", "cli"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Text Processing :: Indexing",
+]
+# The light install: BM25 (Tantivy via LanceDB), PDF text, small ONNX embedding
+# models (fastembed, CPU) and the OpenAI-compatible embeddings client. No PyTorch.
 dependencies = [
-    "ollama",
-    "pymupdf>=1.26.3",
-    "torch==2.5.1",
-    "sentence-transformers>=5.0.0",
-    "langchain-community>=0.3.27",
     "lancedb>=0.17.0",
     "pyarrow>=14.0.0",
-    "unstructured[docx,pptx,xlsx,csv]>=0.18.32",
-    "pytesseract>=0.3.13",
-    "pdf2image>=1.17.0",
-    "pillow>=12.3.0",
-    "rapidocr-onnxruntime>=1.4.4",
     "tantivy>=0.26.0",
+    "pymupdf>=1.26.3",
+    "requests>=2.31",
+    "fastembed>=0.4",
+    "openai>=1.0",
 ]
+
+[project.optional-dependencies]
+# GPU embeddings and the cross-encoder reranker through sentence-transformers.
+full = ["torch>=2.5.1", "sentence-transformers>=5.0.0", "transformers>=4.40"]
+# DOCX / PPTX / XLSX / CSV parsing.
+office = ["unstructured[docx,pptx,xlsx,csv]>=0.18.32"]
+# OCR for images and scanned PDFs.
+ocr = ["pytesseract>=0.3.13", "pdf2image>=1.17.0", "pillow>=10", "rapidocr-onnxruntime>=1.4.4"]
+# Alternative vector store.
+qdrant = ["qdrant-client>=1.7.0"]
+all = ["ragmcp[full,office,ocr,qdrant]"]
+
+[project.scripts]
+rag = "rag.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/MasihMoafi/rag-mcp"
+Repository = "https://github.com/MasihMoafi/rag-mcp"
+Studio = "https://rag.masihmoafi.com"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
-[project.scripts]
-rag = "rag.cli:main"
+[tool.hatch.build]
+# Local LanceDB indexes and caches live next to the code; never ship them.
+exclude = ["**/__pycache__", "rag/rag_db_*", "rag/rag_db_v2", "**/*.pyc"]
+
+[tool.hatch.build.targets.sdist]
+only-include = ["rag", "utils", "server.py", "README.md", "LICENSE", "pyproject.toml"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["rag", "utils"]
 
 [tool.hatch.build.targets.wheel.force-include]
 "server.py" = "server.py"
-
-[project.optional-dependencies]
-openai = ["openai>=1.0"]
 
 [dependency-groups]
 dev = ["pytest>=9.0.1"]
