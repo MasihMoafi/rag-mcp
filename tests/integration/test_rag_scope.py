@@ -20,7 +20,7 @@ def test_default_workspace_call_uses_workspace_root() -> None:
             server.importlib.import_module = lambda _name: types.SimpleNamespace(
                 fetchExternalKnowledge=lambda **kwargs: captured.update(kwargs) or "ok"
             )
-            assert json.loads(server.query_knowledge_base("find context")) == {"result": "ok"}
+            assert json.loads(server.query_knowledge_base("find context"))["result"] == "ok"
     finally:
         server.workspace_root = original_workspace
         server.importlib.import_module = original_import
@@ -92,28 +92,20 @@ def test_repeated_scope_queries_reuse_manifest_and_invalidate_on_change() -> Non
                 fetchExternalKnowledge=lambda **kwargs: captured.append(kwargs) or "ok"
             )
 
-            assert json.loads(server.query_knowledge_base("find context", directory)) == {
-                "result": "ok"
-            }
-            assert json.loads(server.query_knowledge_base("find context", directory)) == {
-                "result": "ok"
-            }
+            assert json.loads(server.query_knowledge_base("find context", directory))["result"] == "ok"
+            assert json.loads(server.query_knowledge_base("find context", directory))["result"] == "ok"
             assert walk_count == 1
             assert captured[0]["doc_path"] == captured[1]["doc_path"]
             assert captured[0]["doc_path"] == [str(first_file)]
 
             second_file = scope / "second.md"
             second_file.write_text("second document\n", encoding="utf-8")
-            assert json.loads(server.query_knowledge_base("find context", directory)) == {
-                "result": "ok"
-            }
+            assert json.loads(server.query_knowledge_base("find context", directory))["result"] == "ok"
             assert walk_count == 2
             assert captured[2]["doc_path"] == [str(first_file), str(second_file)]
 
             first_file.write_text("updated document\n", encoding="utf-8")
-            assert json.loads(server.query_knowledge_base("find context", directory)) == {
-                "result": "ok"
-            }
+            assert json.loads(server.query_knowledge_base("find context", directory))["result"] == "ok"
             assert walk_count == 3
             assert captured[3]["doc_path"] == [str(first_file), str(second_file)]
     finally:

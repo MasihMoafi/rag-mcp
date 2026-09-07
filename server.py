@@ -32,8 +32,10 @@ workspace_root = Path(
 ).expanduser().resolve()
 sys.path.insert(0, str(repo_root))
 
+from rag.settings import BM25_ONLY_NOTICE, embedding_config, has_embedding  # noqa: E402
+
 _SERVER_NAME = "rag-mcp"
-_SERVER_VERSION = "0.1.0"
+_SERVER_VERSION = "0.2.0"
 _use_content_length_framing = False
 _initialized = False
 _INDEXABLE_EXTENSIONS = {
@@ -291,7 +293,10 @@ def query_knowledge_base(query: str, doc_path: str = "") -> str:
             if not callable(fetch):
                 return json.dumps({"error": "rag.fetch has no fetchExternalKnowledge function"})
             value = fetch(query=query, doc_path=fetch_doc_path)
-        return json.dumps({"result": value})
+        response: dict[str, Any] = {"result": value}
+        if not has_embedding(embedding_config()):
+            response["notice"] = BM25_ONLY_NOTICE
+        return json.dumps(response)
     except Exception as exc:
         return json.dumps({"error": f"RAG query failed: {exc}"})
 

@@ -1,0 +1,102 @@
+import io
+import json
+import os
+import stat
+from pathlib import Path
+
+from rag import settings
+
+
+def env_for(tmp_path: Path, **extra: str) -> dict[str, str]:
+    return {"RAG_MCP_CONFIG": str(tmp_path / "rag" / "config.json"), **extra}
+
+
+def test_defaults_are_exact_words_only_until_a_choice_is_saved(tmp_path: Path):
+    environ = env_for(tmp_path)
+    config = settings.embedding_config(environ)
+    assert config["embed_provider"] == "none"
+    assert not settings.has_embedding(config)
+    assert "BM25" in settings.describe_embedding(config)
+
+
+def test_saved_choice_is_owner_only_and_environment_overrides_it(tmp_path: Path):
+    environ = env_for(tmp_path)
+    path = settings.save_settings(
+        {"embed_provider": "fastembed", "embed_model": "BAAI/bge-small-en-v1.5"}, environ
+    )
+    assert path == tmp_path / "rag" / "config.json"
+    assert stat.S_IMODE(os.stat(path).st_mode) == 0o600
+
+    config = settings.embedding_config(environ)
+    assert (config["embed_provider"], config["embed_model"]) == ("fastembed", "BAAI/bge-small-en-v1.5")
+
+    overridden = settings.embedding_config(env_for(tmp_path, RAG_MCP_EMBED_PROVIDER="ollama", RAG_MCP_EMBED_MODEL="nomic-embed-text"))
+    assert (overridden["embed_provider"], overridden["embed_model"]) == ("ollama", "nomic-embed-text")
+
+
+def test_interactive_setup_lists_every_choice_and_saves_only_after_verification(tmp_path: Path):
+    environ = env_for(tmp_path)
+    probes = []
+    stdout = io.StringIO()
+
+    code = settings.run_setup(
+        stdin=io.StringIO("4\nhttps://openrouter.ai/api/v1\nqwen/qwen3-embedding-4b\nsk-test\n"),
+        stdout=stdout,
+        stderr=io.StringIO(),
+        environ=environ,
+        verify=lambda config: probes.append(dict(config)) or 2560,
+    )
+
+    assert code == 0
+    for index, choice in enumerate(settings.EMBEDDING_CHOICES, 1):
+        assert f"{index}) {choice['label']}" in stdout.getvalue()
+    assert "Works: 2560 dimensions." in stdout.getvalue()
+    assert probes == [
+        {
+            "embed_provider": "openai_compatible",
+            "embed_model": "qwen/qwen3-embedding-4b",
+            "embed_base_url": "https://openrouter.ai/api/v1",
+            "embed_api_key": "sk-test",
+            "ollama_url": "http://localhost:11434",
+        }
+    ]
+    assert json.loads(settings.config_path(environ).read_text()) == probes[0]
+
+
+def test_failed_verification_saves_nothing(tmp_path: Path):
+    environ = env_for(tmp_path)
+    stderr = io.StringIO()
+
+    def failing(_config):
+        raise RuntimeError("model not found")
+
+    code = settings.run_setup(
+        stdin=io.StringIO("1\n\n"),
+        stdout=io.StringIO(),
+        stderr=stderr,
+        environ=environ,
+        verify=failing,
+    )
+
+    assert code == 1
+    assert "model not found" in stderr.getvalue()
+    assert not settings.config_path(environ).exists()
+
+
+def test_exact_words_only_choice_needs_no_verification(tmp_path: Path):
+    environ = env_for(tmp_path)
+    exact_words_index = settings.EMBEDDING_CHOICES.index(next(c for c in settings.EMBEDDING_CHOICES if c["provider"] == "none")) + 1
+
+    def never(_config):
+        raise AssertionError("verification must not run for exact words only")
+
+    code = settings.run_setup(
+        stdin=io.StringIO(f"{exact_words_index}\n"),
+        stdout=io.StringIO(),
+        stderr=io.StringIO(),
+        environ=environ,
+        verify=never,
+    )
+
+    assert code == 0
+    assert settings.embedding_config(environ)["embed_provider"] == "none"

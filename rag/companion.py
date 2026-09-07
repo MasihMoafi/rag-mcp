@@ -11,13 +11,40 @@ from pathlib import Path
 from typing import Any
 
 
+from rag.settings import BM25_ONLY_NOTICE, embedding_config
+
 MODEL = "gpt-5.6-luna"
 ALLOWED_ORIGINS = {
     "https://rag.masihmoafi.com",
     "http://127.0.0.1:4174",
     "http://localhost:4174",
+    # Studio development server (next dev); loopback only.
+    "http://127.0.0.1:3000",
+    "http://localhost:3000",
 }
 MAX_BODY_BYTES = 1_048_576
+MAX_EMBED_TEXTS = 256
+
+
+def default_embedder():
+    """The embedder chosen with `rag setup`, or None when only BM25 should run."""
+    from rag.embeddings import build_embedder
+
+    return build_embedder(embedding_config())
+
+
+def embedding_status() -> dict[str, str]:
+    config = embedding_config()
+    return {"provider": config["embed_provider"], "model": config["embed_model"]}
+
+
+def _valid_embed_payload(value: Any) -> bool:
+    texts = value.get("texts") if isinstance(value, dict) else None
+    return (
+        isinstance(texts, list)
+        and 0 < len(texts) <= MAX_EMBED_TEXTS
+        and all(isinstance(text, str) and 0 < len(text) <= 8_000 for text in texts)
+    )
 
 
 def codex_is_ready() -> bool:
@@ -120,7 +147,16 @@ def create_companion_server(
     run_codex: Callable[[dict[str, Any]], str] = run_codex_generation,
     codex_ready: Callable[[], bool] = codex_is_ready,
     port: int = 0,
+    embedder_factory: Callable[[], Any] = default_embedder,
 ) -> ThreadingHTTPServer:
+    loaded: dict[str, Any] = {}
+
+    def embedder() -> Any:
+        # Built on first use: a local model download must not delay `rag studio` startup.
+        if "embedder" not in loaded:
+            loaded["embedder"] = embedder_factory()
+        return loaded["embedder"]
+
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, _format: str, *_args: object) -> None:
             return
@@ -167,10 +203,32 @@ def create_companion_server(
                 self._send_json(403, {"error": "Pairing rejected."})
                 return
             ready = codex_ready()
-            self._send_json(200 if ready else 503, {"ready": ready, "model": MODEL})
+            self._send_json(200 if ready else 503, {"ready": ready, "model": MODEL, "embedding": embedding_status()})
+
+        def _embed(self, payload: Any) -> None:
+            if not _valid_embed_payload(payload):
+                self._send_json(400, {"error": "Embedding request is invalid."})
+                return
+            try:
+                model = embedder()
+            except Exception as error:
+                self._send_json(502, {"error": f"The embedding model could not be loaded: {error}"})
+                return
+            if model is None:
+                self._send_json(409, {"error": BM25_ONLY_NOTICE})
+                return
+            try:
+                vectors = model.embed_documents(payload["texts"])
+            except Exception:
+                self._send_json(502, {"error": "Embedding failed."})
+                return
+            self._send_json(
+                200,
+                {"vectors": vectors, "model": model.model_name, "dimensions": len(vectors[0]) if vectors else 0},
+            )
 
         def do_POST(self) -> None:
-            if self.path != "/generate":
+            if self.path not in {"/generate", "/embed"}:
                 self._send_json(404, {"error": "Not found."})
                 return
             if not self._authorized():
@@ -181,12 +239,15 @@ def create_companion_server(
             except ValueError:
                 length = 0
             if not 0 < length <= MAX_BODY_BYTES:
-                self._send_json(413, {"error": "Generation request is too large."})
+                self._send_json(413, {"error": "Request is too large."})
                 return
             try:
                 payload = json.loads(self.rfile.read(length))
             except (json.JSONDecodeError, UnicodeDecodeError):
-                self._send_json(400, {"error": "Generation request must be valid JSON."})
+                self._send_json(400, {"error": "Request must be valid JSON."})
+                return
+            if self.path == "/embed":
+                self._embed(payload)
                 return
             if not _valid_payload(payload):
                 self._send_json(400, {"error": "Generation request is invalid."})

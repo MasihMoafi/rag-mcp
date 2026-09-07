@@ -29,7 +29,7 @@ class LanceDBBackend:
     def __init__(
         self,
         table_name: str,
-        embedding_fn: Callable,
+        embedding_fn: Callable | None,
         vector_size: int = 768,
         distance: str = "cosine",
         persist_path: str = "./lancedb_storage",
@@ -105,12 +105,12 @@ class LanceDBBackend:
         for i in range(0, total, batch_size):
             batch = documents[i : i + batch_size]
             contents = [doc.get("content", "") for doc in batch]
-            vectors = self._batch_embed(contents)
+            # Without an embedding model the table has no vector column; FTS still works.
+            vectors = self._batch_embed(contents) if self.embedding_fn is not None else [None] * len(batch)
 
             for j, (doc, vector) in enumerate(zip(batch, vectors)):
                 record = {
                     "id": str(i + j),
-                    "vector": vector,
                     "content": doc.get("content", ""),
                     "file_path": str(doc.get("file_path", "")),
                     "source": str(doc.get("source", doc.get("file_path", ""))),
@@ -120,6 +120,8 @@ class LanceDBBackend:
                     "page_number": int(doc.get("page_number", 0)),
                     "original_content": str(doc.get("original_content", doc.get("content", ""))),
                 }
+                if vector is not None:
+                    record["vector"] = vector
                 all_records.append(record)
 
         # Overwrite or create table
@@ -141,8 +143,8 @@ class LanceDBBackend:
             sys.stderr.write(f"[LanceDB] FTS index creation note: {e}\n")
 
     def search_vector(self, query: str, top_k: int = 5) -> List[Dict[str, Any]]:
-        """Vector similarity search."""
-        if self.table is None or len(self.table) == 0:
+        """Vector similarity search. Empty when no embedding model is configured."""
+        if self.embedding_fn is None or self.table is None or len(self.table) == 0:
             return []
 
         query_vector = self._embed_single(query)
