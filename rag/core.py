@@ -366,11 +366,24 @@ class RAGPipelineV2:
             )
 
         # Add CrossEncoder / LLM for fast reranking
-        reranker_model = self.config.get('reranker_model')
-        reranker_setting = str(self.config.get("reranker_type", "cross-encoder")).lower()
+        reranker_model = self.config.get('reranker_model') or ""
+        reranker_setting = str(self.config.get("reranker_type", "auto")).lower()
         self.reranker_type = "cross-encoder"
         self.reranker = None
-        if reranker_model and reranker_setting not in {"disabled", "none"}:
+        if reranker_setting == "auto":
+            try:
+                import sentence_transformers  # noqa: F401
+                reranker_setting = "cross-encoder"
+            except ImportError:
+                reranker_setting = "disabled"
+        if reranker_setting in {"disabled", "none", "off"}:
+            print("[RAG V2] Reranker off.")
+        elif reranker_setting == "fastembed":
+            from .embeddings import FastEmbedReranker
+            self.reranker = FastEmbedReranker(reranker_model or "Xenova/ms-marco-MiniLM-L-6-v2")
+            print(f"[RAG V2] Using local ONNX reranker: {self.reranker.model_name}")
+        else:
+            reranker_model = reranker_model or "cross-encoder/ms-marco-MiniLM-L-6-v2"
             if "qwen3-reranker" in reranker_model.lower():
                 self.reranker_type = "qwen3"
                 import torch
@@ -908,9 +921,9 @@ class RAGPipelineV2:
             if not fused_docs:
                 return "No relevant information found."
             # Step 4: Reranking (Configurable via reranker_type)
-            reranker_type = self.config.get("reranker_type", "cross-encoder").lower()
+            reranker_type = str(self.config.get("reranker_type", "auto")).lower()
             
-            if reranker_type == "disabled" or reranker_type == "none":
+            if reranker_type in {"disabled", "none", "off"}:
                 final_docs = fused_docs[:rerank_top_k]
             elif self.reranker_type != "qwen3" and getattr(self, "reranker", None) is None:
                 # No reranker model is loaded (light install): keep the fusion order.

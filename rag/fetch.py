@@ -5,7 +5,7 @@ try:
     from .core import RAGPipelineV2
 except Exception:
     from .core_2 import RAGPipelineV2
-from .settings import embedding_config
+from .settings import embedding_config, retrieval_config
 
 def _env_str(name: str, default: str) -> str:
     value = os.environ.get(name, "").strip()
@@ -33,11 +33,8 @@ RAG_CONFIG_V2 = {
     "chunk_size": _env_int("RAG_MCP_CHUNK_SIZE", 700),
     "chunk_overlap": _env_int("RAG_MCP_CHUNK_OVERLAP", 100),
     "rrf_k": _env_int("RAG_MCP_RRF_K", 60),  # RRF parameter for fusion (better than weighted ensemble)
-    "rerank_top_k": _env_int("RAG_MCP_RERANK_TOP_K", 5),
-    # "llm" exists in core.py's dispatch but _llm_rerank is unimplemented scaffolding
-    # (every doc gets the same score) -- do not expose it as a real option.
-    "reranker_type": _env_str("RAG_MCP_RERANKER_TYPE", "cross-encoder"),  # cross-encoder | disabled
-    "reranker_model": _env_str("RAG_MCP_RERANKER_MODEL", "cross-encoder/ms-marco-MiniLM-L-6-v2"),
+    # rerank_top_k / reranker_type / reranker_model come from rag.settings.retrieval_config()
+    # at pipeline creation (`rag config`, overridable by RAG_MCP_RERANK_TOP_K etc.).
     "force_reindex": False,
     "use_contextual": False,  # Disable contextual retrieval for performance
     "bm25_k1": 1.5,  # BM25 parameters
@@ -47,6 +44,11 @@ RAG_CONFIG_V2 = {
 }
 
 _rag_system_v2_instances: Dict[str, RAGPipelineV2] = {}
+
+
+def reset_pipelines() -> None:
+    """Forget loaded pipelines so the next query picks up changed settings."""
+    _rag_system_v2_instances.clear()
 
 def resolve_path(path: str) -> str:
     """Resolve user-friendly paths to absolute paths"""
@@ -119,6 +121,12 @@ def get_rag_pipeline_v2(doc_path: Optional[str | list[str]] = None):
         config = RAG_CONFIG_V2.copy()
         embedding = embedding_config()
         config.update(embedding)
+        retrieval = retrieval_config()
+        final_count = max(1, int(retrieval["top_k"]))
+        config["rerank_top_k"] = final_count
+        config["top_k"] = max(final_count, int(config["top_k"]))
+        config["reranker_type"] = retrieval["reranker_type"]
+        config["reranker_model"] = retrieval["reranker_model"]
         current_dir = index_root()
         if isinstance(doc_path, list):
             config["document_paths"] = doc_path

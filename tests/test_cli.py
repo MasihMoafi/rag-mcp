@@ -168,7 +168,7 @@ def test_connect_codex_registers_the_current_server(tmp_path: Path):
     code = main(
         ["connect-codex"],
         stdout=output,
-        environ={"PATH": str(tmp_path)},
+        environ={"PATH": str(tmp_path), "HOME": str(tmp_path)},
     )
 
     assert code == 0
@@ -235,9 +235,10 @@ def test_connect_claude_registers_the_server_in_user_scope(tmp_path: Path):
     claude.chmod(0o755)
     output = io.StringIO()
 
-    code = main(["connect", "claude"], stdout=output, environ={"PATH": str(tmp_path)})
+    code = main(["connect", "claude"], stdout=output, environ={"PATH": str(tmp_path), "HOME": str(tmp_path)})
 
     assert code == 0
+    assert "description:" in (tmp_path / ".claude" / "commands" / "rag.md").read_text()
     lines = calls.read_text().splitlines()
     assert lines[:5] == ["mcp", "remove", "rag", "-s", "user"]
     assert lines[5:11] == ["mcp", "add", "rag", "-s", "user", "--"]

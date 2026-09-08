@@ -123,6 +123,17 @@ rag studio                    # pair the hosted Studio; --studio-url http://loca
 
 `--top N` (or `--top3`, `--top-5`) sets how many passages a query returns. `rag connect claude --scope project` writes `.mcp.json` in the current folder instead of the user config. Registration always uses a command that outlives the current process: `rag mcp` when installed, or `uvx --from ragmcp==<version> rag mcp` when launched through npx/uvx.
 
+### Change settings later: CLI, menu, or chat
+
+```bash
+rag config show                                   # embedding, passages per query, reranker, config file
+rag config top 5                                  # how many passages a query returns (the default for --top)
+rag config reranker off|auto|fastembed|<model>    # fastembed = a small ONNX cross-encoder, no PyTorch
+rag config embedding qwen3-embedding:0.6b         # provider guessed: Ollama here; BAAI/... → local ONNX; text-embedding-3-small → OpenAI key
+```
+
+The same three settings are in the `rag` menu ("Change settings"), and `rag connect claude` / `rag connect codex` install a `/rag` command in the agent (Claude Code: `/rag top5`, `/rag --reranker fastembed`, `/rag embedding bge-m3`, or plain words like `/rag use the ollama model`; Codex: `/prompts:rag …`). The MCP server also exposes `get_rag_settings` and `set_rag_settings`, so any agent can change these when asked in chat. API keys are never taken through chat; `rag setup` in a terminal handles them.
+
 `rag setup --provider <none|fastembed|ollama|openai_compatible|sentencetransformer> [--model M] [--base-url URL] [--api-key KEY] [--ollama-url URL]` sets the same choice without questions. The saved choice lives in `~/.config/rag/config.json` (owner-readable only); `RAG_MCP_EMBED_*` environment variables override it per process.
 
 Extras: `ragmcp[full]` adds PyTorch, sentence-transformers and the cross-encoder reranker (GPU); `ragmcp[office]` parses DOCX/PPTX/XLSX/CSV; `ragmcp[ocr]` reads images and scanned PDFs; `ragmcp[qdrant]` adds the Qdrant backend. With npm: `RAGMCP_EXTRAS=full npx ragmcp ...`.

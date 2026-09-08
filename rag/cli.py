@@ -131,6 +131,7 @@ def _connect_codex(environ: Mapping[str, str], stdout: TextIO, stderr: TextIO) -
         print((added.stderr or added.stdout).strip(), file=stderr)
         return added.returncode
     print("Connected Codex to the local RAG server.", file=stdout)
+    _install_slash_commands(stdout, "codex", environ)
     return 0
 
 
@@ -148,6 +149,7 @@ def _connect_claude(environ: Mapping[str, str], stdout: TextIO, stderr: TextIO, 
         return added.returncode
     where = "all your projects" if scope == "user" else "this project (.mcp.json)"
     print(f"Connected Claude Code to the local RAG server for {where}: {' '.join(_server_command(environ))}", file=stdout)
+    _install_slash_commands(stdout, "claude", environ)
     return 0
 
 
@@ -168,6 +170,7 @@ MENU = (
     ("Set up meaning-based search (choose an embedding model)", ["setup"]),
     ("Search a file or folder", None),
     ("Connect a coding agent (Claude Code or Codex)", None),
+    ("Change settings (passages per query, reranker, embedding model)", None),
     ("Open the Studio paired with this machine", ["studio"]),
     ("Check this machine (doctor)", ["doctor"]),
     ("Quit", None),
@@ -198,6 +201,16 @@ def _menu(*, stdin: TextIO, stdout: TextIO, stderr: TextIO, environ: Mapping[str
             return 2
         top = _ask(stdin, stdout, "How many passages", "5")
         command = ["query", question, "--path", path, "--top", top]
+    elif label.startswith("Change settings"):
+        for line in user_settings.describe_settings(environ)[:3]:
+            stdout.write(f"  {line}\n")
+        setting = _ask(stdin, stdout, "Change which [top/reranker/embedding]", "top")
+        if setting not in {"top", "reranker", "embedding"}:
+            stderr.write(f"Not a listed setting: {setting}\n")
+            return 2
+        prompts = {"top": "Passages per query", "reranker": "Reranker [off/auto/fastembed/model]", "embedding": "Embedding model"}
+        value = _ask(stdin, stdout, prompts[setting])
+        command = ["config", setting, value]
     elif label.startswith("Connect"):
         agent = _ask(stdin, stdout, "Agent [claude/codex]", "claude").lower()
         if agent not in {"claude", "codex"}:
@@ -205,6 +218,119 @@ def _menu(*, stdin: TextIO, stdout: TextIO, stderr: TextIO, environ: Mapping[str
             return 2
         command = ["connect", agent]
     return main(command, stdin=stdin, stdout=stdout, stderr=stderr, environ=environ, **passthrough)  # type: ignore[arg-type]
+
+
+SLASH_COMMAND = """\
+---
+description: Change or inspect the local rag search setup in plain words (top N, reranker, embedding model)
+---
+The user wants to change or inspect their local rag search setup: $ARGUMENTS
+
+Use the `rag` command line tool through the shell (if `rag` is not on PATH, use `uvx ragmcp` with the same arguments). Map the request to exactly one of these and run it:
+- `rag config show`
+- `rag config top <N>`                       (also for "top5", "top 5", "return 5 passages")
+- `rag config reranker off|auto|fastembed|<model>`
+- `rag config embedding <model> [--provider fastembed|ollama|openai_compatible|sentencetransformer]`
+- `rag setup --auto`                          (start over with what this machine already has)
+- `rag doctor`                                (what is installed and running)
+Never ask for or paste API keys in this chat; for keys, tell the user to run `rag setup` in a terminal.
+Finish by running `rag config show` and report its lines to the user, nothing more.
+"""
+
+
+def _resolve_embedding_choice(model: str, provider: str | None, environ: Mapping[str, str]) -> dict[str, str]:
+    """Turn `rag config embedding <model>` into a full embedding config, guessing the provider from what runs here."""
+    from rag import detect
+
+    config = dict(user_settings.DEFAULTS)
+    detection = detect.detect_all(environ)
+    ollama_models = (detection.get("ollama") or {}).get("embedding_models") or []
+    if provider is None:
+        match = next((name for name in ollama_models if name == model or name.startswith(model + ":") or name.split(":")[0] == model), None)
+        if match:
+            provider, model = "ollama", match
+        elif any(model.lower().startswith(prefix) for prefix in ("text-embedding-", "gemini-embedding", "qwen/", "voyage")):
+            provider = "openai_compatible"
+        elif "/" in model or model.lower() in {"all-minilm-l6-v2"}:
+            provider = "fastembed"
+        else:
+            raise ValueError(
+                f"Cannot tell where '{model}' runs. Add --provider ollama|fastembed|openai_compatible|sentencetransformer."
+                + (f" Ollama has: {', '.join(ollama_models)}." if ollama_models else "")
+            )
+    config["embed_provider"] = provider
+    config["embed_model"] = model
+    if provider == "openai_compatible":
+        family = "gemini" if "gemini" in model.lower() else "openrouter" if "/" in model else "openai"
+        base_url, _ = detect.API_ENDPOINTS[family]
+        config["embed_base_url"] = base_url
+        saved = user_settings.load_settings(environ)
+        if saved.get("embed_base_url") == base_url and saved.get("embed_api_key"):
+            config["embed_api_key"] = str(saved["embed_api_key"])
+        elif family not in detection.get("api_keys", []):
+            raise ValueError(f"No API key for {family} in the environment. Run `rag setup` to enter one.")
+    return config
+
+
+def _config_command(args: argparse.Namespace, *, stdout: TextIO, stderr: TextIO, environ: Mapping[str, str], verify) -> int:
+    setting, value = args.setting, args.value.strip()
+    if setting == "show":
+        for line in user_settings.describe_settings(environ):
+            print(line, file=stdout)
+        return 0
+    if setting == "top":
+        if not value.isdigit() or int(value) < 1:
+            print("Give a whole number, e.g. `rag config top 5`.", file=stderr)
+            return 2
+        user_settings.update_settings({"top_k": value}, environ)
+    elif setting == "reranker":
+        if not value:
+            print("Give off, auto, fastembed or a model name.", file=stderr)
+            return 2
+        if value in {"off", "auto"}:
+            user_settings.update_settings({"reranker_type": value, "reranker_model": ""}, environ)
+        elif value == "fastembed" or value.startswith(("Xenova/", "jinaai/", "BAAI/bge-reranker")):
+            model = user_settings.FASTEMBED_RERANKER if value == "fastembed" else value
+            if verify is not None:
+                from rag.embeddings import FastEmbedReranker
+
+                print("Fetching the reranker model...", file=stdout)
+                try:
+                    scores = FastEmbedReranker(model).predict([("probe", "a passage")])
+                except Exception as error:
+                    print(f"Could not load the reranker: {error}\nNothing was saved.", file=stderr)
+                    return 1
+                print(f"Works: reranker answered {len(scores)} score(s).", file=stdout)
+            user_settings.update_settings({"reranker_type": "fastembed", "reranker_model": model}, environ)
+        else:
+            user_settings.update_settings({"reranker_type": "cross-encoder", "reranker_model": value}, environ)
+    elif setting == "embedding":
+        if not value:
+            print("Give a model name, e.g. `rag config embedding qwen3-embedding:0.6b`.", file=stderr)
+            return 2
+        try:
+            config = _resolve_embedding_choice(value, args.provider, environ)
+        except ValueError as error:
+            print(str(error), file=stderr)
+            return 2
+        code = user_settings.finish_setup(config, stdout=stdout, stderr=stderr, environ=environ, verify=verify)
+        if code != 0:
+            return code
+    for line in user_settings.describe_settings(environ)[:3]:
+        print(line, file=stdout)
+    return 0
+
+
+def _install_slash_commands(stdout: TextIO, agent: str, environ: Mapping[str, str]) -> None:
+    """Give the coding agent a /rag command that drives `rag config` from plain words."""
+    home = Path(environ.get("HOME") or Path.home())
+    targets = {"claude": home / ".claude" / "commands" / "rag.md", "codex": home / ".codex" / "prompts" / "rag.md"}
+    target = targets[agent]
+    target.parent.mkdir(parents=True, exist_ok=True)
+    body = SLASH_COMMAND if agent == "claude" else SLASH_COMMAND.split("---\n", 2)[-1]
+    target.write_text(body, encoding="utf-8")
+    hint = "/rag <what you want>" if agent == "claude" else "/prompts:rag <what you want>"
+    print(f"Installed the {hint} command ({target}).", file=stdout)
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -223,13 +349,19 @@ def _parser() -> argparse.ArgumentParser:
     setup.add_argument("--no-verify", action="store_true", dest="no_verify", help="Save without embedding a test sentence")
     setup.add_argument("--auto", action="store_true", help="Pick the best option this machine already has, no questions")
 
+    config = commands.add_parser("config", help="Show or change settings: top N, reranker, embedding model")
+    config.add_argument("setting", nargs="?", choices=["show", "top", "reranker", "embedding"], default="show")
+    config.add_argument("value", nargs="?", default="")
+    config.add_argument("--provider", choices=user_settings.PROVIDERS, help="Where the embedding model runs (guessed when omitted)")
+    config.add_argument("--no-verify", action="store_true", dest="no_verify")
+
     doctor = commands.add_parser("doctor", help="Check the local RAG, embedding and Codex setup")
     doctor.add_argument("--json", action="store_true", dest="as_json")
 
     query = commands.add_parser("query", help="Query a local file or folder")
     query.add_argument("question")
     query.add_argument("--path", required=True)
-    query.add_argument("--top", type=int, default=5, metavar="N", help="How many passages to return (also --top5, --top-3)")
+    query.add_argument("--top", type=int, default=None, metavar="N", help="How many passages to return (also --top5, --top-3); default from `rag config top`")
     connect = commands.add_parser("connect", help="Register the MCP server with a coding agent")
     connect.add_argument("agent", choices=["codex", "claude"])
     connect.add_argument("--scope", choices=["user", "project"], default="user", help="Claude Code scope: user (all projects) or project (.mcp.json here)")
@@ -294,6 +426,10 @@ def main(
         if args.ollama_url:
             config["ollama_url"] = args.ollama_url
         return user_settings.finish_setup(config, stdout=stdout, stderr=stderr, environ=environ, verify=verify)
+
+    if args.command == "config":
+        verify = None if args.no_verify else (embedding_probe or _probe_embedding)
+        return _config_command(args, stdout=stdout, stderr=stderr, environ=environ, verify=verify)
 
     if args.command == "doctor":
         from rag import detect
@@ -378,9 +514,10 @@ def main(
         from server import query_knowledge_base
 
         query_fn = query_knowledge_base
-    # The pipeline reads these when it starts: N final passages, at least N candidates per method.
-    os.environ["RAG_MCP_RERANK_TOP_K"] = str(max(1, args.top))
-    os.environ["RAG_MCP_TOP_K"] = str(max(args.top, int(os.environ.get("RAG_MCP_TOP_K") or 5)))
+    if args.top is not None:
+        # The pipeline reads these when it starts: N final passages, at least N candidates per method.
+        os.environ["RAG_MCP_RERANK_TOP_K"] = str(max(1, args.top))
+        os.environ["RAG_MCP_TOP_K"] = str(max(args.top, int(os.environ.get("RAG_MCP_TOP_K") or 5)))
     print(query_fn(args.question, str(path)), file=stdout)
     if not user_settings.has_embedding(user_settings.embedding_config(environ)):
         print(user_settings.BM25_ONLY_NOTICE, file=stderr)

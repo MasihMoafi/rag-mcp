@@ -24,9 +24,9 @@ EMBEDDING_CHOICES: tuple[dict[str, str], ...] = (
     },
     {
         "provider": "fastembed",
-        "model": "intfloat/multilingual-e5-small",
+        "model": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
         "label": "Small local multilingual model",
-        "detail": "English, Persian and about 90 other languages. About 120 MB.",
+        "detail": "English, Persian and about 50 other languages. About 220 MB.",
     },
     {
         "provider": "ollama",
@@ -78,6 +78,17 @@ ENV_KEYS = {
     "ollama_url": "RAG_MCP_OLLAMA_URL",
 }
 
+# Retrieval preferences saved next to the embedding choice; RAG_MCP_* overrides per process.
+RETRIEVAL_DEFAULTS = {"top_k": "5", "reranker_type": "auto", "reranker_model": ""}
+RETRIEVAL_ENV = {
+    "top_k": "RAG_MCP_RERANK_TOP_K",
+    "reranker_type": "RAG_MCP_RERANKER_TYPE",
+    "reranker_model": "RAG_MCP_RERANKER_MODEL",
+}
+RERANKER_CHOICES = ("off", "auto", "fastembed")
+FASTEMBED_RERANKER = "Xenova/ms-marco-MiniLM-L-6-v2"
+ST_RERANKER = "cross-encoder/ms-marco-MiniLM-L-6-v2"
+
 BM25_ONLY_NOTICE = (
     "Exact-word search (BM25) only. Run `rag setup` to add an embedding model "
     "for meaning-based search."
@@ -125,6 +136,52 @@ def embedding_config(environ: Mapping[str, str] | None = None) -> dict[str, str]
         if value:
             merged[key] = value
     return merged
+
+
+def retrieval_config(environ: Mapping[str, str] | None = None) -> dict[str, str]:
+    """top_k / reranker: defaults, then the saved file, then RAG_MCP_* overrides."""
+    environ = os.environ if environ is None else environ
+    merged = dict(RETRIEVAL_DEFAULTS)
+    saved = load_settings(environ)
+    for key in merged:
+        value = saved.get(key)
+        if isinstance(value, (str, int)) and str(value).strip():
+            merged[key] = str(value).strip()
+    for key, name in RETRIEVAL_ENV.items():
+        value = environ.get(name, "").strip()
+        if value:
+            merged[key] = value
+    return merged
+
+
+def update_settings(changes: Mapping[str, str], environ: Mapping[str, str] | None = None) -> Path:
+    """Change a few keys and keep everything else in the file."""
+    data = load_settings(environ)
+    data.update({key: str(value) for key, value in changes.items()})
+    return save_settings(data, environ)
+
+
+def describe_reranker(config: Mapping[str, str]) -> str:
+    kind = config.get("reranker_type", "auto")
+    model = config.get("reranker_model", "")
+    if kind in {"disabled", "none", "off"}:
+        return "off"
+    if kind == "auto":
+        return "auto (cross-encoder when sentence-transformers is installed, otherwise off)"
+    if kind == "fastembed":
+        return f"local ONNX cross-encoder · {model or FASTEMBED_RERANKER}"
+    return f"{kind} · {model or ST_RERANKER}"
+
+
+def describe_settings(environ: Mapping[str, str] | None = None) -> list[str]:
+    embedding = embedding_config(environ)
+    retrieval = retrieval_config(environ)
+    return [
+        f"Embedding: {describe_embedding(embedding)}",
+        f"Passages per query (top): {retrieval['top_k']}",
+        f"Reranker: {describe_reranker(retrieval)}",
+        f"Config file: {config_path(environ)}",
+    ]
 
 
 def has_embedding(config: Mapping[str, str]) -> bool:
@@ -259,6 +316,6 @@ def finish_setup(
             stderr.write(f"Could not embed a test sentence: {error}\nNothing was saved.\n")
             return 1
         stdout.write(f"Works: {dimensions} dimensions.\n")
-    path = save_settings(config, environ)
+    path = update_settings(config, environ)
     stdout.write(f"Saved to {path}\nEmbedding: {describe_embedding(config)}\n")
     return 0
