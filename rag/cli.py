@@ -72,14 +72,29 @@ def _normalize_argv(argv: Sequence[str]) -> list[str]:
     return normalized
 
 
+def _server_command(environ: Mapping[str, str]) -> list[str]:
+    """How a coding agent should start the MCP server so it keeps working after this process exits."""
+    spec = environ.get("RAGMCP_UVX_FROM", "").strip()
+    if spec:  # launched through the npm launcher or uvx: re-run the same package spec
+        return ["uvx", "--from", spec, "rag", "mcp"]
+    if "/environments-v2/" in sys.executable or "/.cache/uv/" in sys.executable:
+        from importlib.metadata import version
+
+        return ["uvx", "--from", f"ragmcp=={version('ragmcp')}", "rag", "mcp"]
+    installed = shutil.which("rag", path=environ.get("PATH"))
+    if installed and ".venv" not in installed:  # uv tool install / pipx / npm -g
+        return [installed, "mcp"]
+    import server
+
+    return [sys.executable, str(Path(server.__file__).resolve())]
+
+
 def _connect_codex(environ: Mapping[str, str], stdout: TextIO, stderr: TextIO) -> int:
     executable = shutil.which("codex", path=environ.get("PATH"))
     if executable is None:
         print("Codex is not installed or is not on PATH.", file=stderr)
         return 1
-    import server
-
-    server_path = str(Path(server.__file__).resolve())
+    command = _server_command(environ)
     current = subprocess.run(
         [executable, "mcp", "get", "rag", "--json"],
         capture_output=True,
@@ -93,8 +108,8 @@ def _connect_codex(environ: Mapping[str, str], stdout: TextIO, stderr: TextIO) -
         except (json.JSONDecodeError, KeyError, TypeError):
             transport = {}
         if (
-            transport.get("command") == sys.executable
-            and transport.get("args") == [server_path]
+            transport.get("command") == command[0]
+            and transport.get("args") == command[1:]
         ):
             print("Codex is already connected to this RAG server.", file=stdout)
             return 0
@@ -106,7 +121,7 @@ def _connect_codex(environ: Mapping[str, str], stdout: TextIO, stderr: TextIO) -
             env=dict(environ),
         )
     added = subprocess.run(
-        [executable, "mcp", "add", "rag", "--", sys.executable, server_path],
+        [executable, "mcp", "add", "rag", "--", *command],
         capture_output=True,
         check=False,
         text=True,
@@ -119,22 +134,20 @@ def _connect_codex(environ: Mapping[str, str], stdout: TextIO, stderr: TextIO) -
     return 0
 
 
-def _connect_claude(environ: Mapping[str, str], stdout: TextIO, stderr: TextIO) -> int:
-    import server
-
-    server_path = str(Path(server.__file__).resolve())
+def _connect_claude(environ: Mapping[str, str], stdout: TextIO, stderr: TextIO, scope: str = "user") -> int:
     executable = shutil.which("claude", path=environ.get("PATH"))
-    command = ["claude", "mcp", "add", "rag", "-s", "user", "--", sys.executable, server_path]
+    command = ["claude", "mcp", "add", "rag", "-s", scope, "--", *_server_command(environ)]
     if executable is None:
         print("Claude Code is not installed or is not on PATH. Register manually with:", file=stderr)
         print("  " + " ".join(command), file=stderr)
         return 1
-    subprocess.run([executable, "mcp", "remove", "rag", "-s", "user"], capture_output=True, check=False, text=True, env=dict(environ))
+    subprocess.run([executable, "mcp", "remove", "rag", "-s", scope], capture_output=True, check=False, text=True, env=dict(environ))
     added = subprocess.run([executable, *command[1:]], capture_output=True, check=False, text=True, env=dict(environ))
     if added.returncode != 0:
         print((added.stderr or added.stdout).strip(), file=stderr)
         return added.returncode
-    print("Connected Claude Code to the local RAG server (user scope).", file=stdout)
+    where = "all your projects" if scope == "user" else "this project (.mcp.json)"
+    print(f"Connected Claude Code to the local RAG server for {where}: {' '.join(_server_command(environ))}", file=stdout)
     return 0
 
 
@@ -165,6 +178,7 @@ def _parser() -> argparse.ArgumentParser:
     setup.add_argument("--api-key", default="", dest="api_key", help="API key for openai_compatible")
     setup.add_argument("--ollama-url", default="", dest="ollama_url", help="Ollama URL (default http://localhost:11434)")
     setup.add_argument("--no-verify", action="store_true", dest="no_verify", help="Save without embedding a test sentence")
+    setup.add_argument("--auto", action="store_true", help="Pick the best option this machine already has, no questions")
 
     doctor = commands.add_parser("doctor", help="Check the local RAG, embedding and Codex setup")
     doctor.add_argument("--json", action="store_true", dest="as_json")
@@ -175,6 +189,7 @@ def _parser() -> argparse.ArgumentParser:
     query.add_argument("--top", type=int, default=5, metavar="N", help="How many passages to return (also --top5, --top-3)")
     connect = commands.add_parser("connect", help="Register the MCP server with a coding agent")
     connect.add_argument("agent", choices=["codex", "claude"])
+    connect.add_argument("--scope", choices=["user", "project"], default="user", help="Claude Code scope: user (all projects) or project (.mcp.json here)")
     commands.add_parser("connect-codex", help="Same as `rag connect codex`")
     serve = commands.add_parser("serve", help="Run the local Studio companion")
     serve.add_argument("--port", type=int, default=47831)
@@ -207,6 +222,8 @@ def main(
 
     if args.command == "setup":
         verify = None if args.no_verify else (embedding_probe or _probe_embedding)
+        if args.auto:
+            return user_settings.auto_setup(stdout=stdout, stderr=stderr, environ=environ, verify=verify)
         if args.provider is None:
             code = user_settings.run_setup(stdin=stdin, stdout=stdout, stderr=stderr, environ=environ, verify=verify)
             if code == 0:
@@ -229,8 +246,12 @@ def main(
         return user_settings.finish_setup(config, stdout=stdout, stderr=stderr, environ=environ, verify=verify)
 
     if args.command == "doctor":
+        from rag import detect
+
         embedding = user_settings.embedding_config(environ)
+        detection = detect.detect_all(environ, embedding["ollama_url"])
         report = {
+            "detected": detection,
             "python": {"available": True, "version": sys.version.split()[0]},
             "codex": _codex_status(environ),
             "embedding": {
@@ -251,14 +272,16 @@ def main(
                 f"Embedding: {user_settings.describe_embedding(embedding)}",
                 file=stdout,
             )
+            for line in detect.describe(detection):
+                print(f"Detected: {line}", file=stdout)
             if not report["embedding"]["configured"]:
-                print("Run `rag setup` to add meaning-based search.", file=stdout)
+                print("Run `rag setup` (or `rag setup --auto`) to add meaning-based search.", file=stdout)
         return 0 if report["codex"]["authenticated"] else 1
 
     if args.command == "connect-codex" or (args.command == "connect" and args.agent == "codex"):
         return _connect_codex(environ, stdout, stderr)
     if args.command == "connect":
-        return _connect_claude(environ, stdout, stderr)
+        return _connect_claude(environ, stdout, stderr, scope=args.scope)
 
     if args.command in {"serve", "studio"}:
         if server_factory is None:

@@ -94,6 +94,11 @@ else
   echo "SKIP  fastembed download (SKIP_FASTEMBED=1)"
 fi
 
+# 6b. Automatic setup: nothing local is running in the container, so it must fall back to the small local model.
+reset_config
+rag setup --auto >/tmp/setup-auto.log 2>&1; rc=$?
+check "setup --auto picks the small local model when nothing else is available" $([ $rc -eq 0 ] && grep -q "Chosen: local model · BAAI/bge-small-en-v1.5" /tmp/setup-auto.log && grep -q "Works: 384 dimensions" /tmp/setup-auto.log; echo $?) "$(tail -3 /tmp/setup-auto.log)"
+
 # 7. npx and pnpm dlx from the local tarball.
 reset_config
 # "file:" marks the tarball as a package spec; a bare path would be read as the command name.

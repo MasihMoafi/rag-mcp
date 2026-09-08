@@ -170,14 +170,26 @@ def run_setup(
     verify: Callable[[Mapping[str, str]], int] | None = None,
 ) -> int:
     """Interactive chooser. Saves only after the choice embeds a test sentence."""
+    from rag import detect
+
+    detection = detect.detect_all(environ)
+    recommended = detect.recommend(detection)
     stdout.write(
         "How should rag understand meaning in your documents?\n"
         "Exact-word search (BM25) is always on; this adds meaning-based search.\n\n"
     )
+    for line in detect.describe(detection):
+        stdout.write(f"  Detected: {line}\n")
+    if detect.describe(detection):
+        stdout.write("\n")
+    default_index = next(
+        (i for i, c in enumerate(EMBEDDING_CHOICES, 1) if c["provider"] == recommended["embed_provider"]), 1
+    )
     for index, choice in enumerate(EMBEDDING_CHOICES, 1):
-        stdout.write(f"  {index}) {choice['label']}\n     {choice['detail']}\n")
+        tag = "  (recommended)" if index == default_index else ""
+        stdout.write(f"  {index}) {choice['label']}{tag}\n     {choice['detail']}\n")
     stdout.write("\n")
-    answer = _ask(stdin, stdout, "Choice", "1")
+    answer = _ask(stdin, stdout, "Choice", str(default_index))
     try:
         choice = EMBEDDING_CHOICES[int(answer) - 1]
     except (ValueError, IndexError):
@@ -186,22 +198,46 @@ def run_setup(
 
     config = dict(DEFAULTS)
     config["embed_provider"] = choice["provider"]
+    prefilled = recommended if recommended["embed_provider"] == choice["provider"] else {}
     if choice["provider"] == "none":
         pass
     elif choice["provider"] == "ollama":
-        config["embed_model"] = _ask(stdin, stdout, "Ollama embedding model", choice["model"])
+        config["embed_model"] = _ask(stdin, stdout, "Ollama embedding model", prefilled.get("embed_model") or choice["model"])
         config["ollama_url"] = _ask(stdin, stdout, "Ollama URL", DEFAULTS["ollama_url"])
     elif choice["provider"] == "openai_compatible":
         stdout.write("Known endpoints: " + " · ".join(f"{name} {url}" for name, url in API_ENDPOINTS.items()) + "\n")
-        config["embed_base_url"] = _ask(stdin, stdout, "Endpoint URL", API_ENDPOINTS["OpenAI"])
-        config["embed_model"] = _ask(stdin, stdout, "Embedding model", choice["model"])
-        config["embed_api_key"] = _ask(stdin, stdout, "API key (saved to the config file, readable by you only)")
-        if not config["embed_api_key"]:
-            stderr.write("An API key is required for this option.\n")
-            return 2
+        config["embed_base_url"] = _ask(stdin, stdout, "Endpoint URL", prefilled.get("embed_base_url") or API_ENDPOINTS["OpenAI"])
+        config["embed_model"] = _ask(stdin, stdout, "Embedding model", prefilled.get("embed_model") or choice["model"])
+        if prefilled:
+            stdout.write("Using the API key from your environment variable.\n")
+            config["embed_api_key"] = prefilled.get("embed_api_key", "")
+        else:
+            config["embed_api_key"] = _ask(stdin, stdout, "API key (saved to the config file, readable by you only)")
+            if not config["embed_api_key"]:
+                stderr.write("An API key is required for this option.\n")
+                return 2
     else:
         config["embed_model"] = _ask(stdin, stdout, "Model", choice["model"])
 
+    return finish_setup(config, stdout=stdout, stderr=stderr, environ=environ, verify=verify)
+
+
+def auto_setup(
+    *,
+    stdout: TextIO,
+    stderr: TextIO,
+    environ: Mapping[str, str] | None = None,
+    verify: Callable[[Mapping[str, str]], int] | None = None,
+) -> int:
+    """Pick the best option this machine already has, without questions."""
+    from rag import detect
+
+    detection = detect.detect_all(environ)
+    config = dict(DEFAULTS)
+    config.update(detect.recommend(detection))
+    for line in detect.describe(detection):
+        stdout.write(f"Detected: {line}\n")
+    stdout.write(f"Chosen: {describe_embedding(config)}\n")
     return finish_setup(config, stdout=stdout, stderr=stderr, environ=environ, verify=verify)
 
 

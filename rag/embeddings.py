@@ -149,6 +149,21 @@ class STWrapper:
         return self.model.encode([text], convert_to_numpy=True)[0].tolist()
 
 
+def api_key_from_environment(base_url: str | None) -> str | None:
+    """Keys never have to be copied into the config file: match the endpoint to its usual variable."""
+    host = (base_url or "").lower()
+    names = (
+        ("OPENROUTER_API_KEY",) if "openrouter" in host
+        else ("GEMINI_API_KEY", "GOOGLE_API_KEY") if "googleapis" in host
+        else ("OPENAI_API_KEY",)
+    )
+    for name in names:
+        value = os.environ.get(name, "").strip()
+        if value:
+            return value
+    return None
+
+
 def build_embedder(config: Mapping[str, Any], device: str = "cpu"):
     """Return the embedder for this config, or None when only BM25 should run."""
     provider = str(config.get("embed_provider") or "none").lower()
@@ -160,10 +175,11 @@ def build_embedder(config: Mapping[str, Any], device: str = "cpu"):
     if provider == "ollama":
         return DirectOllamaGPUWrapper(model_name or "nomic-embed-text", config.get("ollama_url") or "http://localhost:11434")
     if provider == "openai_compatible":
+        base_url = config.get("embed_base_url") or None
         return OpenAICompatibleWrapper(
             model_name or "text-embedding-3-small",
-            api_key=config.get("embed_api_key") or None,
-            base_url=config.get("embed_base_url") or None,
+            api_key=config.get("embed_api_key") or api_key_from_environment(base_url),
+            base_url=base_url,
         )
     return STWrapper(model_name or "all-MiniLM-L6-v2", device)
 
