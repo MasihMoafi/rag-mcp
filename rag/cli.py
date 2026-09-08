@@ -164,6 +164,49 @@ def _offer_agent_connection(stdin: TextIO, stdout: TextIO, stderr: TextIO, envir
         _connect_claude(environ, stdout, stderr)
 
 
+MENU = (
+    ("Set up meaning-based search (choose an embedding model)", ["setup"]),
+    ("Search a file or folder", None),
+    ("Connect a coding agent (Claude Code or Codex)", None),
+    ("Open the Studio paired with this machine", ["studio"]),
+    ("Check this machine (doctor)", ["doctor"]),
+    ("Quit", None),
+)
+
+
+def _menu(*, stdin: TextIO, stdout: TextIO, stderr: TextIO, environ: Mapping[str, str], **passthrough: object) -> int:
+    """`rag` with no arguments in a terminal: a numbered menu instead of usage text."""
+    from rag.settings import _ask
+
+    stdout.write("rag · local search for your documents and code\n\n")
+    for index, (label, _) in enumerate(MENU, 1):
+        stdout.write(f"  {index}) {label}\n")
+    stdout.write("\n")
+    answer = _ask(stdin, stdout, "Choice", "1")
+    try:
+        label, command = MENU[int(answer) - 1]
+    except (ValueError, IndexError):
+        stderr.write(f"Not a listed choice: {answer}\n")
+        return 2
+    if label == "Quit":
+        return 0
+    if label.startswith("Search"):
+        path = _ask(stdin, stdout, "File or folder to search", ".")
+        question = _ask(stdin, stdout, "Question")
+        if not question:
+            stderr.write("A question is required.\n")
+            return 2
+        top = _ask(stdin, stdout, "How many passages", "5")
+        command = ["query", question, "--path", path, "--top", top]
+    elif label.startswith("Connect"):
+        agent = _ask(stdin, stdout, "Agent [claude/codex]", "claude").lower()
+        if agent not in {"claude", "codex"}:
+            stderr.write(f"Not a listed agent: {agent}\n")
+            return 2
+        command = ["connect", agent]
+    return main(command, stdin=stdin, stdout=stdout, stderr=stderr, environ=environ, **passthrough)  # type: ignore[arg-type]
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="rag",
@@ -218,7 +261,14 @@ def main(
     stdout = stdout or sys.stdout
     stderr = stderr or sys.stderr
     environ = environ or os.environ
-    args = _parser().parse_args(_normalize_argv(argv) if argv is not None else _normalize_argv(sys.argv[1:]))
+    raw = list(argv) if argv is not None else sys.argv[1:]
+    if not raw:
+        if getattr(stdin, "isatty", lambda: False)():
+            return _menu(stdin=stdin, stdout=stdout, stderr=stderr, environ=environ, embedding_probe=embedding_probe,
+                         token_factory=token_factory, server_factory=server_factory, open_url=open_url)
+        _parser().print_help(stdout)
+        return 0
+    args = _parser().parse_args(_normalize_argv(raw))
 
     if args.command == "setup":
         verify = None if args.no_verify else (embedding_probe or _probe_embedding)
