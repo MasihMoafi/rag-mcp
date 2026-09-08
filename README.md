@@ -112,14 +112,15 @@ Install permanently and use plain `rag`:
 
 ```bash
 uv tool install ragmcp        # or: pipx install ragmcp · npm install -g ragmcp
-rag setup                     # choose the embedding model; then offers to connect a coding agent
+rag setup                     # detects Ollama / local runtimes / API keys, recommends, then offers to connect a coding agent
+rag setup --auto              # take the recommendation without questions
 rag doctor
 rag query "What changed?" --path /absolute/path/to/document-or-folder --top3
 rag connect codex             # or: rag connect claude  (registers the MCP server)
 rag studio                    # pair the hosted Studio; --studio-url http://localhost:3000 for a local checkout
 ```
 
-`--top N` (or `--top3`, `--top-5`) sets how many passages a query returns.
+`--top N` (or `--top3`, `--top-5`) sets how many passages a query returns. `rag connect claude --scope project` writes `.mcp.json` in the current folder instead of the user config. Registration always uses a command that outlives the current process: `rag mcp` when installed, or `uvx --from ragmcp==<version> rag mcp` when launched through npx/uvx.
 
 `rag setup --provider <none|fastembed|ollama|openai_compatible|sentencetransformer> [--model M] [--base-url URL] [--api-key KEY] [--ollama-url URL]` sets the same choice without questions. The saved choice lives in `~/.config/rag/config.json` (owner-readable only); `RAG_MCP_EMBED_*` environment variables override it per process.
 
