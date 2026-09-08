@@ -102,6 +102,12 @@ check "npx <tarball> doctor --json returns JSON" $(echo "$npx_out" | python3 -c 
 pnpm_out=$(pnpm --package="$TGZ" dlx rag doctor --json 2>/dev/null | tail -1)
 check "pnpm dlx doctor --json returns JSON" $(echo "$pnpm_out" | python3 -c 'import json,sys; json.load(sys.stdin)' 2>/dev/null; echo $?) "$pnpm_out"
 
+# 7b. Permanent install with uv: `rag` lands on PATH and runs.
+uv tool install -q "$WHEEL" >/tmp/uv-tool-install.log 2>&1
+tool_rag=$(ls /root/.local/bin/rag 2>/dev/null)
+tool_doctor=$(/root/.local/bin/rag doctor --json 2>/dev/null)
+check "uv tool install puts rag on PATH and doctor answers" $([ -n "$tool_rag" ] && echo "$tool_doctor" | python3 -c 'import json,sys; json.load(sys.stdin)' 2>/dev/null; echo $?) "$(tail -2 /tmp/uv-tool-install.log) $tool_doctor"
+
 # 8. Without uv on PATH the launcher explains how to install it and exits 1.
 missing=$(PATH=/usr/local/bin:/usr/bin:/bin rag doctor 2>&1); rc=$?
 check "missing uv: exit 1 with install hint" $([ $rc -eq 1 ] && echo "$missing" | grep -q "astral.sh"; echo $?) "$missing"
