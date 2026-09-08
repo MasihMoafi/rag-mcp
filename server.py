@@ -33,6 +33,7 @@ workspace_root = Path(
 sys.path.insert(0, str(repo_root))
 
 from rag.settings import BM25_ONLY_NOTICE, embedding_config, has_embedding  # noqa: E402
+from rag import settings as user_settings  # noqa: E402
 
 _SERVER_NAME = "rag-mcp"
 _SERVER_VERSION = "0.2.0"
@@ -106,6 +107,83 @@ _TOOL = {
         "openWorldHint": False,
     },
 }
+
+_SETTINGS_GET_TOOL = {
+    "name": "get_rag_settings",
+    "description": "Show the local rag search setup: embedding model, passages per query (top N), reranker, and what this machine has (Ollama models, local runtimes, API keys).",
+    "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False},
+    "annotations": {"title": "Show rag settings", "readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": False},
+}
+_SETTINGS_SET_TOOL = {
+    "name": "set_rag_settings",
+    "description": (
+        "Change the local rag search setup from plain words: passages per query (top), the reranker "
+        "(off, auto, fastembed or a model name), or the embedding model (guessing where it runs: Ollama, "
+        "a small local ONNX model, or an API whose key is already in the environment). Never pass API keys here; "
+        "the user enters keys with `rag setup` in a terminal. The next query uses the new settings."
+    ),
+    "inputSchema": {
+        "type": "object",
+        "properties": {
+            "top": {"type": "integer", "minimum": 1, "description": "How many passages a query returns"},
+            "reranker": {"type": "string", "description": "off | auto | fastembed | a reranker model name"},
+            "embedding_model": {"type": "string", "description": "Embedding model name, e.g. qwen3-embedding:0.6b or BAAI/bge-small-en-v1.5"},
+            "embedding_provider": {"type": "string", "enum": ["fastembed", "ollama", "openai_compatible", "sentencetransformer", "none"], "description": "Where the embedding model runs; guessed when omitted"},
+        },
+        "additionalProperties": False,
+    },
+    "annotations": {"title": "Change rag settings", "readOnlyHint": False, "destructiveHint": False, "idempotentHint": True, "openWorldHint": False},
+}
+_TOOLS = [_TOOL, _SETTINGS_GET_TOOL, _SETTINGS_SET_TOOL]
+
+
+def _settings_report() -> dict[str, Any]:
+    from rag import detect
+
+    embedding = embedding_config()
+    return {
+        "settings": user_settings.describe_settings(),
+        "embedding": {"provider": embedding["embed_provider"], "model": embedding["embed_model"]},
+        "retrieval": user_settings.retrieval_config(),
+        "detected": detect.detect_all(os.environ, embedding["ollama_url"]),
+    }
+
+
+def _apply_settings(arguments: dict[str, Any]) -> dict[str, Any]:
+    from rag.cli import _config_command, _probe_embedding
+    import argparse
+    import io
+
+    changed = []
+    with contextlib.redirect_stdout(sys.stderr):
+        if "top" in arguments:
+            args = argparse.Namespace(setting="top", value=str(arguments["top"]), provider=None, no_verify=True)
+            code = _config_command(args, stdout=io.StringIO(), stderr=(err := io.StringIO()), environ=os.environ, verify=None)
+            if code != 0:
+                return {"error": err.getvalue().strip()}
+            changed.append("top")
+        if "reranker" in arguments:
+            args = argparse.Namespace(setting="reranker", value=str(arguments["reranker"]), provider=None, no_verify=True)
+            code = _config_command(args, stdout=io.StringIO(), stderr=(err := io.StringIO()), environ=os.environ, verify=None)
+            if code != 0:
+                return {"error": err.getvalue().strip()}
+            changed.append("reranker")
+        if "embedding_model" in arguments or arguments.get("embedding_provider") == "none":
+            if arguments.get("embedding_provider") == "none":
+                user_settings.update_settings({"embed_provider": "none", "embed_model": ""})
+            else:
+                args = argparse.Namespace(setting="embedding", value=str(arguments["embedding_model"]), provider=arguments.get("embedding_provider"), no_verify=False)
+                code = _config_command(args, stdout=io.StringIO(), stderr=(err := io.StringIO()), environ=os.environ, verify=_probe_embedding)
+                if code != 0:
+                    return {"error": err.getvalue().strip()}
+            changed.append("embedding")
+    if not changed:
+        return {"error": "Nothing to change: pass top, reranker, embedding_model or embedding_provider."}
+    try:
+        importlib.import_module("rag.fetch").reset_pipelines()
+    except Exception:
+        pass
+    return {"changed": changed, "settings": user_settings.describe_settings()}
 
 
 def _read_payload() -> str | None:
@@ -329,19 +407,25 @@ def _handle_request(message: dict[str, Any]) -> None:
         _error(request_id, -32002, "Server is not initialized")
         return
     if method == "tools/list":
-        _result(request_id, {"tools": [_TOOL]})
+        _result(request_id, {"tools": _TOOLS})
         return
     if method == "tools/call":
         params = message.get("params") or {}
-        if params.get("name") != _TOOL["name"]:
+        name = params.get("name")
+        if name not in {tool["name"] for tool in _TOOLS}:
             _error(request_id, -32601, "Unknown tool")
             return
         arguments = params.get("arguments") or {}
         try:
-            output = query_knowledge_base(
-                query=arguments.get("query", ""),
-                doc_path=arguments.get("doc_path", ""),
-            )
+            if name == _SETTINGS_GET_TOOL["name"]:
+                output = json.dumps(_settings_report())
+            elif name == _SETTINGS_SET_TOOL["name"]:
+                output = json.dumps(_apply_settings(dict(arguments)))
+            else:
+                output = query_knowledge_base(
+                    query=arguments.get("query", ""),
+                    doc_path=arguments.get("doc_path", ""),
+                )
         except (AttributeError, TypeError, ValueError) as exc:
             output = json.dumps({"error": f"Invalid arguments: {exc}"})
         _result(

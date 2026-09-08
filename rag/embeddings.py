@@ -17,21 +17,48 @@ FULL_EXTRA_HINT = (
 )
 
 
+def _fastembed_cache_dir() -> str:
+    return os.environ.get("FASTEMBED_CACHE_PATH") or os.path.join(
+        os.environ.get("XDG_CACHE_HOME") or os.path.join(str(Path.home()), ".cache"), "fastembed"
+    )
+
+
+class _hf_online:
+    """The MCP server pins Hugging Face to offline mode for the PyTorch stack; a small
+    ONNX model still has to download once. Lift the pin only while it loads."""
+
+    def __enter__(self):
+        self.saved = {name: os.environ.pop(name, None) for name in ("HF_HUB_OFFLINE", "TRANSFORMERS_OFFLINE")}
+        try:
+            import huggingface_hub.constants as constants
+
+            self.constants, self.was = constants, constants.HF_HUB_OFFLINE
+            constants.HF_HUB_OFFLINE = False
+        except Exception:
+            self.constants = None
+        return self
+
+    def __exit__(self, *_):
+        for name, value in self.saved.items():
+            if value is not None:
+                os.environ[name] = value
+        if self.constants is not None:
+            self.constants.HF_HUB_OFFLINE = self.was
+
+
 class FastEmbedWrapper:
     """Small ONNX models via fastembed: CPU-only, downloaded once, no PyTorch."""
 
     def __init__(self, model_name: str):
-        try:
-            from fastembed import TextEmbedding
-        except ImportError as error:
-            raise RuntimeError(
-                "The local embedding model needs the fastembed package. Reinstall ragmcp or run `rag setup`."
-            ) from error
-        cache_dir = os.environ.get("FASTEMBED_CACHE_PATH") or os.path.join(
-            os.environ.get("XDG_CACHE_HOME") or os.path.join(str(Path.home()), ".cache"), "fastembed"
-        )
-        self.model_name = model_name
-        self.model = TextEmbedding(model_name=model_name, cache_dir=cache_dir)
+        with _hf_online():
+            try:
+                from fastembed import TextEmbedding
+            except ImportError as error:
+                raise RuntimeError(
+                    "The local embedding model needs the fastembed package. Reinstall ragmcp or run `rag setup`."
+                ) from error
+            self.model_name = model_name
+            self.model = TextEmbedding(model_name=model_name, cache_dir=_fastembed_cache_dir())
 
     def embed_documents(self, texts):
         return [vector.tolist() for vector in self.model.embed(texts, batch_size=64)]
@@ -147,6 +174,26 @@ class STWrapper:
 
     def embed_query(self, text):
         return self.model.encode([text], convert_to_numpy=True)[0].tolist()
+
+
+class FastEmbedReranker:
+    """ONNX cross-encoder via fastembed: reranking without PyTorch."""
+
+    def __init__(self, model_name: str):
+        with _hf_online():
+            try:
+                from fastembed.rerank.cross_encoder import TextCrossEncoder
+            except ImportError as error:
+                raise RuntimeError("The local reranker needs the fastembed package. Reinstall ragmcp.") from error
+            self.model_name = model_name
+            self.model = TextCrossEncoder(model_name=model_name, cache_dir=_fastembed_cache_dir())
+
+    def predict(self, pairs):
+        """Same shape as sentence-transformers' CrossEncoder.predict: one score per (query, passage)."""
+        if not pairs:
+            return []
+        query = pairs[0][0]
+        return list(self.model.rerank(query, [passage for _, passage in pairs]))
 
 
 def api_key_from_environment(base_url: str | None) -> str | None:
