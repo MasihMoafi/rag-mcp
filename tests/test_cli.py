@@ -206,3 +206,64 @@ def test_studio_opens_a_session_token_and_serves_on_loopback():
         "served",
         "closed",
     ]
+
+
+def test_query_top_shorthand_sets_the_result_count(tmp_path: Path, monkeypatch):
+    document = tmp_path / "facts.md"
+    document.write_text("The launch codename is Cedar Lantern.")
+    seen = {}
+    monkeypatch.delenv("RAG_MCP_TOP_K", raising=False)
+
+    code = main(
+        ["query", "codename?", "--path", str(document), "--top3"],
+        stdout=io.StringIO(),
+        stderr=io.StringIO(),
+        environ={"RAG_MCP_CONFIG": str(tmp_path / "config.json")},
+        query_fn=lambda query, path: seen.update(
+            {"final": __import__("os").environ["RAG_MCP_RERANK_TOP_K"], "candidates": __import__("os").environ["RAG_MCP_TOP_K"]}
+        ) or "{}",
+    )
+
+    assert code == 0
+    assert seen == {"final": "3", "candidates": "5"}
+
+
+def test_connect_claude_registers_the_server_in_user_scope(tmp_path: Path):
+    calls = tmp_path / "calls"
+    claude = tmp_path / "claude"
+    claude.write_text(f"#!/bin/sh\nprintf '%s\\n' \"$@\" >> '{calls}'\n")
+    claude.chmod(0o755)
+    output = io.StringIO()
+
+    code = main(["connect", "claude"], stdout=output, environ={"PATH": str(tmp_path)})
+
+    assert code == 0
+    lines = calls.read_text().splitlines()
+    assert lines[:5] == ["mcp", "remove", "rag", "-s", "user"]
+    assert lines[5:11] == ["mcp", "add", "rag", "-s", "user", "--"]
+    assert Path(lines[12]).name == "server.py"
+    assert "Connected Claude Code" in output.getvalue()
+
+
+def test_studio_can_open_a_local_studio():
+    events = []
+
+    class Server:
+        server_port = 47831
+
+        def serve_forever(self):
+            pass
+
+        def server_close(self):
+            pass
+
+    code = main(
+        ["studio", "--studio-url", "http://localhost:3000/"],
+        stdout=io.StringIO(),
+        token_factory=lambda: "paired-token",
+        server_factory=lambda token, port: Server(),
+        open_url=lambda url: events.append(url) or True,
+    )
+
+    assert code == 0
+    assert events == ["http://localhost:3000/studio#local=paired-token"]

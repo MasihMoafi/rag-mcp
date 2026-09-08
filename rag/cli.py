@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import secrets
 import shutil
 import subprocess
@@ -56,6 +57,100 @@ def _should_offer_setup(environ: Mapping[str, str], stdin: TextIO) -> bool:
     return bool(getattr(stdin, "isatty", lambda: False)())
 
 
+_TOP_SHORTHAND = re.compile(r"^--?top-?(\d+)$")
+
+
+def _normalize_argv(argv: Sequence[str]) -> list[str]:
+    """Accept `--top5` / `--top-5` as shorthand for `--top 5`."""
+    normalized: list[str] = []
+    for item in argv:
+        match = _TOP_SHORTHAND.match(item)
+        if match:
+            normalized.extend(["--top", match.group(1)])
+        else:
+            normalized.append(item)
+    return normalized
+
+
+def _connect_codex(environ: Mapping[str, str], stdout: TextIO, stderr: TextIO) -> int:
+    executable = shutil.which("codex", path=environ.get("PATH"))
+    if executable is None:
+        print("Codex is not installed or is not on PATH.", file=stderr)
+        return 1
+    import server
+
+    server_path = str(Path(server.__file__).resolve())
+    current = subprocess.run(
+        [executable, "mcp", "get", "rag", "--json"],
+        capture_output=True,
+        check=False,
+        text=True,
+        env=dict(environ),
+    )
+    if current.returncode == 0:
+        try:
+            transport = json.loads(current.stdout)["transport"]
+        except (json.JSONDecodeError, KeyError, TypeError):
+            transport = {}
+        if (
+            transport.get("command") == sys.executable
+            and transport.get("args") == [server_path]
+        ):
+            print("Codex is already connected to this RAG server.", file=stdout)
+            return 0
+        subprocess.run(
+            [executable, "mcp", "remove", "rag"],
+            capture_output=True,
+            check=False,
+            text=True,
+            env=dict(environ),
+        )
+    added = subprocess.run(
+        [executable, "mcp", "add", "rag", "--", sys.executable, server_path],
+        capture_output=True,
+        check=False,
+        text=True,
+        env=dict(environ),
+    )
+    if added.returncode != 0:
+        print((added.stderr or added.stdout).strip(), file=stderr)
+        return added.returncode
+    print("Connected Codex to the local RAG server.", file=stdout)
+    return 0
+
+
+def _connect_claude(environ: Mapping[str, str], stdout: TextIO, stderr: TextIO) -> int:
+    import server
+
+    server_path = str(Path(server.__file__).resolve())
+    executable = shutil.which("claude", path=environ.get("PATH"))
+    command = ["claude", "mcp", "add", "rag", "-s", "user", "--", sys.executable, server_path]
+    if executable is None:
+        print("Claude Code is not installed or is not on PATH. Register manually with:", file=stderr)
+        print("  " + " ".join(command), file=stderr)
+        return 1
+    subprocess.run([executable, "mcp", "remove", "rag", "-s", "user"], capture_output=True, check=False, text=True, env=dict(environ))
+    added = subprocess.run([executable, *command[1:]], capture_output=True, check=False, text=True, env=dict(environ))
+    if added.returncode != 0:
+        print((added.stderr or added.stdout).strip(), file=stderr)
+        return added.returncode
+    print("Connected Claude Code to the local RAG server (user scope).", file=stdout)
+    return 0
+
+
+def _offer_agent_connection(stdin: TextIO, stdout: TextIO, stderr: TextIO, environ: Mapping[str, str]) -> None:
+    """After an interactive setup: hook the MCP server to a coding agent in one step."""
+    if not getattr(stdin, "isatty", lambda: False)():
+        return
+    stdout.write("Connect the MCP server to a coding agent now? [codex/claude/skip] [skip]: ")
+    stdout.flush()
+    answer = (stdin.readline() or "").strip().lower()
+    if answer == "codex":
+        _connect_codex(environ, stdout, stderr)
+    elif answer == "claude":
+        _connect_claude(environ, stdout, stderr)
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="rag",
@@ -77,12 +172,16 @@ def _parser() -> argparse.ArgumentParser:
     query = commands.add_parser("query", help="Query a local file or folder")
     query.add_argument("question")
     query.add_argument("--path", required=True)
-    commands.add_parser("connect-codex", help="Register this RAG server with Codex")
+    query.add_argument("--top", type=int, default=5, metavar="N", help="How many passages to return (also --top5, --top-3)")
+    connect = commands.add_parser("connect", help="Register the MCP server with a coding agent")
+    connect.add_argument("agent", choices=["codex", "claude"])
+    commands.add_parser("connect-codex", help="Same as `rag connect codex`")
     serve = commands.add_parser("serve", help="Run the local Studio companion")
     serve.add_argument("--port", type=int, default=47831)
     studio = commands.add_parser("studio", help="Open Studio with the local companion")
     studio.add_argument("--port", type=int, default=47831)
     studio.add_argument("--no-open", action="store_true")
+    studio.add_argument("--studio-url", default="https://rag.masihmoafi.com", dest="studio_url", help="Studio to open, e.g. http://localhost:3000 for a local checkout")
     commands.add_parser("mcp", help="Run the stdio MCP server")
     return parser
 
@@ -104,12 +203,15 @@ def main(
     stdout = stdout or sys.stdout
     stderr = stderr or sys.stderr
     environ = environ or os.environ
-    args = _parser().parse_args(argv)
+    args = _parser().parse_args(_normalize_argv(argv) if argv is not None else _normalize_argv(sys.argv[1:]))
 
     if args.command == "setup":
         verify = None if args.no_verify else (embedding_probe or _probe_embedding)
         if args.provider is None:
-            return user_settings.run_setup(stdin=stdin, stdout=stdout, stderr=stderr, environ=environ, verify=verify)
+            code = user_settings.run_setup(stdin=stdin, stdout=stdout, stderr=stderr, environ=environ, verify=verify)
+            if code == 0:
+                _offer_agent_connection(stdin, stdout, stderr, environ)
+            return code
         if args.provider == "openai_compatible" and not args.api_key:
             print("--api-key is required for openai_compatible.", file=stderr)
             return 2
@@ -153,51 +255,10 @@ def main(
                 print("Run `rag setup` to add meaning-based search.", file=stdout)
         return 0 if report["codex"]["authenticated"] else 1
 
-    if args.command == "connect-codex":
-        executable = shutil.which("codex", path=environ.get("PATH"))
-        if executable is None:
-            print("Codex is not installed or is not on PATH.", file=stderr)
-            return 1
-        import server
-
-        server_path = str(Path(server.__file__).resolve())
-        current = subprocess.run(
-            [executable, "mcp", "get", "rag", "--json"],
-            capture_output=True,
-            check=False,
-            text=True,
-            env=dict(environ),
-        )
-        if current.returncode == 0:
-            try:
-                transport = json.loads(current.stdout)["transport"]
-            except (json.JSONDecodeError, KeyError, TypeError):
-                transport = {}
-            if (
-                transport.get("command") == sys.executable
-                and transport.get("args") == [server_path]
-            ):
-                print("Codex is already connected to this RAG server.", file=stdout)
-                return 0
-            subprocess.run(
-                [executable, "mcp", "remove", "rag"],
-                capture_output=True,
-                check=False,
-                text=True,
-                env=dict(environ),
-            )
-        added = subprocess.run(
-            [executable, "mcp", "add", "rag", "--", sys.executable, server_path],
-            capture_output=True,
-            check=False,
-            text=True,
-            env=dict(environ),
-        )
-        if added.returncode != 0:
-            print((added.stderr or added.stdout).strip(), file=stderr)
-            return added.returncode
-        print("Connected Codex to the local RAG server.", file=stdout)
-        return 0
+    if args.command == "connect-codex" or (args.command == "connect" and args.agent == "codex"):
+        return _connect_codex(environ, stdout, stderr)
+    if args.command == "connect":
+        return _connect_claude(environ, stdout, stderr)
 
     if args.command in {"serve", "studio"}:
         if server_factory is None:
@@ -210,7 +271,7 @@ def main(
         except OSError as error:
             print(f"Could not start the local companion: {error}", file=stderr)
             return 1
-        url = f"https://rag.masihmoafi.com/studio#local={token}"
+        url = f"{args.studio_url.rstrip('/')}/studio#local={token}"
         print(f"Local companion: http://127.0.0.1:{server.server_port}", file=stdout)
         print(f"Embedding: {user_settings.describe_embedding(user_settings.embedding_config(environ))}", file=stdout)
         print(f"Studio: {url}", file=stdout)
@@ -244,6 +305,9 @@ def main(
         from server import query_knowledge_base
 
         query_fn = query_knowledge_base
+    # The pipeline reads these when it starts: N final passages, at least N candidates per method.
+    os.environ["RAG_MCP_RERANK_TOP_K"] = str(max(1, args.top))
+    os.environ["RAG_MCP_TOP_K"] = str(max(args.top, int(os.environ.get("RAG_MCP_TOP_K") or 5)))
     print(query_fn(args.question, str(path)), file=stdout)
     if not user_settings.has_embedding(user_settings.embedding_config(environ)):
         print(user_settings.BM25_ONLY_NOTICE, file=stderr)

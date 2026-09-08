@@ -112,12 +112,14 @@ Install permanently and use plain `rag`:
 
 ```bash
 uv tool install ragmcp        # or: pipx install ragmcp · npm install -g ragmcp
-rag setup
+rag setup                     # choose the embedding model; then offers to connect a coding agent
 rag doctor
-rag query "What changed?" --path /absolute/path/to/document-or-folder
-rag connect-codex             # register the MCP server with Codex
-rag studio                    # pair the hosted Studio with this machine
+rag query "What changed?" --path /absolute/path/to/document-or-folder --top3
+rag connect codex             # or: rag connect claude  (registers the MCP server)
+rag studio                    # pair the hosted Studio; --studio-url http://localhost:3000 for a local checkout
 ```
+
+`--top N` (or `--top3`, `--top-5`) sets how many passages a query returns.
 
 `rag setup --provider <none|fastembed|ollama|openai_compatible|sentencetransformer> [--model M] [--base-url URL] [--api-key KEY] [--ollama-url URL]` sets the same choice without questions. The saved choice lives in `~/.config/rag/config.json` (owner-readable only); `RAG_MCP_EMBED_*` environment variables override it per process.
 
@@ -184,7 +186,7 @@ From a checkout, use `/absolute/path/to/rag-mcp/.venv/bin/python /absolute/path/
 ### Codex
 
 ```bash
-rag connect-codex
+rag connect codex
 ```
 
 Expected result: the client discovers `query_knowledge_base`, and a query returns ranked passages with source paths from the requested scope.
