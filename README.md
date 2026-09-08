@@ -96,7 +96,7 @@ Evaluated across **5 merged heterogeneous domains (6,314 chunks in a single inde
 
 Exact-word search (BM25) is always on. Meaning-based search needs an embedding model, and `rag setup` asks you to pick one: a small local model downloaded once and run on the CPU, Ollama, your own API key (OpenAI, Gemini, OpenRouter or any OpenAI-compatible endpoint), or exact words only for now. The default install is light: no PyTorch.
 
-Prerequisite for every path: [`uv`](https://docs.astral.sh/uv/getting-started/installation/), the Python package runner. The npm package is a thin launcher that calls it.
+Prerequisite for every path: [`uv`](https://docs.astral.sh/uv/getting-started/installation/), the Python package runner. The npm package is a thin launcher that calls it. The same engine powers the hosted [RAG Studio](https://rag.masihmoafi.com) through `rag studio`.
 
 ```bash
 uvx ragmcp setup                                    # pick an embedding model once
@@ -112,6 +112,7 @@ Install permanently and use plain `rag`:
 
 ```bash
 uv tool install ragmcp        # or: pipx install ragmcp · npm install -g ragmcp
+rag                           # no arguments: a numbered menu of everything below
 rag setup                     # detects Ollama / local runtimes / API keys, recommends, then offers to connect a coding agent
 rag setup --auto              # take the recommendation without questions
 rag doctor
@@ -127,6 +128,22 @@ rag studio                    # pair the hosted Studio; --studio-url http://loca
 Extras: `ragmcp[full]` adds PyTorch, sentence-transformers and the cross-encoder reranker (GPU); `ragmcp[office]` parses DOCX/PPTX/XLSX/CSV; `ragmcp[ocr]` reads images and scanned PDFs; `ragmcp[qdrant]` adds the Qdrant backend. With npm: `RAGMCP_EXTRAS=full npx ragmcp ...`.
 
 `rag studio` starts an authenticated loopback companion and opens the hosted Studio. It reuses the local Codex login for GPT-5.6 Luna without copying Codex credentials into the browser, and serves embeddings from your chosen model to the Studio. The Studio keeps its uploaded sources in the browser; `rag query` exercises this repository's Python retrieval engine directly.
+
+### Before it is on npm and PyPI: test from this checkout
+
+The launcher and the engine run exactly as they will after publishing, only from the locally built files:
+
+```bash
+cd rag-mcp && uv build && (cd npm && npm pack)                       # dist/ragmcp-0.2.0-py3-none-any.whl and npm/ragmcp-0.2.0.tgz
+export RAGMCP_UVX_FROM=$PWD/dist/ragmcp-0.2.0-py3-none-any.whl       # tell the launcher where the engine is
+npx --yes file:$PWD/npm/ragmcp-0.2.0.tgz                             # the menu
+npx --yes file:$PWD/npm/ragmcp-0.2.0.tgz setup --auto
+npx --yes file:$PWD/npm/ragmcp-0.2.0.tgz query "What changed?" --path README.md --top3
+npx --yes file:$PWD/npm/ragmcp-0.2.0.tgz connect claude              # or: connect codex
+bash tests/install/run.sh                                            # the full install matrix in Docker (npm -g, npx, pnpm dlx, uv tool, every setup path)
+```
+
+If you rebuild the wheel at the same version, remove uv's cached environment for it first (`rm -rf ~/.cache/uv/archive-v0/<dir containing ragmcp-0.2.0.dist-info>`), otherwise uvx keeps running the previous build.
 
 ### From a checkout
 
