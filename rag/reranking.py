@@ -139,7 +139,10 @@ def rerank_documents(self, docs: List[Dict], query: str, k: int) -> List[Dict]:
             attention_mask_tensor = torch.tensor(attention_masks).to(self.device)
 
             with torch.no_grad():
-                outputs = self.reranker_model(inputs_tensor, attention_mask=attention_mask_tensor)
+                outputs = self.reranker_model(
+                    inputs_tensor, attention_mask=attention_mask_tensor,
+                    logits_to_keep=1, use_cache=False,
+                )
                 batch_scores = outputs.logits[:, -1, :]
                 true_vector = batch_scores[:, token_true_id]
                 false_vector = batch_scores[:, token_false_id]
