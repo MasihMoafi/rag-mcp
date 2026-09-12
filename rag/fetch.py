@@ -3,7 +3,7 @@
 import os
 import hashlib
 import json
-import tempfile
+from utils.persistence import write_json_atomic
 from pathlib import Path
 from typing import Dict, Optional
 from .core import RAGPipelineV2
@@ -173,9 +173,7 @@ def get_rag_pipeline_v2(doc_path: Optional[str | list[str]] = None):
         sys.stderr.flush()
         instance = RAGPipelineV2(config=config)
         manifest.parent.mkdir(parents=True, exist_ok=True)
-        with tempfile.NamedTemporaryFile(mode="w", dir=manifest.parent, delete=False) as pending:
-            json.dump(stamp, pending)
-        os.replace(pending.name, manifest)
+        write_json_atomic(manifest, stamp)
         _rag_system_v2_instances[key] = instance
         sys.stderr.write("[RAG] V2 initialization complete\n")
         sys.stderr.flush()

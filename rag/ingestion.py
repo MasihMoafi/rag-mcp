@@ -4,6 +4,7 @@ import json
 import os
 import sys
 from typing import Dict, List
+from utils.persistence import write_json_atomic
 
 from .chunking import chunk_document
 from .contextual_retrieval import select_document_context
@@ -170,9 +171,7 @@ def save_documents(self, docs: List[Dict]):
     persist_dir = self.config.get("persist_dir")
     os.makedirs(persist_dir, exist_ok=True)
     
-    # Save document metadata
-    with open(os.path.join(persist_dir, "docs.json"), 'w') as f:
-        json.dump(docs, f, indent=2)
+    write_json_atomic(os.path.join(persist_dir, "docs.json"), docs)
 
 def load_existing_database(self):
     """Load existing database"""
