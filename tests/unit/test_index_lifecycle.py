@@ -1,5 +1,8 @@
 import json
 from types import SimpleNamespace
+from concurrent.futures import ThreadPoolExecutor
+from threading import Event
+import multiprocessing
 
 import pytest
 
@@ -36,3 +39,58 @@ def test_active_generation_cannot_be_a_symlink(tmp_path):
     (tmp_path / 'active-index.json').write_text('"generation-link"')
     with pytest.raises(ValueError, match='index generation'):
         active_directory(tmp_path)
+
+
+def test_slow_refresh_cannot_overwrite_a_completed_competing_refresh(tmp_path):
+    started, resume = Event(), Event()
+    config = {'persist_dir': str(tmp_path), 'force_reindex': True}
+    def slow_build(config):
+        started.set()
+        assert resume.wait(10), 'test did not release slow builder'
+        return SimpleNamespace(config=config)
+    with ThreadPoolExecutor(max_workers=1) as workers:
+        slow = workers.submit(open_or_build, config, slow_build)
+        try:
+            assert started.wait(10)
+            winner = open_or_build(config, lambda config: SimpleNamespace(config=config))
+        finally:
+            resume.set()
+        with pytest.raises(RuntimeError, match='another refresh'):
+            slow.result(timeout=10)
+    assert str(active_directory(tmp_path)) == winner.config['persist_dir']
+    assert len(list(tmp_path.glob('generation-*'))) == 1
+
+
+def _competing_process(config, started, resume, outcome):
+    def build(config):
+        started.set()
+        if not resume.wait(10):
+            raise RuntimeError('test release timed out')
+        return SimpleNamespace(config=config)
+    try:
+        open_or_build(config, build)
+        outcome.put('published')
+    except RuntimeError as error:
+        outcome.put(str(error))
+
+
+def test_competing_process_cannot_replace_newer_publication(tmp_path):
+    context = multiprocessing.get_context('spawn')
+    started, resume, outcome = context.Event(), context.Event(), context.Queue()
+    config = {'persist_dir': str(tmp_path), 'force_reindex': True}
+    process = context.Process(target=_competing_process, args=(config, started, resume, outcome))
+    process.start()
+    try:
+        assert started.wait(10)
+        winner = open_or_build(config, lambda config: SimpleNamespace(config=config))
+        resume.set()
+        assert 'another refresh' in outcome.get(timeout=10)
+        process.join(timeout=10)
+        assert process.exitcode == 0
+        assert str(active_directory(tmp_path)) == winner.config['persist_dir']
+    finally:
+        resume.set()
+        if process.is_alive():
+            process.terminate()
+        process.join(timeout=10)
+        outcome.close()

@@ -23,6 +23,7 @@ classifiers = [
 # The light install: BM25 (Tantivy via LanceDB), PDF text, small ONNX embedding
 # models (fastembed, CPU) and the OpenAI-compatible embeddings client. No PyTorch.
 dependencies = [
+    "filelock>=3.13",
     "lancedb>=0.17.0",
     "pyarrow>=14.0.0",
     "tantivy>=0.26.0",
