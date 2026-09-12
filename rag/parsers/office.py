@@ -19,7 +19,7 @@ def extract_office_or_image_text(file_path: str) -> str:
                 return "\n".join([line[1] for line in result])
         except Exception as e:
             ocr_error = e
-            print(f"[OCR] Warning: RapidOCR failed for {file_path}: {e}")
+            print(f"[OCR] Warning: RapidOCR failed: {type(e).__name__}")
 
     from unstructured.partition.auto import partition
     elements = partition(filename=file_path)
