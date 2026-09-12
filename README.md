@@ -420,10 +420,11 @@ Remaining gates:
   fixed character cutoff and unbounded candidate batching remain limitations.
 - Realistic retrieval-quality evaluation of the current hybrid/API path, including
   larger private corpora; the new HTML reader currently has fixture-level coverage.
-- The c6dad47 source distribution and wheel built offline and installed into a
+- The 206786e source distribution and wheel built offline and installed into a
   fresh Linux/Python 3.13 environment without PyTorch. Installed CLI retrieval,
   separate-process reopen and MCP stdio retrieval passed with correct citations
-  and Python socket connections blocked. Other platforms/Python versions,
+  and Python socket connections blocked. All36 runtime Python files byte-match
+  the tested wheel. Other platforms/Python versions,
   optional model backends and GPU throughput remain unverified. Optional
   DOCX/PPTX/XLSX/CSV and image-OCR fixture tests subsequently passed on this host
   with socket connections blocked; complex layouts, scanned PDFs and clean
