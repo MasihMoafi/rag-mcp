@@ -16,6 +16,12 @@ def write_json_atomic(path, value):
             pending.flush()
             os.fsync(pending.fileno())
         os.replace(pending_path, path)
+        if os.name == 'posix':
+            directory_fd = os.open(path.parent, os.O_RDONLY | os.O_DIRECTORY)
+            try:
+                os.fsync(directory_fd)
+            finally:
+                os.close(directory_fd)
     finally:
         if pending_path is not None and os.path.exists(pending_path):
             os.unlink(pending_path)
