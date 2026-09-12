@@ -83,6 +83,29 @@ def test_short_file_refreshes_in_memory_and_after_reopening(tmp_path, local_sear
     assert local_search(document)[0]["content"] == "Meeting: Sunday."
 
 
+@pytest.mark.parametrize('extension', ['txt', 'json', 'ipynb'])
+def test_mcp_source_decode_failure_is_private_and_recovers(tmp_path, local_search, capsys, extension):
+    import server
+
+    document = tmp_path / f'source.{extension}'
+    document.write_bytes(b'private-document-marker\xff')
+    response = json.loads(server.query_knowledge_base('private-query-marker', str(document)))
+    assert 'UnicodeDecodeError' in response['error']
+    captured = capsys.readouterr()
+    combined = json.dumps(response) + captured.out + captured.err
+    assert 'private-document-marker' not in combined
+    assert 'private-query-marker' not in combined
+    text = 'Meeting: Friday.'
+    if extension == 'json':
+        text = json.dumps(text)
+    elif extension == 'ipynb':
+        text = json.dumps({'cells': [{'cell_type': 'markdown', 'source': [text]}]})
+    document.write_text(text)
+    repaired = json.loads(server.query_knowledge_base('Meeting', str(document)))
+    assert 'error' not in repaired
+    assert 'Friday' in repaired['result'][0]['content']
+
+
 def test_emptied_file_cannot_return_old_passages(tmp_path, local_search):
     document = tmp_path / "note.txt"
     document.write_text("Meeting: Friday.")
