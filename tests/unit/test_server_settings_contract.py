@@ -8,6 +8,19 @@ import server
 from rag import cli, fetch
 
 
+def test_mcp_retrieval_error_does_not_echo_provider_payload(monkeypatch, tmp_path):
+    import json
+
+    failure = RuntimeError('provider body contains sk-private-example and private document text')
+    monkeypatch.setattr(server, '_validate_rag_scope', lambda path: None)
+    monkeypatch.setattr(fetch, 'fetchExternalKnowledge', Mock(side_effect=failure))
+    output = json.loads(server.query_knowledge_base('question', str(tmp_path)))
+    assert 'error' in output
+    assert 'RuntimeError' in output['error']
+    assert 'sk-private-example' not in output['error']
+    assert 'private document text' not in output['error']
+
+
 @pytest.mark.parametrize('read_fails', [False, True])
 @pytest.mark.parametrize('cleanup_fails', [False, True])
 def test_server_shutdown_releases_pipelines(monkeypatch, read_fails, cleanup_fails, capsys):
