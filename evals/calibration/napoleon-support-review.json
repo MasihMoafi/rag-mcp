@@ -38,6 +38,16 @@
     {"index": 29, "grade": "partial", "ranks": [1, 2], "note": "Bulletin/frost and horse losses present, but 30000/paralysis/morale contrast absent; source p171 confirms them. Health reassurance appears in index19 rank2, not this query's results."}
   ],
   "counts": {"full": 15, "partial": 12, "missing": 3},
+  "neighbor_expansion_ablation": {
+    "report": "/tmp/rag-napoleon-neighbors.json",
+    "method": "Same final ranks/IDs; up to350 original-source characters each side, trim edge words, no merging. All150 originals retained; source occurrences unique.",
+    "characters": {"before": 93190, "after": 197287, "ratio": 2.1170404549844406},
+    "reviewed_changes": [
+      {"index": 10, "before": "partial", "after": "full", "rank": 1, "note": "Vienna/1805/Murat identifying context recovered."},
+      {"index": 28, "before": "partial", "after": "full", "rank": 1, "note": "Continuation explicitly states impossible retreat caused victory; addresses the substantive strategic-error question."}
+    ],
+    "limits": "Only two expanded answers semantically reviewed so far; no full expanded-suite grade. More than double context cost, no automatic runtime expansion enabled. No model calls or latency/generation-quality claim."
+  },
   "limits": "Manual non-blind review of one narrative PDF, all150 returned passages. Reference defects/unverified components explicitly noted; not an independently validated gold dataset. No hybrid comparison or general production-quality claim. Existing CSV and runtime unchanged.",
   "next": "Compare bounded neighbor context against this fixed ranking to isolate passage completeness; keep distant footnotes and ranking misses separate. Resolve flagged reference claims before using them as strict acceptance criteria."
 }
