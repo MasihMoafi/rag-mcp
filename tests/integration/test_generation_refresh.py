@@ -2,10 +2,53 @@
 
 import json
 from pathlib import Path
+import subprocess
+import sys
 
 import pytest
 
 from rag import core, fetch, ingestion, index_lifecycle
+
+
+@pytest.mark.parametrize('phase', ['before', 'after'])
+def test_process_exit_around_publication_keeps_complete_searchable_index(tmp_path, phase):
+    source = tmp_path / 'note.txt'
+    source.write_text('Meeting: Friday.')
+    config = dict(persist_dir=str(tmp_path / 'index'), document_paths=[str(source)],
+                  backend='lancedb', embed_provider='none', reranker_type='off',
+                  force_reindex=True, chunk_size=700, chunk_overlap=100,
+                  top_k=5, rerank_top_k=5)
+    previous = core.RAGPipeline(config)
+    previous.close()
+    source.write_text('Meeting: Monday.')
+    script = '''
+import json, os, socket, sys
+def blocked(*args, **kwargs):
+    raise RuntimeError('network forbidden in crash regression')
+socket.socket.connect = blocked
+from rag import core, index_lifecycle
+write = index_lifecycle.write_json_atomic
+def interrupted(path, value):
+    if path.name == 'active-index.json' and sys.argv[2] == 'before':
+        os._exit(73)
+    write(path, value)
+    if path.name == 'active-index.json':
+        os._exit(73)
+index_lifecycle.write_json_atomic = interrupted
+core.RAGPipeline(json.loads(sys.argv[1]))
+'''
+    result = subprocess.run([sys.executable, '-c', script, json.dumps(config), phase],
+                            capture_output=True, text=True, timeout=45)
+    assert result.returncode == 73, result.stderr
+    reopened = core.RAGPipeline({**config, 'force_reindex': False})
+    try:
+        expected = 'Friday' if phase == 'before' else 'Monday'
+        passage = reopened.search('Meeting')[0]
+        assert passage['content'] == f'Meeting: {expected}.'
+        assert passage['source'] == str(source)
+        assert passage['location'] == 'L1'
+    finally:
+        reopened.close()
 
 
 class Embedder:
