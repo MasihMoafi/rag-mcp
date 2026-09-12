@@ -10,6 +10,28 @@ import pytest
 from rag.index_lifecycle import active_directory, open_or_build, RebuildRequired
 
 
+@pytest.mark.parametrize('unreadable_pointer', [False, True])
+def test_pointer_write_error_after_replace_preserves_published_index(monkeypatch, tmp_path, unreadable_pointer):
+    from rag import index_lifecycle
+    write = index_lifecycle.write_json_atomic
+    failure = OSError('post-replace failure')
+
+    def publish_then_fail(path, value):
+        write(path, value)
+        if unreadable_pointer:
+            Path(path).write_text('{invalid')
+        raise failure
+
+    monkeypatch.setattr(index_lifecycle, 'write_json_atomic', publish_then_fail)
+    with pytest.raises(OSError) as caught:
+        open_or_build({'persist_dir': str(tmp_path), 'force_reindex': True},
+                      lambda config: SimpleNamespace())
+    assert caught.value is failure
+    assert len(list(tmp_path.glob('generation-*'))) == 1
+    if not unreadable_pointer:
+        assert active_directory(tmp_path).is_dir()
+
+
 @pytest.mark.parametrize('close_fails', [False, True])
 def test_lock_release_failure_does_not_delete_published_generation(monkeypatch, tmp_path, close_fails):
     from rag import index_lifecycle
