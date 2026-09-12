@@ -64,5 +64,19 @@
     "limits": "All fifteen baseline partial/missing answers reviewed across all five expanded passages each. Fifteen baseline full answers not semantically regraded; original text containment alone does not prove unchanged answer quality. No full expanded-suite score. Manual non-blind review, reference uncertainties retained, no automatic runtime expansion enabled. No model calls or latency/generation-quality claim."
   },
   "limits": "Manual non-blind review of one narrative PDF, all150 returned passages. Reference defects/unverified components explicitly noted; not an independently validated gold dataset. No hybrid comparison or general production-quality claim. Existing CSV and runtime unchanged.",
-  "next": "Fixed-ranking expansion failure-subset review complete. Next isolate candidate evidence selection from passage completeness; resolve flagged reference claims before using them as strict acceptance criteria."
+  "candidate_depth_diagnostic": {
+    "report": "/tmp/rag-napoleon-depth100-46b6786.json",
+    "top_k": 100,
+    "inputs_match_baseline": true,
+    "all_thirty_top_five_ids_match_baseline": true,
+    "chunks": 1147,
+    "errors": 0,
+    "findings": [
+      {"index": 7, "ranks": [12, 64], "note": "Rank64 p309 contains career self-defense, anarchy and historians defending intentions; rank12 contains ambition and whole-history continuation. Reviewed these passages, not all100 candidates; do not claim complete answer support."},
+      {"index": 9, "ranks": [17], "note": "p291 passage explicitly supplies equality/distinctions passions and equal treatment with merit-based rewards, absent from baseline top5."},
+      {"index": 17, "ranks": [], "note": "No Nantes string in top100 returned passages. This is a named-answer availability check, not semantic grading of all100 candidates."}
+    ],
+    "limits": "Local lexical diagnostic only; no new full-suite relevance score, reranking, API inference or runtime-default changes. Model-free query timing is not API latency. Same input hashes and original top5 ranks retained despite newer runtime revision."
+  },
+  "next": "Candidate-depth diagnostic identifies missed evidence at ranks17/64; test evidence selection without increasing final passage count. Resolve flagged reference claims before strict acceptance grading."
 }
