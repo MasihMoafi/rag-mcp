@@ -35,6 +35,9 @@ class RAGPipeline:
     
     def __init__(self, config: dict):
         self.config = config
+        self.backend_type = self.config.get("backend", os.environ.get("RAG_MCP_BACKEND", "lancedb")).lower()
+        if self.backend_type not in {"lancedb", "qdrant"}:
+            raise ValueError(f"Unknown retrieval backend: {self.backend_type}. Choose lancedb or qdrant.")
         self.device = select_device()
         print(f"[RAG V2] Using compute device: {self.device}")
 
@@ -56,7 +59,6 @@ class RAGPipeline:
             print(f"[RAG V2] Using {embed_provider} embeddings with model: {self.embedding_fn.model_name}")
 
         # Determine vector database backend (LanceDB by default, or Qdrant)
-        self.backend_type = self.config.get("backend", os.environ.get("RAG_MCP_BACKEND", "lancedb")).lower()
         print(f"[RAG V2] Using backend: {self.backend_type}")
 
         # One probe embedding tells the real vector size for any provider/model.

@@ -238,7 +238,9 @@ def build_embedder(config: Mapping[str, Any], device: str = "cpu"):
             api_key=config.get("embed_api_key") or api_key_from_environment(base_url),
             base_url=base_url,
         )
-    return STWrapper(model_name or "all-MiniLM-L6-v2", device)
+    if provider == "sentencetransformer":
+        return STWrapper(model_name or "all-MiniLM-L6-v2", device)
+    raise ValueError(f"Unknown embedding provider: {provider}. Run `rag setup` to choose a supported provider.")
 
 
 def probe_dimensions(embedder) -> int:
