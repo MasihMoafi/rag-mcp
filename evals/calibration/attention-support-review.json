@@ -1,0 +1,65 @@
+{
+  "purpose": "Five non-random grading calibration cases, not a retrieval benchmark score.",
+  "reviewer": "assistant; not independently reviewed",
+  "source": {
+    "path": "evals/experiments/experiment-unified-scaling/data/corpus/att.pdf",
+    "sha256": "bfaaec89262875f927cf1b38b2da2d775f3309b7bea3537f29b606ca67e79065"
+  },
+  "reports": {
+    "700": {"path": "/tmp/rag-attention-chunks-700-bc7321a.json", "sha256": "1f3778990cc64c8ef96b8827480fb5396395258c04795f30eae77397800045a9"},
+    "1400": {"path": "/tmp/rag-attention-chunks-1400-bc7321a.json", "sha256": "75609a3191f9cdfb8c32e777ddc69decb5c0307e363b6f733c7f5a9da0409e56"}
+  },
+  "rubric": {
+    "full": "Retrieved top-five evidence explicitly supports every listed required claim, allowing paraphrases and evidence across passages.",
+    "partial": "At least one but not every required claim is supported.",
+    "missing": "No required claim is supported.",
+    "scope": "Support for the reference answer, not generated-answer correctness. Claim requirements are manual calibration judgments, not a blind holdout. No aggregate quality estimate is warranted."
+  },
+  "cases": [
+    {
+      "query_index_zero_based": 2,
+      "topic": "Decoder autoregression",
+      "source_page": 2,
+      "required_claims": ["Previously generated symbols become additional input for generating the next symbol."],
+      "700": {"grade": "full", "support_ranks": [3]},
+      "1400": {"grade": "full", "support_ranks": [2]},
+      "literal_containment_both": false
+    },
+    {
+      "query_index_zero_based": 4,
+      "topic": "Label smoothing trade-off",
+      "source_page": 8,
+      "required_claims": ["Perplexity worsens because the model is less certain.", "Accuracy and BLEU improve."],
+      "700": {"grade": "full", "support_ranks": [1]},
+      "1400": {"grade": "full", "support_ranks": [1]},
+      "literal_containment_both": false
+    },
+    {
+      "query_index_zero_based": 6,
+      "topic": "Reason for attention scaling",
+      "source_page": 4,
+      "required_claims": ["Large dot-product magnitudes put softmax in a region of very small gradients.", "Scaling counteracts that effect."],
+      "700": {"grade": "full", "support_ranks": [1]},
+      "1400": {"grade": "full", "support_ranks": [1]},
+      "literal_containment_both": false
+    },
+    {
+      "query_index_zero_based": 7,
+      "topic": "Interpretability through attention inspection",
+      "source_page": 7,
+      "required_claims": ["Inspect attention distributions.", "Individual attention heads exhibit distinct tasks related to syntactic and semantic structure."],
+      "700": {"grade": "missing", "support_ranks": []},
+      "1400": {"grade": "partial", "support_ranks": [1], "missing_claim_indices_zero_based": [1]},
+      "literal_containment_both": false
+    },
+    {
+      "query_index_zero_based": 8,
+      "topic": "Preference for sinusoidal positions",
+      "source_page": 6,
+      "required_claims": ["They may permit extrapolation to sequences longer than those encountered during training."],
+      "700": {"grade": "full", "support_ranks": [1]},
+      "1400": {"grade": "full", "support_ranks": [1]},
+      "literal_containment_both": false
+    }
+  ]
+}
