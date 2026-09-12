@@ -1,7 +1,7 @@
 """Local Qdrant persistence checks with controlled vectors, no model calls."""
 
 from rag.qdrant_backend import QdrantVectorDB
-from rag import core
+from rag import core, fetch
 from pathlib import Path
 import pytest
 
@@ -29,6 +29,31 @@ def test_failed_collection_initialization_releases_storage_lock(tmp_path, monkey
         assert reopened.search('Cedar')[0]['content'] == 'Cedar evidence'
     finally:
         reopened.client.close()
+
+
+def test_pipeline_reset_releases_storage_even_with_external_pipeline_reference(tmp_path, monkeypatch):
+    monkeypatch.setenv('RAG_MCP_DATA_DIR', str(tmp_path / 'index'))
+    monkeypatch.setenv('RAG_MCP_CONFIG', str(tmp_path / 'config.json'))
+    monkeypatch.setenv('RAG_MCP_EMBED_PROVIDER', 'none')
+    monkeypatch.setenv('RAG_MCP_RERANKER_TYPE', 'off')
+    monkeypatch.setitem(fetch.RAG_CONFIG_V2, 'backend', 'qdrant')
+    monkeypatch.setattr(fetch, '_rag_system_v2_instances', {})
+    monkeypatch.setattr(Embedder, 'model_name', 'fixture', raising=False)
+    monkeypatch.setattr(core, 'build_embedder', lambda config, device: Embedder())
+    source = tmp_path / 'note.txt'
+    source.write_text('Cedar evidence')
+    previous = fetch.get_rag_pipeline_v2(str(source))
+    try:
+        fetch.reset_pipelines()
+        reopened = fetch.get_rag_pipeline_v2(str(source))
+        try:
+            assert reopened is not previous
+            assert reopened.search('Cedar')[0]['content'] == 'Cedar evidence'
+        finally:
+            reopened.vector_db.client.close()
+    finally:
+        previous.vector_db.client.close()
+        fetch.reset_pipelines()
 
 
 def test_qdrant_retrieval_and_reopen_preserve_source_metadata(tmp_path):

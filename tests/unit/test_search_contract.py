@@ -6,11 +6,13 @@ from unittest.mock import Mock
 import pytest
 
 from rag.core import RAGPipelineV2
+from rag.query_lifecycle import QueryLifecycle
 
 
 @pytest.fixture
 def pipeline():
     pipeline = RAGPipelineV2.__new__(RAGPipelineV2)
+    pipeline._queries = QueryLifecycle()
     pipeline.config = {"top_k": 7, "rerank_top_k": 2, "reranker_type": "disabled"}
     pipeline.backend_type = "lancedb"
     pipeline.embedding_fn = None
