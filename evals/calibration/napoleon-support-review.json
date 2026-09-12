@@ -49,10 +49,20 @@
       {"index": 9, "before": "missing", "after": "missing", "note": "All five expanded passages still omit equality/distinctions advice."},
       {"index": 17, "before": "missing", "after": "missing", "note": "Expanded conversation still ends before Nantes/Brittany answer."},
       {"index": 24, "before": "partial", "after": "full", "rank": 1, "note": "Following text supplies the historical sexist rationale for religious education; attributed to Napoleon, not endorsed."},
-      {"index": 25, "before": "partial", "after": "partial", "note": "Tenedos visibility gained, but passage still ends before weight/river/day transport objection."}
+      {"index": 25, "before": "partial", "after": "partial", "note": "Tenedos visibility gained, but passage still ends before weight/river/day transport objection."},
+      {"index": 0, "before": "partial", "after": "partial", "note": "Crisis statement retained; momentary-passions distinction still absent and reference claim remains unverified."},
+      {"index": 3, "before": "partial", "after": "partial", "note": "Civilian common-good and discussion arguments retained, but civilization/property rationale remains outside expanded results."},
+      {"index": 4, "before": "partial", "after": "full", "rank": 2, "note": "Continuation recovers directing revolution through victories and temporary armed suppression. Source supports substantive question, not reference's stronger necessity claim."},
+      {"index": 11, "before": "partial", "after": "partial", "note": "Necker discussion now includes footnote marker358, but title in distant endnote remains absent."},
+      {"index": 21, "before": "partial", "after": "full", "rank": 3, "note": "Deathbed meeting-in-another-life promise recovered; combined with firm-heart passage supports affection/government tension. Does not validate reference's conflation with spoiled-for-war reaction elsewhere."},
+      {"index": 23, "before": "partial", "after": "partial", "note": "Assembly/decree and mixed-marriage rulings present, but explicit theological-legislation mechanism and Jerusalem requirement remain absent in this query's results. Historical prejudices are attributed, not endorsed."},
+      {"index": 26, "before": "partial", "after": "partial", "note": "Commerce and Continental System remain separate; no detailed causal explanation recovered. Reference uncertainty unchanged."},
+      {"index": 29, "before": "partial", "after": "partial", "note": "Thirty-thousand horse deaths, transport paralysis and health reassurance recovered, but contrast of soldiers' responses to disaster remains absent."}
     ],
-    "limits": "Seven expanded answers semantically reviewed: three partial-to-full gains, all three baseline missing answers still missing, one partial unchanged. Other23 expanded cases ungraded; no full expanded-suite score. More than double context cost, no automatic runtime expansion enabled. No model calls or latency/generation-quality claim."
+    "failure_subset_counts": {"reviewed": 15, "full": 5, "partial": 7, "missing": 3},
+    "decision": "Do not enable blanket350-character expansion. It repairs five of twelve partial answers but none of three misses at2.117x total returned characters. Separate evidence selection, boundary loss and distant-reference linking in subsequent work.",
+    "limits": "All fifteen baseline partial/missing answers reviewed across all five expanded passages each. Fifteen baseline full answers not semantically regraded; original text containment alone does not prove unchanged answer quality. No full expanded-suite score. Manual non-blind review, reference uncertainties retained, no automatic runtime expansion enabled. No model calls or latency/generation-quality claim."
   },
   "limits": "Manual non-blind review of one narrative PDF, all150 returned passages. Reference defects/unverified components explicitly noted; not an independently validated gold dataset. No hybrid comparison or general production-quality claim. Existing CSV and runtime unchanged.",
-  "next": "Compare bounded neighbor context against this fixed ranking to isolate passage completeness; keep distant footnotes and ranking misses separate. Resolve flagged reference claims before using them as strict acceptance criteria."
+  "next": "Fixed-ranking expansion failure-subset review complete. Next isolate candidate evidence selection from passage completeness; resolve flagged reference claims before using them as strict acceptance criteria."
 }
