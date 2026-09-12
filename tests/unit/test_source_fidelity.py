@@ -69,7 +69,7 @@ def test_ingestion_metadata_survives_lancedb_serialization(tmp_path):
     backend.distance = "cosine"
     backend.table_name = "test"
     def create_table(_name, data, mode):
-        saved.extend(data)
+        saved.extend(record for batch in data for record in batch.to_pylist())
         return SimpleNamespace(create_fts_index=lambda *_a, **_kw: None)
     backend.db = SimpleNamespace(create_table=create_table)
     pipeline = RAGPipelineV2.__new__(RAGPipelineV2)
