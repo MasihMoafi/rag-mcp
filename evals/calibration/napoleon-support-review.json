@@ -104,5 +104,13 @@
     "inference": "This is candidate retrieval failure, not dropped parser text. Loss of section identity is a plausible contributor, not causally proven until controlled context enrichment is tested.",
     "limits": "Existing raw passages inspected; no source upload, new inference, runtime change or full-suite score. Indexing proof comes from another query, not from modifying the failed question."
   },
-  "next": "Test whether source-derived section identity helps retrieve the detached answer passage while preserving source citations and final5 budget; do not infer that parent context alone fixes other misses."
+  "section_context_probe": {
+    "report": "/tmp/rag-section-context-probe.json",
+    "harness": "/tmp/rag-section-context-probe.py",
+    "method": "Hand-selected source title/date prepended to chunks148–150 for indexing only; all1147 chunks and original_content/citations preserved. Fresh baseline and enriched lexical indexes; question17 unchanged.",
+    "answer_rank_before": "outside top100",
+    "answer_rank_after": 4,
+    "limits": "Single-case oracle-context diagnostic after observing failure. No automatic heading extractor, no generalization or whole-suite quality claim. Source-derived label contains no hometown answer; other affected queries not evaluated. No runtime changes or paid calls."
+  },
+  "next": "Source section identity recovers this answer in an oracle diagnostic. Evaluate automatic section identification and unrelated-query regressions before any production change."
 }
