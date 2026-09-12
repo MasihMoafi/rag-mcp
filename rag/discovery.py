@@ -69,6 +69,9 @@ def find_all_indexable_files(
                     continue
 
                 entry_path = os.path.join(path, entry)
+                # Folder selection does not authorize following linked targets.
+                if os.path.islink(entry_path):
+                    continue
 
                 # Apply exclude patterns
                 if exclude_patterns and matches_pattern(entry_path, exclude_patterns):

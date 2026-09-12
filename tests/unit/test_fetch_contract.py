@@ -78,6 +78,21 @@ def test_recursive_filters_do_not_leak_into_filename_search(monkeypatch, tmp_pat
     assert fetch.find_relevant_files('cedar', str(tmp_path / 'missing')) == []
 
 
+def test_recursive_discovery_does_not_follow_symlinks(tmp_path):
+    scope = tmp_path / 'scope'
+    scope.mkdir()
+    local = scope / 'local.md'
+    local.write_text('allowed evidence')
+    outside = tmp_path / 'private'
+    outside.mkdir()
+    secret = outside / 'secret.md'
+    secret.write_text('out of scope')
+    (scope / 'linked.md').symlink_to(secret)
+    (scope / 'linked-directory').symlink_to(outside, target_is_directory=True)
+    (scope / 'cycle').symlink_to(scope, target_is_directory=True)
+    assert fetch.find_all_indexable_files(str(scope)) == [str(local)]
+
+
 @pytest.mark.parametrize('as_list', [False, True])
 @pytest.mark.parametrize('setting', [None, 'contextual_model', 'contextual_max_tokens',
     'contextual_timeout', 'contextual_source_max_chars', 'contextual_start_chunks', 'contextual_prev_chunks'])

@@ -291,6 +291,7 @@ def _validate_rag_scope(path: Path) -> _ScopeManifest | None:
             directory
             for directory in dirs
             if directory not in _UNSAFE_PATH_COMPONENTS and not directory.startswith(".")
+            and not (current_path / directory).is_symlink()
         ]
         if depth >= max_depth and dirs:
             raise ValueError(
@@ -299,6 +300,8 @@ def _validate_rag_scope(path: Path) -> _ScopeManifest | None:
             )
         for name in files:
             candidate = current_path / name
+            if candidate.is_symlink():
+                continue
             if candidate.suffix.lower() not in _INDEXABLE_EXTENSIONS:
                 continue
             try:
