@@ -94,7 +94,7 @@ def legacy_llm_rerank(self, docs: List[Dict], query: str, k: int) -> List[Dict]:
 
 def rerank_documents(self, docs: List[Dict], query: str, k: int) -> List[Dict]:
     """Rerank bounded passage text, retaining input order if inference fails."""
-    if len(docs) <= k:
+    if len(docs) < 2:
         return docs
 
     try:

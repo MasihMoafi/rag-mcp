@@ -5,6 +5,27 @@ import pytest
 from rag.reranking import rerank_documents
 
 
+@pytest.mark.parametrize('k', [2, 5])
+@pytest.mark.parametrize('failure', [False, True])
+def test_reranker_orders_candidates_even_when_all_fit(k, failure):
+    docs = [{'id': i, 'content': f'Passage {i}'} for i in range(2)]
+    calls = []
+
+    def predict(pairs):
+        calls.append(pairs)
+        if failure:
+            raise RuntimeError('unavailable')
+        return [0.1, 0.9]
+
+    pipeline = SimpleNamespace(reranker_type='cross-encoder',
+                               reranker=SimpleNamespace(predict=predict))
+    result = rerank_documents(pipeline, docs, 'question', k)
+    assert calls == [[['question', doc['content']] for doc in docs]]
+    expected = docs if failure else docs[::-1]
+    assert result == expected
+    assert all(actual is original for actual, original in zip(result, expected))
+
+
 def test_cross_encoder_receives_answer_beyond_512_characters():
     answer = 'The release code is ORCHID.'
     relevant = {'id': 'answer', 'content': 'Background details. ' * 40 + answer}
