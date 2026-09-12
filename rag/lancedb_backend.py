@@ -75,6 +75,8 @@ class LanceDBBackend:
             try:
                 return self.embedding_fn.embed_documents(texts)
             except Exception as e:
+                if not getattr(self.embedding_fn, "retry_batch_as_queries", True):
+                    raise
                 sys.stderr.write(f"[LanceDB] Batch embed_documents failed: {e}\n")
 
         try:

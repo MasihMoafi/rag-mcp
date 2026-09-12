@@ -131,6 +131,10 @@ class OpenAICompatibleWrapper:
     real OpenAI, Gemini's and OpenRouter's OpenAI-compatible modes, Ollama's /v1.
     This is the one provider option where text leaves the machine."""
 
+    # The provider supports batches and the SDK retries transient errors.
+    # Repeating a failed batch as individual queries multiplies requests/cost.
+    retry_batch_as_queries = False
+
     def __init__(self, model_name, api_key=None, base_url=None):
         try:
             from openai import OpenAI
@@ -140,16 +144,9 @@ class OpenAICompatibleWrapper:
         self.client = OpenAI(api_key=api_key, base_url=base_url, max_retries=1, timeout=30)
         self.model_name = model_name
 
-    def _create_with_retry(self, input_val, max_retries=3):
-        import time as _time
-
-        for attempt in range(max_retries):
-            try:
-                return self.client.embeddings.create(model=self.model_name, input=input_val)
-            except Exception:
-                if attempt == max_retries - 1:
-                    raise
-                _time.sleep(min(3 * (attempt + 1), 20))
+    def _create_with_retry(self, input_val):
+        # The SDK already classifies retryable errors and owns the retry budget.
+        return self.client.embeddings.create(model=self.model_name, input=input_val)
 
     def embed_documents(self, texts):
         if not texts:
