@@ -51,6 +51,25 @@ def test_unsupported_llm_setting_fails_before_resource_initialization(monkeypatc
         core.RAGPipeline({'reranker_type': setting})
 
 
+@pytest.mark.parametrize('setting', ['cross_encoderr', 'some/model-name', '', 42])
+def test_unknown_reranker_setting_fails_before_resource_initialization(monkeypatch, setting):
+    from rag import core
+
+    monkeypatch.setattr(core, 'open_or_build', lambda *a, **k: pytest.fail('invalid setting reached storage'))
+    with pytest.raises(ValueError, match='Unknown reranker type'):
+        core.RAGPipeline({'reranker_type': setting})
+
+
+@pytest.mark.parametrize('setting', ['AUTO', 'CROSS-ENCODER', 'FASTEMBED', 'disabled', 'NONE', 'OFF'])
+def test_supported_reranker_settings_reach_initialization(monkeypatch, setting):
+    from rag import core
+
+    received = []
+    monkeypatch.setattr(core, 'open_or_build', lambda config, initialize: received.append(config))
+    core.RAGPipeline({'reranker_type': setting})
+    assert received[0]['reranker_type'] == setting
+
+
 @pytest.mark.parametrize('scores', [[], [0.9], [0.1, 0.2, 0.3, 0.4],
                                    [0.1, float('nan'), 0.9],
                                    [0.1, float('inf'), 0.9],
