@@ -55,11 +55,8 @@ def test_callable_batch_follows_method_failure(backend, capsys):
     assert backend._batch_embed(['a', 'b']) == [[1.0], [2.0]]
     assert calls == [['a', 'b']]
     logs = capsys.readouterr().err
-    if isinstance(backend, LanceDBBackend):
-        assert 'RuntimeError' in logs
-        assert 'batch unavailable' not in logs
-    else:
-        assert 'batch unavailable' in logs
+    assert 'RuntimeError' in logs
+    assert 'batch unavailable' not in logs
 
 
 def test_parallel_fallback_keeps_two_workers_and_input_order(backend, monkeypatch):
