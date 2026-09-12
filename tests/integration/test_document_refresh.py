@@ -83,6 +83,33 @@ def test_short_file_refreshes_in_memory_and_after_reopening(tmp_path, local_sear
     assert local_search(document)[0]["content"] == "Meeting: Sunday."
 
 
+def test_legacy_partial_index_is_revalidated_before_reuse(tmp_path, local_search, monkeypatch):
+    from rag.core import RAGPipeline
+
+    corpus = tmp_path / 'legacy'
+    corpus.mkdir()
+    (corpus / 'good.txt').write_text('Meeting: Friday.')
+    bad = corpus / 'bad.txt'
+    bad.write_bytes(b'\xff')
+    original = RAGPipeline._extract_content
+    with monkeypatch.context() as patch:
+        patch.setattr(RAGPipeline, '_extract_content', lambda self, path:
+                      '' if path == str(bad) else original(self, path))
+        assert len(local_search(corpus)) == 1
+    fetch.reset_pipelines()
+    manifest = next((tmp_path / 'index').rglob('source-manifest.json'))
+    stamp = json.loads(manifest.read_text())
+    stamp['parsing_version'] = 6
+    manifest.write_text(json.dumps(stamp))
+    pointer = next((tmp_path / 'index').rglob('active-index.json'))
+    previous_pointer = pointer.read_bytes()
+    previous_manifest = manifest.read_bytes()
+    with pytest.raises(UnicodeDecodeError):
+        local_search(corpus)
+    assert pointer.read_bytes() == previous_pointer
+    assert manifest.read_bytes() == previous_manifest
+
+
 @pytest.mark.parametrize('extension', ['txt', 'json', 'ipynb'])
 def test_mcp_source_decode_failure_is_private_and_recovers(tmp_path, local_search, capsys, extension):
     import server

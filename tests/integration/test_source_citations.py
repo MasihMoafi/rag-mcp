@@ -97,7 +97,7 @@ def test_older_pdf_parser_stamp_rebuilds_into_a_new_generation(tmp_path):
     assert new_directory != old_directory
     assert old_directory.is_dir()
     assert json.loads(manifest.read_text())['parsing_version'] == 5
-    assert json.loads((new_directory/'source-manifest.json').read_text())['parsing_version'] == 6
+    assert json.loads((new_directory/'source-manifest.json').read_text())['parsing_version'] == 7
     assert current.search('Cedar')[0]['location'] == 'p.1'
 
 
