@@ -140,5 +140,15 @@
     "decision": "Do not enable this heuristic in runtime. Separate structural section titles from excerpt-local date/source metadata, bound metadata at every source marker, and verify provenance before further quality comparisons.",
     "limits": "Assistant non-blind diagnostic on one lexical corpus. Three source-grounded gains, not a complete after-score or proof of no regressions. No new inference, API spending or runtime changes."
   },
-  "next": "Fix experimental context provenance: section titles and excerpt-local source/date must have separate boundaries. Runtime adoption remains rejected pending provenance and collateral-quality verification."
+  "bounded_metadata_probe": {
+    "report": "/tmp/rag-auto-section-bounded.json",
+    "harness": "/tmp/rag-auto-section-probe.py",
+    "command": ".venv/bin/python /tmp/rag-auto-section-probe.py --repeated-titles --bounded-metadata",
+    "method": "Keep section title independent of metadata. Add only nearest preceding bracket with a1700s/1800s year within that section, and omit added date if chunk crosses any bracket. Every bracket stops previous metadata, including editorial inserts. Same30 queries,1147 chunks,lexical final5.",
+    "verification": "All30 fresh baseline ordered lists match prior diagnostic. Two known erroneous date prefixes on chunks761 and486 are now absent; section titles remain. Source-grounded gains persist: equality/distinctions rank2, hometown rank4, education rationale rank4.",
+    "changed_indices_vs_unbounded": [4, 9, 11, 14, 20, 21, 23, 24, 26, 28],
+    "limits": "Diagnostic-only, source-era-specific year recognition, no general date/source parser. All-bracket stopping loses valid metadata after editorial notes; nearest dated editorial brackets could still be mistaken for source markers. Ten ordered lists changed and were not fully regraded. Fixing two known errors does not establish comprehensive provenance correctness. No runtime changes or paid calls.",
+    "decision": "Keep runtime unchanged. Retain raw results for comparison; source-marker classification and general structural heading recognition remain unproven."
+  },
+  "next": "The conservative metadata-boundary probe retains three gains but remains a book-specific heuristic. Validate actual source-marker and heading recognition before adopting any context propagation in runtime."
 }
