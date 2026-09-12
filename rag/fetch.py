@@ -128,7 +128,7 @@ def get_rag_pipeline_v2(doc_path: Optional[str | list[str]] = None):
                     sources.append([str(path.resolve()), stat.st_size, stat.st_mtime_ns, stat.st_ctime_ns])
         stamp = {
             "version": 3,  # Source-qualified IDs, preserved by the storage backend.
-            "parsing_version": 4,  # Expand PDF Latin ligatures; retain source page/cell citation ranges.
+            "parsing_version": 5,  # Static HTML content extraction with physical source-line positions.
             "storage": {name: config[name] for name in ("backend", "distance_metric")},
             "chunking": {
                 "version": 2,  # Fenced Markdown code does not create section headings.

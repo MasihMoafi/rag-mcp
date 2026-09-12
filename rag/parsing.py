@@ -11,6 +11,7 @@ from .parsers.notebook import extract_notebook_text
 from .parsers.office import extract_office_or_image_text
 from .parsers.pdf import extract_pdf_text
 from .parsers.text import extract_plain_text
+from .parsers.html import extract_html_text
 
 
 def _extract_text_from_pdf(self, pdf_path: str) -> str:
@@ -44,5 +45,7 @@ def _extract_content(self, file_path: str) -> str:
         return self._extract_text_from_json(file_path)
     elif ext == ".ipynb":
         return self._extract_text_from_notebook(file_path)
+    elif ext == ".html":
+        return extract_html_text(file_path)
     else:
         return extract_plain_text(file_path)
