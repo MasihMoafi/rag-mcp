@@ -38,6 +38,9 @@ class RAGPipeline:
     def __init__(self, config: dict):
         self._queries = QueryLifecycle()
         config = dict(config)
+        for key in ("top_k", "rerank_top_k"):
+            if key in config and (type(config[key]) is not int or config[key] <= 0):
+                raise ValueError(f"{key} must be a positive integer")
         self.backend_type = config.get("backend", os.environ.get("RAG_MCP_BACKEND", "lancedb")).lower()
         if self.backend_type not in {"lancedb", "qdrant"}:
             raise ValueError(f"Unknown retrieval backend: {self.backend_type}. Choose lancedb or qdrant.")
