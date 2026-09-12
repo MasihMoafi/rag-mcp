@@ -319,7 +319,7 @@ def _validate_rag_scope(path: Path) -> _ScopeManifest | None:
                     f"RAG scan exceeds the configured {max_tokens:,}-token limit. "
                     "Choose a narrower folder or raise RAG_MCP_MAX_TOKENS deliberately."
                 )
-            if len(indexed_files) >= _MAX_INDEXED_FILES or depth > _INDEX_MAX_DEPTH:
+            if depth > _INDEX_MAX_DEPTH:
                 continue
             relative_parts = candidate.relative_to(path).parts
             if (
@@ -328,6 +328,10 @@ def _validate_rag_scope(path: Path) -> _ScopeManifest | None:
                 or _matches_excluded_file(candidate)
             ):
                 continue
+            if len(indexed_files) >= _MAX_INDEXED_FILES:
+                raise ValueError(
+                    f"Folder exceeds the {_MAX_INDEXED_FILES}-document limit; select a smaller folder."
+                )
             indexed_files.append(str(candidate))
 
     manifest = _ScopeManifest(
