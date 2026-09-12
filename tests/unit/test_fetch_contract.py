@@ -15,6 +15,25 @@ EXTENSIONS = (
 )
 
 
+@pytest.mark.parametrize('setting,value', [('backend', 'qdrant'), ('distance_metric', 'dot'),
+                                          ('rrf_k', 12), ('bm25_k1', 2.0), ('bm25_b', 0.5)])
+def test_pipeline_cache_honors_engine_settings(monkeypatch, tmp_path, setting, value):
+    source = tmp_path / 'source.txt'
+    source.write_text('Cedar')
+    monkeypatch.setenv('RAG_MCP_DATA_DIR', str(tmp_path / 'index'))
+    monkeypatch.setenv('RAG_MCP_CONFIG', str(tmp_path / 'config.json'))
+    monkeypatch.setenv('RAG_MCP_EMBED_PROVIDER', 'none')
+    monkeypatch.setattr(fetch, '_rag_system_v2_instances', {})
+    monkeypatch.setattr(fetch, 'RAGPipelineV2', lambda config: SimpleNamespace(config=config))
+    first = fetch.get_rag_pipeline_v2(str(source))
+    monkeypatch.setitem(fetch.RAG_CONFIG_V2, setting, value)
+    second = fetch.get_rag_pipeline_v2(str(source))
+    assert second is not first
+    assert second.config[setting] == value
+    assert second.config['force_reindex'] == (setting in {'backend', 'distance_metric'})
+    assert fetch.get_rag_pipeline_v2(str(source)) is second
+
+
 def ordered_files(monkeypatch, directory, names):
     for name in names:
         (directory / name).touch()
