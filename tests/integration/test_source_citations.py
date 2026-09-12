@@ -60,6 +60,47 @@ def test_html_retrieves_content_without_navigation_or_scripts(tmp_path):
         fetch.reset_pipelines()
 
 
+def test_pdf_caption_keeps_its_page_after_storage_and_reopen(tmp_path):
+    source = tmp_path / 'caption.pdf'
+    with fitz.open() as pdf:
+        pdf.new_page().insert_text((72, 72), 'Introduction.')
+        page = pdf.new_page()
+        page.insert_text((72, 72), 'Diagram labels and repeated words.')
+        page.insert_text((72, 120), 'Figure 4: Cedar anaphora resolution.')
+        pdf.new_page().insert_text((72, 72), 'Juniper neighboring diagram labels.')
+        pdf.save(source)
+    for _ in range(2):
+        caption = fetch.fetchExternalKnowledge('Cedar', str(source))[0]
+        assert caption['original_content'] == 'Figure 4: Cedar anaphora resolution.'
+        assert caption['location'] == 'p.2'
+        assert caption['page_number'] == 2
+        neighbor = fetch.fetchExternalKnowledge('Juniper', str(source))[0]
+        assert neighbor['location'] == 'p.3'
+        assert 'Cedar' not in neighbor['original_content']
+        fetch.reset_pipelines()
+
+
+def test_older_pdf_parser_stamp_rebuilds_into_a_new_generation(tmp_path):
+    source = tmp_path / 'caption-upgrade.pdf'
+    with fitz.open() as pdf:
+        pdf.new_page().insert_text((72, 72), 'Figure 4: Cedar caption.')
+        pdf.save(source)
+    previous = fetch.get_rag_pipeline_v2(str(source))
+    old_directory = Path(previous.config['persist_dir'])
+    manifest = old_directory / 'source-manifest.json'
+    old_stamp = json.loads(manifest.read_text())
+    old_stamp['parsing_version'] = 5
+    manifest.write_text(json.dumps(old_stamp))
+    fetch.reset_pipelines()
+    current = fetch.get_rag_pipeline_v2(str(source))
+    new_directory = Path(current.config['persist_dir'])
+    assert new_directory != old_directory
+    assert old_directory.is_dir()
+    assert json.loads(manifest.read_text())['parsing_version'] == 5
+    assert json.loads((new_directory/'source-manifest.json').read_text())['parsing_version'] == 6
+    assert current.search('Cedar')[0]['location'] == 'p.1'
+
+
 @pytest.mark.parametrize('extension,location', [('.pdf', 'p.1-2'), ('.ipynb', 'cell 1-2')])
 def test_multisegment_passage_cites_its_full_range(tmp_path, extension, location):
     source = tmp_path / ('evidence' + extension)
