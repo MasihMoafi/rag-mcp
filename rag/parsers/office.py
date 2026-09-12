@@ -2,15 +2,15 @@
 
 import os
 
+IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".tiff", ".bmp"}
 
 def extract_office_or_image_text(file_path: str) -> str:
     """Extract text, tables, and OCR/element descriptions using Unstructured and RapidOCR."""
     ext = os.path.splitext(file_path)[1].lower()
-    image_exts = {".png", ".jpg", ".jpeg", ".webp", ".tiff", ".bmp"}
     ocr_error = None
 
     # For standalone image files, run RapidOCR directly
-    if ext in image_exts:
+    if ext in IMAGE_EXTENSIONS:
         try:
             from rapidocr_onnxruntime import RapidOCR
             engine = RapidOCR()

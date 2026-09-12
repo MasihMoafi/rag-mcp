@@ -217,6 +217,9 @@ def _get_scoped_pipeline(key, doc_path):
                 },
             },
         }
+        from .parsers.office import IMAGE_EXTENSIONS
+        if any(Path(source[0]).suffix.lower() in IMAGE_EXTENSIONS for source in stamp['sources']):
+            stamp['parsing_version'] = 8  # Revalidate previously swallowed OCR failures.
         config["source_stamp"] = stamp
         cached = _rag_system_v2_instances.get(key)
         if cached is not None and all(cached.config.get(name) == config[name] for name in (

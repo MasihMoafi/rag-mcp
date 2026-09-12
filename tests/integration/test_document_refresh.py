@@ -92,13 +92,19 @@ def test_short_file_refreshes_in_memory_and_after_reopening(tmp_path, local_sear
     assert local_search(document)[0]["content"] == "Meeting: Sunday."
 
 
-def test_legacy_partial_index_is_revalidated_before_reuse(tmp_path, local_search, monkeypatch):
+@pytest.mark.parametrize('extension', ['txt', 'png'])
+def test_legacy_partial_index_is_revalidated_before_reuse(tmp_path, local_search, monkeypatch, extension):
     from rag.core import RAGPipeline
+    from pathlib import Path
+
+    if extension == 'png':
+        monkeypatch.setattr(RAGPipeline, '_extract_text_with_unstructured',
+                            lambda self, path: Path(path).read_text())
 
     corpus = tmp_path / 'legacy'
     corpus.mkdir()
     (corpus / 'good.txt').write_text('Meeting: Friday.')
-    bad = corpus / 'bad.txt'
+    bad = corpus / f'bad.{extension}'
     bad.write_bytes(b'\xff')
     original = RAGPipeline._extract_content
     with monkeypatch.context() as patch:
@@ -108,7 +114,7 @@ def test_legacy_partial_index_is_revalidated_before_reuse(tmp_path, local_search
     fetch.reset_pipelines()
     manifest = next((tmp_path / 'index').rglob('source-manifest.json'))
     stamp = json.loads(manifest.read_text())
-    stamp['parsing_version'] = 6
+    stamp['parsing_version'] = 7 if extension == 'png' else 6
     manifest.write_text(json.dumps(stamp))
     pointer = next((tmp_path / 'index').rglob('active-index.json'))
     previous_pointer = pointer.read_bytes()

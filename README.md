@@ -399,7 +399,10 @@ preservation/repair checks pass on both local storage backends. PDF extraction c
 still recover through a nonempty fallback; genuinely empty successful extraction
 is distinct from an exception. Direct parser callers must now handle read/decode
 exceptions rather than expect an empty string or list on failure.
-Managed indexes use parser stamp 7 and rebuild older generations on next use;
+Managed indexes use parser stamp 7, or 8 for scopes containing standalone images,
+and rebuild older generations on next use. Stamp 8 revalidates image scopes that
+could previously swallow an OCR error when fallback extraction returned nothing;
+text-only stamp-7 scopes do not rebuild for this image-specific change.
 API-backed indexes can incur re-embedding costs. Failed rebuilds preserve the
 previous generation but do not silently serve its incomplete results. The complete
 unit suite is included in the combined regression run above, alongside the parser
