@@ -13,6 +13,19 @@ class RebuildRequired(RuntimeError):
     """Persisted storage cannot be reused; rebuild away from the active index."""
 
 
+def source_snapshot(document_paths):
+    """Cheap filesystem revision check; not an immutable content snapshot."""
+    sources = []
+    for document_path in document_paths:
+        source = Path(document_path)
+        paths = source.rglob('*') if source.is_dir() else [source]
+        for path in paths:
+            if path.is_file():
+                stat = path.stat()
+                sources.append([str(path.resolve()), stat.st_size, stat.st_mtime_ns, stat.st_ctime_ns])
+    return sorted(sources)
+
+
 def active_directory(scope_root):
     root = Path(scope_root)
     try:
@@ -39,6 +52,10 @@ def open_or_build(config, build):
             pass
 
     root.mkdir(parents=True, exist_ok=True)
+    document_paths = config.get('document_paths', [])
+    sources = config.get('source_stamp', {}).get('sources')
+    if sources is None:
+        sources = source_snapshot(document_paths)
     pending = Path(tempfile.mkdtemp(prefix='generation-', dir=root))
     instance = None
     try:
@@ -49,6 +66,8 @@ def open_or_build(config, build):
         with FileLock(str(root / '.publication.lock'), timeout=30):
             if active_directory(root) != active:
                 raise RuntimeError('Index changed during another refresh; retry the query.')
+            if source_snapshot(document_paths) != sources:
+                raise RuntimeError('Sources changed during indexing; retry the query.')
             write_json_atomic(root / 'active-index.json', pending.name)
         return instance
     except Exception:
