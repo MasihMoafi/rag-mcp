@@ -181,8 +181,18 @@ def load_existing_database(self):
     db_count = self.vector_db.count()
 
     if db_count > 0 and os.path.exists(docs_file):
-        with open(docs_file, 'r') as f:
-            docs = json.load(f)
+        try:
+            with open(docs_file, 'r', encoding='utf-8') as f:
+                docs = json.load(f)
+            if not isinstance(docs, list) or len(docs) != db_count or any(
+                not isinstance(doc, dict) or not isinstance(doc.get('content'), str)
+                for doc in docs
+            ):
+                raise ValueError("Metadata does not match stored documents")
+        except (OSError, ValueError) as error:
+            print(f"[RAG] Cannot reuse document metadata; rebuilding from sources: {error}", file=sys.stderr)
+            self._index_documents()
+            return
 
         if self.bm25_index is not None:
             print(f"[RAG V2] Loading {len(docs)} chunks and rebuilding BM25...")
