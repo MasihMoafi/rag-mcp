@@ -1,6 +1,27 @@
 {
   "purpose": "Five non-random grading calibration cases, not a retrieval benchmark score.",
   "reviewer": "assistant; not independently reviewed",
+  "api_700_followup": {
+    "report": "/tmp/rag-api-paper-evidence.json",
+    "model": "qwen/qwen3-embedding-8b via OpenRouter",
+    "method": "Same public inputs, 700-character chunks, overlap 100 and top five; enable API vector retrieval plus existing keyword/RRF path. No reranking or contextual enrichment.",
+    "queries": 30,
+    "chunks": 76,
+    "query_errors": 0,
+    "logical_api_responses": 32,
+    "provider_reported_cost_usd": 0.00012405,
+    "cumulative_provider_reported_cost_usd": 0.00012408,
+    "literal_containment": 10,
+    "lexical_literal_containment": 11,
+    "reviewed_cases": [
+      {"query_index_zero_based": 2, "grade": "full", "support_ranks": [2]},
+      {"query_index_zero_based": 4, "grade": "full", "support_ranks": [1]},
+      {"query_index_zero_based": 6, "grade": "full", "support_ranks": [2]},
+      {"query_index_zero_based": 7, "grade": "missing", "support_ranks": []},
+      {"query_index_zero_based": 8, "grade": "full", "support_ranks": [1]}
+    ],
+    "conclusion": "Actual API hybrid execution verified. No support-grade improvement on the five calibration cases; interpretability still missing. No overall quality or model-superiority claim. Full support review and stage-level failure diagnosis remain. Production defaults unchanged."
+  },
   "source": {
     "path": "evals/experiments/experiment-unified-scaling/data/corpus/att.pdf",
     "sha256": "bfaaec89262875f927cf1b38b2da2d775f3309b7bea3537f29b606ca67e79065"
