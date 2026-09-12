@@ -26,7 +26,10 @@ def main():
     for name in ('source', 'queries', 'output'):
         parser.add_argument(name, type=Path)
     parser.add_argument('--chunk-size', type=int, default=700)
+    parser.add_argument('--top-k', type=int, default=5)
     args = parser.parse_args()
+    if args.top_k < 1:
+        parser.error('--top-k must be positive')
     source, queries, output = (path.resolve() for path in (args.source, args.queries, args.output))
     if output.exists():
         raise FileExistsError(output)
@@ -42,7 +45,7 @@ def main():
             raise ValueError('Query CSV requires question and expected-answer fields.')
     config = dict(document_paths=[str(source)], embed_provider='none', backend='lancedb',
                   reranker_type='off', use_contextual=False, chunk_size=args.chunk_size,
-                  chunk_overlap=100, top_k=5, rerank_top_k=5, force_reindex=True)
+                  chunk_overlap=100, top_k=args.top_k, rerank_top_k=args.top_k, force_reindex=True)
     report = dict(inputs=inputs, config=config.copy(), queries=[], api_spend_usd=0,
                   revision=subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip())
     root = Path(__file__).resolve().parents[1]
