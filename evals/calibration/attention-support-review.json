@@ -1,6 +1,21 @@
 {
   "purpose": "Five non-random grading calibration cases, not a retrieval benchmark score.",
   "reviewer": "assistant; not independently reviewed",
+  "qwen_query_instruction_ablation": {
+    "report": "/tmp/rag-instruct-query-eval.jsonl",
+    "guidance": "https://huggingface.co/Qwen/Qwen3-Embedding-8B",
+    "prefix": "Instruct: Given a web search query, retrieve relevant passages that answer the query\nQuery:",
+    "method": "Change only embedding query input; same model, public stored document vectors, queries, lexical ranks, candidate20/final5. Reuse saved cross-encoder scores because reranker query and passage text are unchanged.",
+    "queries": 30,
+    "changed_final_reranked_id_lists": 0,
+    "interpretability_target_vector_rank_before_after": [25,27],
+    "anaphora_target_vector_rank_before_after": [5,5],
+    "anaphora_target_new_fused_rank": 1,
+    "conclusion": "Recommended query instruction does not improve final evidence on this suite. Figure4 answer is already among vector candidates and reaches fused rank1 in the instructed run, but the cached MiniLM reranker still removes it from the final five. Do not credit a query-format change with fixing this reranker error.",
+    "provider_reported_cost_usd": 0.00001176,
+    "cumulative_provider_reported_cost_usd": 0.00026027,
+    "production_defaults_changed": false
+  },
   "neighbor_context_ablation": {
     "report": "/tmp/rag-neighbor-context-evaluation.json",
     "method": "Keep actual runtime final-five ranks fixed; add up to350 contiguous source characters before/after each passage, trimming edge words. No new embeddings, reranking, merged results or generation.",
