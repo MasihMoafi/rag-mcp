@@ -1,5 +1,6 @@
 """Rank fusion and optional passage reranking without storage concerns."""
 
+import math
 from typing import Dict, List, Tuple
 
 
@@ -162,6 +163,9 @@ def rerank_documents(self, docs: List[Dict], query: str, k: int) -> List[Dict]:
             scores = self.reranker.predict(pairs)
         else:
             scores = [1.0] * len(docs)
+
+        if len(scores) != len(docs) or not all(math.isfinite(score) for score in scores):
+            raise ValueError("Reranker must return one finite score per passage")
 
         # Sort documents by score (higher is better)
         ranked = sorted(zip(docs, scores), key=lambda x: x[1], reverse=True)
