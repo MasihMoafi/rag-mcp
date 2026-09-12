@@ -157,7 +157,8 @@ def rerank_documents(self, docs: List[Dict], query: str, k: int) -> List[Dict]:
             del batch_scores_log
             torch.cuda.empty_cache()
         elif hasattr(self, 'reranker') and self.reranker:
-            pairs = [[query, doc['content'][:512]] for doc in docs]  # Limit to 512 chars for speed
+            # Let the model tokenizer enforce its token budget, not a character cutoff.
+            pairs = [[query, doc['content']] for doc in docs]
             scores = self.reranker.predict(pairs)
         else:
             scores = [1.0] * len(docs)
