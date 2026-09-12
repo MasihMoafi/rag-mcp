@@ -5,6 +5,8 @@ import hashlib
 import json
 from pathlib import Path
 from typing import Dict, Optional
+from threading import Lock, RLock
+from weakref import WeakValueDictionary
 from .core import RAGPipelineV2
 from .discovery import resolve_path, find_all_indexable_files, find_relevant_files
 from .formats import INDEXABLE_EXTENSIONS as _INDEXABLE_EXTENSIONS
@@ -44,17 +46,40 @@ RAG_CONFIG_V2 = {
 }
 
 _rag_system_v2_instances: Dict[str, RAGPipelineV2] = {}
+_scope_locks = WeakValueDictionary()
+_scope_locks_guard = Lock()
 
+
+def _scope_lock(key):
+    with _scope_locks_guard:
+        lock = _scope_locks.get(key)
+        if lock is None:
+            lock = RLock()
+            _scope_locks[key] = lock
+        return lock
+
+
+def _close_pipeline(pipeline):
+    close = getattr(pipeline, 'close', None)
+    if close is not None:
+        close()
+
+
+def _retire_cached_pipeline(key):
+    pipeline = _rag_system_v2_instances.get(key)
+    if pipeline is not None:
+        _close_pipeline(pipeline)
+        if _rag_system_v2_instances.get(key) is pipeline:
+            del _rag_system_v2_instances[key]
 
 
 def reset_pipelines() -> None:
     """Drain cached pipelines and release storage before forgetting them."""
-    for key, pipeline in list(_rag_system_v2_instances.items()):
-        close = getattr(pipeline, 'close', None)
-        if close is not None:
-            close()
-        if _rag_system_v2_instances.get(key) is pipeline:
-            del _rag_system_v2_instances[key]
+    with _scope_locks_guard:
+        keys = set(_rag_system_v2_instances) | set(_scope_locks)
+    for key in keys:
+        with _scope_lock(key):
+            _retire_cached_pipeline(key)
 
 def index_root() -> str:
     """Where indexes live: RAG_MCP_DATA_DIR, else the XDG data dir. Never inside the package."""
@@ -77,7 +102,6 @@ def _safe_dir_name(path: str, embedding: Optional[Dict[str, str]] = None) -> str
     return f"{base}_{h}"
 
 def get_rag_pipeline_v2(doc_path: Optional[str | list[str]] = None):
-    import sys
     
     # Resolve path
     if isinstance(doc_path, list):
@@ -91,6 +115,12 @@ def get_rag_pipeline_v2(doc_path: Optional[str | list[str]] = None):
             raise ValueError(f"Path does not exist: {doc_path}")
     
     key = "\n".join(doc_path) if isinstance(doc_path, list) else (doc_path if doc_path else "__DEFAULT__")
+    with _scope_lock(key):
+        return _get_scoped_pipeline(key, doc_path)
+
+
+def _get_scoped_pipeline(key, doc_path):
+    import sys
     sys.stderr.write(f"[RAG V2] Creating new instance for {key}...\n")
     sys.stderr.flush()
     try:
@@ -168,11 +198,19 @@ def get_rag_pipeline_v2(doc_path: Optional[str | list[str]] = None):
         except (OSError, ValueError):
             previous_stamp = None
         config["force_reindex"] = config.get("force_reindex", False) or previous_stamp != stamp
+        if not config['force_reindex']:
+            # Embedded Qdrant permits one client per storage path.
+            _retire_cached_pipeline(key)
 
         sys.stderr.write("[RAG] About to create RAGPipelineV2...\n")
         sys.stderr.flush()
         instance = open_or_build(config, lambda build_config: RAGPipelineV2(
             config={**build_config, '_staged_index': True}))
+        try:
+            _retire_cached_pipeline(key)
+        except Exception:
+            _close_pipeline(instance)
+            raise
         _rag_system_v2_instances[key] = instance
         sys.stderr.write("[RAG] V2 initialization complete\n")
         sys.stderr.flush()
