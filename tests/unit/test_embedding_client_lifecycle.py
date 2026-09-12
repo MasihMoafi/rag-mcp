@@ -68,6 +68,38 @@ def test_contextual_client_ownership(monkeypatch, tmp_path, startup_fails, injec
     assert client.close.call_count == (0 if injected else 1)
 
 
+@pytest.mark.parametrize('failing_resource', ['storage', 'embedding', 'contextualizer'])
+def test_pipeline_cleanup_failure_retains_resources_for_retry(failing_resource):
+    from unittest.mock import Mock
+
+    pipeline = RAGPipeline.__new__(RAGPipeline)
+    pipeline._queries = QueryLifecycle()
+    pipeline.backend_type = 'qdrant'
+    storage, embedding, contextualizer = Mock(), Mock(), Mock()
+    pipeline.vector_db = SimpleNamespace(client=storage)
+    pipeline.embedding_fn = embedding
+    pipeline._owned_contextualizer = contextualizer
+    resources = {'storage': storage, 'embedding': embedding, 'contextualizer': contextualizer}
+    resources[failing_resource].close.side_effect = [OSError('retry cleanup'), None]
+
+    with pytest.raises(OSError, match='retry cleanup'):
+        pipeline.close()
+    assert pipeline.vector_db.client is storage
+    assert pipeline.embedding_fn is embedding
+    assert not pipeline._queries.closed
+    for resource in resources.values():
+        resource.close.assert_called_once_with()
+    with pytest.raises(RuntimeError, match='closing or closed'):
+        pipeline.search('must not run')
+
+    pipeline.close()
+    assert pipeline._queries.closed
+    assert pipeline.vector_db is None
+    assert pipeline.embedding_fn is None
+    pipeline.close()
+    assert all(resource.close.call_count == 2 for resource in resources.values())
+
+
 def test_contextual_cleanup_still_runs_when_embedding_close_fails():
     from unittest.mock import Mock
 
