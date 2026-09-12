@@ -1,6 +1,18 @@
 {
   "purpose": "Five non-random grading calibration cases, not a retrieval benchmark score.",
   "reviewer": "assistant; not independently reviewed",
+  "current_runtime_verification": {
+    "revision": "6aa65d0",
+    "report": "/tmp/rag-current-runtime-verification.jsonl",
+    "report_sha256": "89e52c43561f1dd337e0cfd63cedc6624b866f98daa41e0227e4f6efb454a89b",
+    "method": "Actual RAGPipeline construction, persisted-index reopen and search; existing public API query vectors supplied by an in-memory embedder, actual cached CUDA cross-encoder. Python socket.connect blocked; indexing raises if attempted. Candidate depth20, final5, no contextual enrichment.",
+    "queries_matching_offline_replay_exactly": 30,
+    "source_faithful_passages_with_nonempty_citations": 150,
+    "load_seconds": 4.00354,
+    "mean_local_query_seconds": 0.0798,
+    "api_spend_usd": 0,
+    "limits": "Timing excludes query embedding/API latency. Source containment and citation presence do not establish semantic relevance or independently validate page ranges. Current runtime matches the prior full-passage replay; known interpretability miss remains. No user settings or live indexes changed."
+  },
   "full_suite_depth_and_reranker_replay": {
     "depth_report": "/tmp/rag-paper-full-depth.jsonl",
     "reranker_report": "/tmp/rag-paper-rerank-replay.jsonl",
