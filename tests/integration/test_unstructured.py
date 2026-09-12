@@ -3,10 +3,7 @@ import socket
 import sys
 
 import pytest
-from docx import Document
-from openpyxl import Workbook
 from PIL import Image, ImageDraw, ImageFont
-from pptx import Presentation
 
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -20,6 +17,10 @@ def _pipeline() -> RAGPipelineV2:
 
 
 def test_office_and_csv_extraction(tmp_path: Path) -> None:
+    Document = pytest.importorskip('docx').Document
+    Workbook = pytest.importorskip('openpyxl').Workbook
+    Presentation = pytest.importorskip('pptx').Presentation
+    pytest.importorskip('unstructured.partition.auto')
     docx_path = tmp_path / "sample.docx"
     document = Document()
     document.add_paragraph("DOCX multimodal acceptance 7319")
