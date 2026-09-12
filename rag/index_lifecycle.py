@@ -69,7 +69,16 @@ def open_or_build(config, build):
                 raise RuntimeError('Index changed during another refresh; retry the query.')
             if source_snapshot(document_paths) != sources:
                 raise RuntimeError('Sources changed during indexing; retry the query.')
-            write_json_atomic(root / 'active-index.json', pending.name)
+            try:
+                write_json_atomic(root / 'active-index.json', pending.name)
+            except Exception:
+                # Check under the publication lock: replacement may have succeeded.
+                published = True  # Retain data if the pointer cannot be inspected.
+                try:
+                    published = active_directory(root) == pending
+                except (OSError, ValueError):
+                    pass
+                raise
             published = True
         return instance
     except Exception as error:
