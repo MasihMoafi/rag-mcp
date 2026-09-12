@@ -1,5 +1,5 @@
 {
-  "purpose": "First ten queries in existing CSV order; diagnostic calibration, not a full-suite score.",
+  "purpose": "First fifteen queries in existing CSV order; diagnostic calibration, not a full-suite score.",
   "reviewer": "assistant, non-blind, not independently reviewed",
   "report": "/tmp/rag-napoleon-lexical-13f0603.json",
   "source_sha256": "d95be21cea799bc87f28937940c3b556bcff6540f6815f5bd988fcb6d753c6b5",
@@ -15,8 +15,13 @@
     {"index": 6, "grade": "full", "ranks": [3, 4], "note": "p39 and p296-297 explicitly supply musician/violin and sounds/chords/harmonies analogy."},
     {"index": 7, "grade": "missing", "ranks": [], "note": "Returned passages discuss thought's unity and general historiography, not the requested self-defense of his career. Original PDF p309 independently contains anarchy, historians defending intentions and necessity of dictatorship; absent from all five results."},
     {"index": 8, "grade": "full", "ranks": [1], "note": "p46 explicitly identifies fear and self-interest."},
-    {"index": 9, "grade": "missing", "ranks": [], "note": "No result supplies equality/distinctions. Original PDF p291 independently confirms the two passions in advice about his son."}
+    {"index": 9, "grade": "missing", "ranks": [], "note": "No result supplies equality/distinctions. Original PDF p291 independently confirms the two passions in advice about his son."},
+    {"index": 10, "grade": "partial", "ranks": [1], "note": "Exact descriptive quote retrieved but Vienna/1805/Murat identifying context is absent. Original p56 confirms that context immediately before the returned passage. Nearby-context loss, not missing quotation."},
+    {"index": 11, "grade": "partial", "ranks": [1, 2, 3], "note": "Necker and read-cover-to-cover conversation retrieved at p301-302, but specific title absent. Original p354 footnote358 identifies Dernières Vues de politique et de finances. This requires linking a distant footnote, not merely a modestly larger neighboring chunk."},
+    {"index": 12, "grade": "full", "ranks": [2, 4], "note": "p168-169 names Austerlitz and preceding passage links the day to coronation anniversary."},
+    {"index": 13, "grade": "full", "ranks": [1], "note": "p178-179 explicitly identifies Larrey, surgeon general, and last-will description."},
+    {"index": 14, "grade": "full", "ranks": [1], "note": "p174 explicitly identifies Moniteur as soul/chief strength and communication intermediary."}
   ],
-  "limits": "Only 10 of 30 reviewed: 5 full, 3 partial, 2 missing under this question-support rubric. No hybrid comparison, no claim of overall quality or parser causality. Existing CSV and runtime remain unchanged.",
+  "limits": "Only 15 of 30 reviewed: 8 full, 5 partial, 2 missing under this question-support rubric. No hybrid comparison or overall quality claim. Nearby context and distant footnote omissions identified for individual cases, not proven global parser causality. Existing CSV and runtime remain unchanged.",
   "next": "Complete source-grounded grading before using reference answers as acceptance criteria; isolate candidate selection versus missing neighboring explanation in any later ablation."
 }
