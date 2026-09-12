@@ -12,7 +12,13 @@ def extract_notebook_text(notebook_path: str) -> str:
     try:
         from ..notebook_chunker import extract_cells_from_notebook
         cells = extract_cells_from_notebook(notebook_path)
-        return "\f".join(cell['content'] for cell in cells)
+        parts = []
+        previous_index = 0
+        for cell in cells:
+            index = cell['cell_index']
+            parts.append("\f" * (index - previous_index) + cell['content'])
+            previous_index = index
+        return "".join(parts)
     except Exception as e:
         print(f"Error extracting text from {notebook_path}: {e}")
         return ""

@@ -34,6 +34,20 @@ def test_markdown_citations_survive_search_and_reopening(tmp_path):
         fetch.reset_pipelines()
 
 
+def test_notebook_citation_counts_empty_original_cells(tmp_path):
+    source = tmp_path / "notes.ipynb"
+    source.write_text(json.dumps({"cells": [
+        {"cell_type": "code", "source": []},
+        {"cell_type": "markdown", "source": "  "},
+        {"cell_type": "code", "source": "Cedar = 42", "outputs": [{"text": "JUNK"}]},
+    ]}))
+    for _ in range(2):
+        result = fetch.fetchExternalKnowledge("Cedar", str(source))[0]
+        assert result["location"] == "cell 3"
+        assert result["original_content"] == "Cedar = 42"
+        fetch.reset_pipelines()
+
+
 def test_same_named_sources_keep_distinct_ids_across_storage_and_fusion(tmp_path):
     corpus = tmp_path / "corpus"
     for name, detail in [("alpha", "Cedar grows in the north."), ("beta", "Cedar grows in the south.")]:
