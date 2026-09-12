@@ -1,4 +1,5 @@
 from types import SimpleNamespace
+from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, TimeoutError
 from threading import Event
 
@@ -8,6 +9,7 @@ from rag.core import RAGPipeline
 from rag.embeddings import OpenAICompatibleWrapper
 from rag.query_lifecycle import QueryLifecycle
 from rag import core
+from rag import index_lifecycle
 
 
 def test_pipeline_close_releases_actual_sdk_client_without_network():
@@ -22,6 +24,49 @@ def test_pipeline_close_releases_actual_sdk_client_without_network():
         pipeline.close()
         assert embedder.client.is_closed()
         pipeline.close()
+    finally:
+        embedder.client.close()
+
+
+@pytest.mark.parametrize('cleanup_fails', [False, True])
+def test_failed_publication_closes_client_and_preserves_original_error(cleanup_fails, monkeypatch, tmp_path):
+    embedder = OpenAICompatibleWrapper('unused-model', api_key='unused-test-key')
+    failure = OSError('publication failed')
+    old = tmp_path / 'generation-old'
+    old.mkdir()
+    pointer = tmp_path / 'active-index.json'
+    pointer.write_text('"generation-old"')
+    built = []
+
+    def build(config):
+        pipeline = RAGPipeline.__new__(RAGPipeline)
+        pipeline.config = config
+        pipeline._queries = QueryLifecycle()
+        pipeline.backend_type = 'lancedb'
+        pipeline.embedding_fn = embedder
+        pipeline.vector_db = None
+        built.append(pipeline)
+        return pipeline
+
+    def fail(*args):
+        raise failure
+
+    if cleanup_fails:
+        def close_then_fail():
+            embedder.client.close()
+            raise RuntimeError('cleanup failed')
+        monkeypatch.setattr(embedder, 'close', close_then_fail)
+    monkeypatch.setattr(index_lifecycle, 'write_json_atomic', fail)
+    try:
+        with pytest.raises(OSError) as caught:
+            index_lifecycle.open_or_build(dict(persist_dir=str(tmp_path), force_reindex=True), build)
+        assert caught.value is failure
+        assert embedder.client.is_closed()
+        assert pointer.read_text() == '"generation-old"'
+        assert old.is_dir()
+        assert Path(built[0].config['persist_dir']).exists() is cleanup_fails
+        if cleanup_fails:
+            assert caught.value.__notes__
     finally:
         embedder.client.close()
 

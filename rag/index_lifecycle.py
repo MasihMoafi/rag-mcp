@@ -70,8 +70,12 @@ def open_or_build(config, build):
                 raise RuntimeError('Sources changed during indexing; retry the query.')
             write_json_atomic(root / 'active-index.json', pending.name)
         return instance
-    except Exception:
-        if instance is not None and instance.config.get('backend', 'lancedb') == 'qdrant':
-            instance.vector_db.client.close()
-        shutil.rmtree(pending)
+    except Exception as error:
+        try:
+            close = getattr(instance, 'close', None)
+            if close is not None:
+                close()
+            shutil.rmtree(pending)
+        except Exception as cleanup_error:
+            error.add_note(f"Staging cleanup failed ({type(cleanup_error).__name__}); inspect {pending}")
         raise
