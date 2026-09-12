@@ -19,6 +19,26 @@ def local_search(tmp_path, monkeypatch):
     fetch.reset_pipelines()
 
 
+def test_unreadable_member_cannot_publish_partial_corpus(tmp_path, local_search):
+    corpus = tmp_path / "corpus"
+    corpus.mkdir()
+    good = corpus / "good.txt"
+    damaged = corpus / "damaged.txt"
+    good.write_text("Meeting: Friday.")
+    damaged.write_text("Meeting: Monday.")
+    assert len(local_search(corpus)) == 2
+    previous = fetch.get_rag_pipeline_v2(str(corpus))
+    storage = previous.vector_db
+    manifests = {path: path.read_bytes() for path in (tmp_path / "index").rglob("source-manifest.json")}
+    damaged.write_bytes(b"\xff\xfe")
+    with pytest.raises(UnicodeDecodeError):
+        local_search(corpus)
+    assert storage.count() == 2
+    assert all(path.read_bytes() == data for path, data in manifests.items())
+    damaged.write_text("Meeting: Tuesday.")
+    assert any("Tuesday" in passage["content"] for passage in local_search(corpus))
+
+
 def test_short_file_refreshes_in_memory_and_after_reopening(tmp_path, local_search):
     document = tmp_path / "note.txt"
     document.write_text("Meeting: Friday.")

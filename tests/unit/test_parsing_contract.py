@@ -21,8 +21,8 @@ def test_plain_text_preserves_source_and_read_errors(pipeline, tmp_path, capsys)
     text = "# کتاب\n\ndef run():\n    return 1\n"
     path.write_text(text)
     assert pipeline._extract_content(str(path)) == text
-    assert pipeline._extract_content(str(tmp_path / "missing")) == ""
-    assert "Error reading" in capsys.readouterr().out
+    with pytest.raises(FileNotFoundError):
+        pipeline._extract_content(str(tmp_path / "missing"))
 
 
 @pytest.mark.parametrize("data,expected", [
