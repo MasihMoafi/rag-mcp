@@ -63,7 +63,7 @@ def test_form_feed_cleanup_preserves_citation_and_context_input(tmp_path, contex
     doc = pipeline.vector_db.add_documents_batch.call_args.args[0][0]
     assert doc["original_content"] == "First page Second page"
     assert doc["content"] == ("Context\n" if contextual else "") + "First page Second page"
-    assert (doc["location"], doc["page_number"]) == ("p.1", 1)
+    assert (doc["location"], doc["page_number"]) == ("p.1-2", 1)
     if contextual:
         pipeline.contextualizer.assert_called_once_with("First page Second page", "First page\fSecond page")
     else:

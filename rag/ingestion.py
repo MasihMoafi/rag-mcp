@@ -11,9 +11,9 @@ from .formats import INDEXABLE_EXTENSIONS
 
 
 def locate_chunk(self, full_text: str, content: str, ext: str, search_from: int) -> tuple:
-    """Recover a human-readable location for a chunk: a page number for PDFs
+    """Recover a human-readable location for a chunk: a page range for PDFs
     (pages joined with \\f during extraction), a cell number for notebooks
-    (cells joined with \\f), or a line range for everything else, where
+    (cells joined with \\f, including ranges), or a line range for everything else, where
     newlines survive extraction untouched. Returns (location_string, next
     search_from) so callers can scan the document once, left to right."""
     start = full_text.find(content, search_from)
@@ -22,12 +22,11 @@ def locate_chunk(self, full_text: str, content: str, ext: str, search_from: int)
     if start == -1:
         return ("", search_from)
 
-    if ext == ".pdf":
-        page = full_text.count("\f", 0, start) + 1
-        location = f"p.{page}"
-    elif ext == ".ipynb":
-        cell = full_text.count("\f", 0, start) + 1
-        location = f"cell {cell}"
+    if ext in {".pdf", ".ipynb"}:
+        first = full_text.count("\f", 0, start) + 1
+        last = first + content.count("\f")
+        prefix = "p." if ext == ".pdf" else "cell "
+        location = f"{prefix}{first}" if first == last else f"{prefix}{first}-{last}"
     else:
         line_start = full_text.count("\n", 0, start) + 1
         line_end = line_start + content.count("\n")
@@ -139,7 +138,7 @@ def index_documents(self):
                     "location": location,
                     "start_line": int(location[1:].split("-")[0]) if location.startswith("L") else 0,
                     "end_line": int(location.rsplit("L", 1)[1]) if location.startswith("L") else 0,
-                    "page_number": int(location[2:]) if location.startswith("p.") else 0,
+                    "page_number": int(location[2:].split("-")[0]) if location.startswith("p.") else 0,
                     "heading": item["heading"],
                     "chunk_id": i,
                     "id": f"{os.path.realpath(file_path)}::chunk:{i}"

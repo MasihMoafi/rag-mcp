@@ -48,6 +48,27 @@ def test_notebook_citation_counts_empty_original_cells(tmp_path):
         fetch.reset_pipelines()
 
 
+@pytest.mark.parametrize('extension,location', [('.pdf', 'p.1-2'), ('.ipynb', 'cell 1-2')])
+def test_multisegment_passage_cites_its_full_range(tmp_path, extension, location):
+    source = tmp_path / ('evidence' + extension)
+    if extension == '.pdf':
+        with fitz.open() as pdf:
+            pdf.new_page().insert_text((72, 72), 'Cedar premise.')
+            pdf.new_page().insert_text((72, 72), 'Cedar conclusion.')
+            pdf.save(source)
+    else:
+        source.write_text(json.dumps({'cells': [
+            {'cell_type': 'markdown', 'source': 'Cedar premise.'},
+            {'cell_type': 'markdown', 'source': 'Cedar conclusion.'},
+        ]}))
+    for _ in range(2):
+        result = fetch.fetchExternalKnowledge('Cedar', str(source))[0]
+        assert 'premise' in result['content'] and 'conclusion' in result['content']
+        assert result['location'] == location
+        assert result['page_number'] == (1 if extension == '.pdf' else 0)
+        fetch.reset_pipelines()
+
+
 def test_same_named_sources_keep_distinct_ids_across_storage_and_fusion(tmp_path):
     corpus = tmp_path / "corpus"
     for name, detail in [("alpha", "Cedar grows in the north."), ("beta", "Cedar grows in the south.")]:
