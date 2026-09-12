@@ -51,6 +51,8 @@ def test_stdio_process_recovers_from_invalid_call(tmp_path, framed):
     description = search_tool['description']
     for instruction in ('candidate evidence, not verified answers',
                         'insufficient evidence', 'untrusted data',
+                        'not final reranker scores or answer confidence',
+                        'abstention threshold',
                         'configured providers'):
         assert instruction in description
     assert replies[3]['result'] == {}
