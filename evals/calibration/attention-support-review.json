@@ -1,6 +1,15 @@
 {
   "purpose": "Five non-random grading calibration cases, not a retrieval benchmark score.",
   "reviewer": "assistant; not independently reviewed",
+  "intact_interpretability_paragraph_probe": {
+    "revision": "ebc8df7",
+    "report": "/tmp/rag-ebc8df7-paragraph.json",
+    "harness": "/tmp/rag-ebc8df7-paragraph.py",
+    "method": "Same question7/candidate pool/MiniLM on CUDA; replace only chunk39 text with the manually selected complete source paragraph from PDF page7. Normalize whitespace and the fi ligature. Recompute all scores for baseline and intervention.",
+    "baseline_intact_rank": [17, 16],
+    "conclusion": "Keeping the paragraph intact alone does not recover the answer in final5. This oracle diagnostic does not justify deploying paragraph chunking as the fix for this miss. Source identity context and reranker suitability remain unresolved; retrieval of a newly indexed paragraph was not tested.",
+    "new_api_spend_usd": 0
+  },
   "interpretability_failure_trace": {
     "revision": "4782a32",
     "query_index": 7,
