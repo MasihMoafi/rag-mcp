@@ -1,5 +1,8 @@
 import os
 import hashlib
+import json
+import tempfile
+from pathlib import Path
 from typing import Dict, Optional
 try:
     from .core import RAGPipelineV2
@@ -111,10 +114,6 @@ def get_rag_pipeline_v2(doc_path: Optional[str | list[str]] = None):
             raise ValueError(f"Path does not exist: {doc_path}")
     
     key = "\n".join(doc_path) if isinstance(doc_path, list) else (doc_path if doc_path else "__DEFAULT__")
-    if key in _rag_system_v2_instances:
-        sys.stderr.write(f"[RAG V2] Using cached instance for {key}\n")
-        sys.stderr.flush()
-        return _rag_system_v2_instances[key]
     sys.stderr.write(f"[RAG V2] Creating new instance for {key}...\n")
     sys.stderr.flush()
     try:
@@ -144,9 +143,51 @@ def get_rag_pipeline_v2(doc_path: Optional[str | list[str]] = None):
             config["persist_dir"] = os.path.join(current_dir, config["persist_dir"])
             config["document_paths"] = [os.path.join(current_dir, path) for path in config["document_paths"]]
         
+        sources = []
+        for document_path in config["document_paths"]:
+            source = Path(document_path)
+            paths = sorted(source.rglob("*")) if source.is_dir() else [source]
+            for path in paths:
+                if path.is_file():
+                    stat = path.stat()
+                    sources.append([str(path.resolve()), stat.st_size, stat.st_mtime_ns, stat.st_ctime_ns])
+        stamp = {
+            "version": 2,
+            "chunking": {
+                "size": config["chunk_size"],
+                "overlap": config["chunk_overlap"],
+            },
+            "sources": sorted(sources),
+            "embedding": {
+                name: embedding.get(name, "")
+                for name in ("embed_provider", "embed_model", "embed_base_url", "ollama_url")
+            },
+        }
+        config["source_stamp"] = stamp
+        cached = _rag_system_v2_instances.get(key)
+        if cached is not None and all(cached.config.get(name) == config[name] for name in (
+            *embedding,
+            "top_k",
+            "rerank_top_k",
+            "reranker_type",
+            "reranker_model",
+            "source_stamp",
+        )):
+            return cached
+        manifest = Path(config["persist_dir"]) / "source-manifest.json"
+        try:
+            previous_stamp = json.loads(manifest.read_text())
+        except (OSError, ValueError):
+            previous_stamp = None
+        config["force_reindex"] = config.get("force_reindex", False) or previous_stamp != stamp
+
         sys.stderr.write("[RAG] About to create RAGPipelineV2...\n")
         sys.stderr.flush()
         instance = RAGPipelineV2(config=config)
+        manifest.parent.mkdir(parents=True, exist_ok=True)
+        with tempfile.NamedTemporaryFile(mode="w", dir=manifest.parent, delete=False) as pending:
+            json.dump(stamp, pending)
+        os.replace(pending.name, manifest)
         _rag_system_v2_instances[key] = instance
         sys.stderr.write("[RAG] V2 initialization complete\n")
         sys.stderr.flush()

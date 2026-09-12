@@ -62,5 +62,6 @@ def test_plain_text_without_structure_falls_back_to_chunk_text():
     assert all(c["heading"] == "" for c in structured)
 
 
-def test_too_short_text_returns_no_chunks():
-    assert chunk_document("short", file_path="a.md") == []
+def test_short_text_is_searchable_but_whitespace_is_not():
+    assert chunk_document("short", file_path="a.md") == [{"content": "short", "heading": ""}]
+    assert chunk_document("  \n\t", file_path="a.md") == []
