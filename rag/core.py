@@ -39,8 +39,11 @@ class RAGPipeline:
     def __init__(self, config: dict):
         self._queries = QueryLifecycle()
         config = dict(config)
-        if str(config.get("reranker_type", "auto")).lower() == "llm":
+        reranker_type = str(config.get("reranker_type", "auto")).lower()
+        if reranker_type == "llm":
             raise ValueError("LLM reranking is not implemented; choose cross-encoder, fastembed, auto or disabled.")
+        if reranker_type not in {"auto", "cross-encoder", "fastembed", "disabled", "none", "off"}:
+            raise ValueError("Unknown reranker type; choose cross-encoder, fastembed, auto or disabled. Set model names with reranker_model.")
         for key in ("top_k", "rerank_top_k"):
             if key in config and (type(config[key]) is not int or config[key] <= 0):
                 raise ValueError(f"{key} must be a positive integer")
