@@ -150,6 +150,10 @@ class RAGPipeline:
         """Drain running searches before releasing owned storage and model clients."""
         self._queries.close(self._release_resources)
 
+    def close_if_idle(self):
+        """Retire an idle pipeline without waiting for active searches."""
+        return self._queries.close_if_idle(self._release_resources)
+
     def _release_resources(self):
         try:
             if self.backend_type == 'qdrant' and self.vector_db is not None:
