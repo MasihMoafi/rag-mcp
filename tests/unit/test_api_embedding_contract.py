@@ -47,3 +47,40 @@ def test_query_rejects_empty_vector(monkeypatch):
     wrapper = wrapper_with_response(monkeypatch, [item(0, [])])
     with pytest.raises(ValueError, match="embedding response"):
         wrapper.embed_query("question")
+
+
+@pytest.mark.parametrize('status,expected_calls', [(401, 1), (400, 1), (429, 2), (503, 2)])
+def test_sdk_retry_budget_is_not_multiplied(monkeypatch, status, expected_calls):
+    import httpx
+    import openai
+    import time
+    calls = []
+    def respond(request):
+        calls.append(request)
+        return httpx.Response(status, json={'error': {'message': 'provider rejected request'}}, request=request)
+    monkeypatch.setattr(time, 'sleep', lambda _: None)
+    wrapper = OpenAICompatibleWrapper.__new__(OpenAICompatibleWrapper)
+    wrapper.model_name = 'test-embedding'
+    with httpx.Client(transport=httpx.MockTransport(respond)) as transport:
+        wrapper.client = openai.OpenAI(api_key='test-only', max_retries=1, http_client=transport)
+        with pytest.raises(openai.APIStatusError):
+            wrapper.embed_documents(['evidence'])
+    assert len(calls) == expected_calls
+
+
+@pytest.mark.parametrize('backend_name', ['lancedb', 'qdrant'])
+def test_api_batch_failure_does_not_fan_out_into_query_requests(monkeypatch, backend_name):
+    from rag.lancedb_backend import LanceDBBackend
+    from rag.qdrant_backend import QdrantVectorDB
+    wrapper = OpenAICompatibleWrapper.__new__(OpenAICompatibleWrapper)
+    calls = []
+    def fail(texts):
+        calls.append(texts)
+        raise RuntimeError('provider unavailable')
+    monkeypatch.setattr(wrapper, '_create_with_retry', fail)
+    backend_type = LanceDBBackend if backend_name == 'lancedb' else QdrantVectorDB
+    backend = backend_type.__new__(backend_type)
+    backend.embedding_fn = wrapper
+    with pytest.raises(RuntimeError, match='provider unavailable'):
+        backend._batch_embed(['first', 'second'])
+    assert calls == [['first', 'second']]

@@ -123,6 +123,8 @@ class QdrantVectorDB:
             try:
                 return self.embedding_fn.embed_documents(texts)
             except Exception as e:
+                if not getattr(self.embedding_fn, "retry_batch_as_queries", True):
+                    raise
                 sys.stderr.write(f"[Qdrant] Batch embedding via embed_documents failed: {e}" + "\n")
 
         # Try calling with list directly (some APIs support this)
