@@ -126,5 +126,19 @@
     "changed_query_indices": [1, 2, 4, 5, 6, 7, 9, 11, 13, 14, 17, 20, 21, 23, 24, 25, 26, 27, 28],
     "limits": "Post-hoc heuristic on one book, not a general parser. Nineteen top5 lists changed; their collateral relevance has not been regraded. Heading correctness not exhaustively reviewed. No runtime changes, paid calls or general quality claim. Harness evolved after initial failed variant; current fingerprint is recorded in repeated-title report."
   },
-  "next": "Automatic source context recovers the targeted answer, but review all19 changed query result sets and heading-boundary errors before any runtime adoption."
+  "automatic_context_collateral_review": {
+    "report": "/tmp/rag-auto-section-repeated.json",
+    "method": "Compare all19 changed ordered lists with baseline IDs; inspect every newly introduced passage and displaced evidence for affected partial/missing cases. Baseline grades retained as prior evidence, not silently replaced by a new full-suite score.",
+    "gains": [
+      {"index": 9, "before": "missing", "after": "full", "rank": 2, "note": "Original p291 passage explicitly states equality and distinctions, equal laws and merit-based honors."},
+      {"index": 17, "before": "missing", "after": "full", "rank": 4, "note": "Original p52-53 passage explicitly supplies Nantes in Brittany."},
+      {"index": 24, "before": "partial", "after": "full", "rank": 2, "note": "Original p58-59 now includes believers/not reasoners and the source's sexist rationale linking religion to its prescribed social role for women; attributed, not endorsed."}
+    ],
+    "remaining_examples": "Question7 still lacks career self-defense;11 lacks the distant book-title footnote;23 lacks the explanatory theological-legislation passage;25 lacks visibility/horse-transport details;28 lacks the continuation explaining consequences of victory. New related passages are not automatically full answers.",
+    "displacement": "All eight changed baseline-full cases retain at least one previously identified supporting passage, but this is not proof every component remains supported. Question1 loses an explicit destiny-carried-out/fate-suffered contrast. Question21 loses a direct Duroc-affection passage. Do not claim zero quality regressions from ID overlap.",
+    "provenance_failure": "Question5 added p232-233 carries heading context [Conseil d'état, 1806] despite original passage explicitly switching to [Conversation, 1818]. Question23 applies [Conversation, 1817] across excerpts explicitly dated April/May1806. Section-wide propagation of the first excerpt's date is misleading. J. CHRISTOPHER HEROLD also propagates as a section label across introduction pages, illustrating unvalidated uppercase-heading detection.",
+    "decision": "Do not enable this heuristic in runtime. Separate structural section titles from excerpt-local date/source metadata, bound metadata at every source marker, and verify provenance before further quality comparisons.",
+    "limits": "Assistant non-blind diagnostic on one lexical corpus. Three source-grounded gains, not a complete after-score or proof of no regressions. No new inference, API spending or runtime changes."
+  },
+  "next": "Fix experimental context provenance: section titles and excerpt-local source/date must have separate boundaries. Runtime adoption remains rejected pending provenance and collateral-quality verification."
 }
