@@ -41,6 +41,22 @@ def test_reset_attempts_other_pipelines_after_close_failure(monkeypatch):
     assert not cache
 
 
+def test_cache_trim_retains_failed_cleanup_and_continues(monkeypatch):
+    from unittest.mock import Mock
+
+    failed = Mock(side_effect=[OSError('cleanup failed'), True])
+    retired = Mock(return_value=True)
+    cache = {'failed': SimpleNamespace(close_if_idle=failed),
+             'idle': SimpleNamespace(close_if_idle=retired), 'keep': SimpleNamespace()}
+    monkeypatch.setattr(fetch, '_rag_system_v2_instances', cache)
+    monkeypatch.setenv('RAG_MCP_CACHE_SIZE', '1')
+    fetch._trim_cached_pipelines('keep')
+    assert list(cache) == ['failed', 'keep']
+    retired.assert_called_once_with()
+    fetch._trim_cached_pipelines('keep')
+    assert list(cache) == ['keep']
+
+
 @pytest.fixture
 def sources(tmp_path, monkeypatch):
     monkeypatch.setenv('RAG_MCP_DATA_DIR', str(tmp_path / 'index'))
@@ -75,6 +91,54 @@ def test_same_scope_initializes_once(sources, monkeypatch):
             finish.set()
         assert first.result(timeout=5) is second.result(timeout=5)
     assert len(calls) == 1
+
+
+def test_cache_retires_idle_pipeline_and_reopens_without_reindex(sources, monkeypatch):
+    monkeypatch.setenv('RAG_MCP_CACHE_SIZE', '1')
+    first = fetch.get_rag_pipeline_v2(sources[0])
+    try:
+        fetch.get_rag_pipeline_v2(sources[1])
+        assert first._queries.closed
+        assert len(fetch._rag_system_v2_instances) == 1
+        def unexpected_reindex(*args):
+            pytest.fail('Eviction must retain reusable on-disk evidence')
+        monkeypatch.setattr(fetch.RAGPipelineV2, '_index_documents', unexpected_reindex)
+        reopened = fetch.get_rag_pipeline_v2(sources[0])
+        assert reopened.search('Cedar')[0]['content'] == 'Cedar evidence'
+        assert reopened is not first
+    finally:
+        fetch.reset_pipelines()
+
+
+def test_cache_skips_active_pipeline_then_retires_it_when_idle(sources, monkeypatch):
+    monkeypatch.setenv('RAG_MCP_CACHE_SIZE', '1')
+    first = fetch.get_rag_pipeline_v2(sources[0])
+    try:
+        with first._queries.query():
+            second = fetch.get_rag_pipeline_v2(sources[1])
+            assert len(fetch._rag_system_v2_instances) == 2
+            assert not first._queries.closing
+        assert fetch.get_rag_pipeline_v2(sources[1]) is second
+        assert first._queries.closed
+        assert len(fetch._rag_system_v2_instances) == 1
+    finally:
+        fetch.reset_pipelines()
+
+
+def test_cache_retirement_uses_last_acquisition_order(sources, monkeypatch, tmp_path):
+    monkeypatch.setenv('RAG_MCP_CACHE_SIZE', '2')
+    third_source = tmp_path / 'third.txt'
+    third_source.write_text('Cedar evidence')
+    try:
+        first = fetch.get_rag_pipeline_v2(sources[0])
+        second = fetch.get_rag_pipeline_v2(sources[1])
+        assert fetch.get_rag_pipeline_v2(sources[0]) is first
+        third = fetch.get_rag_pipeline_v2(str(third_source))
+        assert second._queries.closed
+        assert not first._queries.closed and not third._queries.closed
+        assert len(fetch._rag_system_v2_instances) == 2
+    finally:
+        fetch.reset_pipelines()
 
 
 def test_relative_index_directory_reuses_pipeline(sources, monkeypatch, tmp_path):

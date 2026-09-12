@@ -49,6 +49,32 @@ RAG_CONFIG_V2 = {
 _rag_system_v2_instances: Dict[str, RAGPipelineV2] = {}
 _scope_locks = WeakValueDictionary()
 _scope_locks_guard = Lock()
+_cache_trim_lock = Lock()
+
+
+def _trim_cached_pipelines(keep):
+    limit = max(1, _env_int('RAG_MCP_CACHE_SIZE', 8))
+    if len(_rag_system_v2_instances) <= limit or not _cache_trim_lock.acquire(blocking=False):
+        return
+    try:
+        for key in list(_rag_system_v2_instances):
+            if len(_rag_system_v2_instances) <= limit:
+                break
+            lock = _scope_lock(key)
+            if key == keep or not lock.acquire(blocking=False):
+                continue
+            try:
+                pipeline = _rag_system_v2_instances.get(key)
+                close = getattr(pipeline, 'close_if_idle', None)
+                if close is not None and close():
+                    del _rag_system_v2_instances[key]
+            except Exception as error:
+                import sys
+                print(f'[RAG] Cache retirement failed: {type(error).__name__}', file=sys.stderr)
+            finally:
+                lock.release()
+    finally:
+        _cache_trim_lock.release()
 
 
 def _scope_lock(key):
@@ -124,7 +150,12 @@ def get_rag_pipeline_v2(doc_path: Optional[str | list[str]] = None):
     
     key = "\n".join(doc_path) if isinstance(doc_path, list) else (doc_path if doc_path else "__DEFAULT__")
     with _scope_lock(key):
-        return _get_scoped_pipeline(key, doc_path)
+        instance = _get_scoped_pipeline(key, doc_path)
+        # Dict insertion order tracks the last acquisition of each scope.
+        _rag_system_v2_instances.pop(key, None)
+        _rag_system_v2_instances[key] = instance
+    _trim_cached_pipelines(keep=key)
+    return instance
 
 
 def _get_scoped_pipeline(key, doc_path):

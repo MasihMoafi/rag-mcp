@@ -413,7 +413,12 @@ Remaining gates:
   POSIX metadata publication now synchronizes the parent directory after rename;
   failures are surfaced and published evidence is retained. Other crash points
   and full database power-loss durability remain unverified.
-  Old generations are retained; bounded retention is unfinished.
+  The process cache targets eight pipelines (`RAG_MCP_CACHE_SIZE`, minimum one),
+  retiring least-recently-acquired idle scopes on subsequent acquisitions. Active
+  searches, contended scopes and failed cleanup can temporarily exceed this target;
+  this is not a hard memory cap. Cached-pipeline callers must reacquire after
+  retirement; the query wrapper retries one pre-search retirement automatically.
+  On-disk generations are retained; bounded disk retention is unfinished.
 - Qwen reranking uses the selected compute device, requests only final-token logits,
   and disables unused attention caching. Tiny real-Qwen CPU tests preserve scores;
   pretrained-model memory/throughput and Apple hardware remain unverified. Its
