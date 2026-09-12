@@ -738,19 +738,13 @@ class RAGPipelineV2:
         # Check if the user wants tunable weights (V1 style)
         weights = self.config.get("ensemble_weights", [1.0, 1.0])
         
-        # Process vector search results (rank by similarity - lower distance = higher rank)
-        for rank, (doc, distance) in enumerate(vector_results, 1):
-            doc_id = doc.get("id", id(doc))
-            if doc_id not in doc_scores:
-                doc_scores[doc_id] = {"doc": doc, "vector_rank": float('inf'), "bm25_rank": float('inf')}
-            doc_scores[doc_id]["vector_rank"] = rank
-
-        # Process BM25 results (rank by relevance - lower distance = higher rank) 
-        for rank, (doc, distance) in enumerate(bm25_results, 1):
-            doc_id = doc.get("id", id(doc))
-            if doc_id not in doc_scores:
-                doc_scores[doc_id] = {"doc": doc, "vector_rank": float('inf'), "bm25_rank": float('inf')}
-            doc_scores[doc_id]["bm25_rank"] = rank
+        # Retain the first record and the last rank per source for repeated IDs.
+        for rank_key, results in (("vector_rank", vector_results), ("bm25_rank", bm25_results)):
+            for rank, (doc, distance) in enumerate(results, 1):
+                doc_id = doc.get("id", id(doc))
+                if doc_id not in doc_scores:
+                    doc_scores[doc_id] = {"doc": doc, "vector_rank": float('inf'), "bm25_rank": float('inf')}
+                doc_scores[doc_id][rank_key] = rank
 
         # Calculate Unified RRF scores
         rrf_results = []
@@ -910,12 +904,6 @@ class RAGPipelineV2:
             else:
                 print(f"[RAG Core] Reranking {len(fused_docs)} initial results using CrossEncoder Reranker...")
                 final_docs = self._crossencoder_rerank(fused_docs, query, k=rerank_top_k)
-            unique_content = []
-            for doc in final_docs:
-                content = doc.get('original_content', doc.get('content', ''))
-                if content not in unique_content:
-                    unique_content.append(content)
-            
             sys.stderr.write(f"[RAG V2] Returning {len(final_docs)} unique results\n")
             return final_docs
             

@@ -44,6 +44,14 @@ RAG_CONFIG_V2 = {
 
 _rag_system_v2_instances: Dict[str, RAGPipelineV2] = {}
 
+_INDEXABLE_EXTENSIONS = (
+    '.rs', '.toml', '.yaml', '.yml', '.py', '.md', '.txt', '.json',
+    '.js', '.ts', '.tsx', '.jsx', '.c', '.h', '.cpp', '.hpp',
+    '.go', '.sh', '.bash', '.zsh', '.css', '.html', '.sql', '.java',
+    '.kt', '.proto', '.pdf', '.ipynb', '.rst', '.ini', '.cfg', '.conf',
+    '.png', '.jpg', '.jpeg', '.webp', '.tiff', '.bmp', '.docx', '.pptx', '.xlsx', '.csv'
+)
+
 
 def reset_pipelines() -> None:
     """Forget loaded pipelines so the next query picks up changed settings."""
@@ -133,16 +141,9 @@ def get_rag_pipeline_v2(doc_path: Optional[str | list[str]] = None):
         ):
             config[name] = retrieval[name]
         current_dir = index_root()
-        if isinstance(doc_path, list):
-            config["document_paths"] = doc_path
+        if doc_path:
+            config["document_paths"] = doc_path if isinstance(doc_path, list) else [doc_path]
             scope_dir = os.path.join(current_dir, _safe_dir_name(key, embedding))
-            os.makedirs(scope_dir, exist_ok=True)
-            config["persist_dir"] = scope_dir
-        elif doc_path:
-            # Scope documents to the provided directory
-            config["document_paths"] = [doc_path]
-            # Create a unique persist dir per doc scope
-            scope_dir = os.path.join(current_dir, _safe_dir_name(doc_path, embedding))
             os.makedirs(scope_dir, exist_ok=True)
             config["persist_dir"] = scope_dir
         else:
@@ -235,13 +236,6 @@ def find_all_indexable_files(
     if not os.path.isdir(directory):
         return []
 
-    indexable_extensions = (
-        '.rs', '.toml', '.yaml', '.yml', '.py', '.md', '.txt', '.json',
-        '.js', '.ts', '.tsx', '.jsx', '.c', '.h', '.cpp', '.hpp',
-        '.go', '.sh', '.bash', '.zsh', '.css', '.html', '.sql', '.java',
-        '.kt', '.proto', '.pdf', '.ipynb', '.rst', '.ini', '.cfg', '.conf',
-        '.png', '.jpg', '.jpeg', '.webp', '.tiff', '.bmp', '.docx', '.pptx', '.xlsx', '.csv'
-    )
     exclude_dirs = {'.git', '__pycache__', 'node_modules', '.venv', 'venv', 'dist', 'build', 'target', '.ipynb_checkpoints', 'migrations', 'rag_db_v2'}
 
     all_files = []
@@ -275,7 +269,7 @@ def find_all_indexable_files(
                 if os.path.isfile(entry_path):
                     if excluded_paths and os.path.realpath(entry_path) in excluded_paths:
                         continue
-                    if entry.lower().endswith(indexable_extensions):
+                    if entry.lower().endswith(_INDEXABLE_EXTENSIONS):
                         # Apply include patterns
                         if include_patterns:
                             if matches_pattern(entry_path, include_patterns):
@@ -315,28 +309,21 @@ def find_relevant_files(query: str, directory: str, max_files: int = 5) -> list:
     query_words = query.lower().split()
     
     # If no meaningful query, return first few indexable files
-    indexable_exts = (
-        '.rs', '.toml', '.yaml', '.yml', '.py', '.md', '.txt', '.json',
-        '.js', '.ts', '.tsx', '.jsx', '.c', '.h', '.cpp', '.hpp',
-        '.go', '.sh', '.bash', '.zsh', '.css', '.html', '.sql', '.java',
-        '.kt', '.proto', '.pdf', '.ipynb', '.rst', '.ini', '.cfg', '.conf',
-        '.png', '.jpg', '.jpeg', '.webp', '.tiff', '.bmp', '.docx', '.pptx', '.xlsx', '.csv'
-    )
     if not query_words:
         all_files = []
         for file in os.listdir(directory):
             file_path = os.path.join(directory, file)
-            if os.path.isfile(file_path) and file.lower().endswith(indexable_exts):
+            if os.path.isfile(file_path) and file.lower().endswith(_INDEXABLE_EXTENSIONS):
                 all_files.append(file_path)
         return all_files[:max_files]
-    
+
     scored_files = []
     
     for file in os.listdir(directory):
         file_path = os.path.join(directory, file)
         if not os.path.isfile(file_path):
             continue
-        if not file.lower().endswith(indexable_exts):
+        if not file.lower().endswith(_INDEXABLE_EXTENSIONS):
             continue
         
         # Score based on filename match

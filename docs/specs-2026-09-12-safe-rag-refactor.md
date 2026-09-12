@@ -4,6 +4,15 @@ Status: specification revised to the spec skill, 2026-09-12. Read-only preflight
 delegation authorized; implementation remains gated on verified recovery and tests.
 Specification, plan and atomic tasks are kept together to avoid workspace clutter.
 
+Execution clarification from Masih: use a reviewed local Git checkpoint, not an
+elaborate backup workflow. Checkpoint 7054026 preserves the current RAG source,
+tests and dependency files, including previously untracked modules. Working files
+were compared with that commit. This supersedes the snapshot/restore-directory
+procedure below: recover named files from the checkpoint into a separate location
+if needed, never blanket-reset shared work. Benchmark corpora and unrelated dirty
+experiment files are excluded and must remain untouched. ES.md is an ignored
+progress log, not an implementation recovery dependency.
+
 ## Goal (intent: the success case)
 
 rag-mcp has less unnecessary production code and a clearer, easier-to-explain
@@ -262,3 +271,29 @@ existing ES.md and one scoped evidence location, not new workspace task ledgers.
 Coordinator reviews final integration and hands results to Masih; no auto-deployment.
 At handoff, record which assumptions the evidence changed and any follow-on work
 in ES.md; update this contract if needed rather than inventing new standing rules.
+
+## First-pass evidence — 2026-09-12
+
+Checkpoint 7054026 restored to /tmp/rag-refactor-baseline-UrN3DO: original selection
+88 passed. New search/fetch/fusion contracts passed before their corresponding
+edits (4/20/10 cases). Relevant in-memory mutations produced expected assertion
+failures for lost record identity, reversed filename ranks, missing invalidation,
+missing PDF support and changed duplicate-ID rank semantics.
+
+Reviewed candidate: core.py 924→912; fetch.py 407→394; production Python total
+5,104→5,079. No relocation or new production module; 211 test lines added.
+Removed unused search computation, consolidated duplicate fusion loops, shared
+fetch extensions and identical scoped setup. Original empty-query fast path kept.
+
+Final command from repository root, outside sandbox for local integration:
+
+```sh
+.venv/bin/python -m pytest tests/unit tests/test_cli_audit.py tests/test_cli.py tests/test_companion.py tests/test_settings.py tests/test_model_catalog.py tests/test_prompts.py tests/test_bootstrap.py tests/integration/test_source_citations.py tests/integration/test_document_refresh.py tests/integration/test_lancedb_backend.py tests/integration/test_rag_scope.py tests/integration/test_rag_mcp_host.py -q --tb=short
+```
+
+144 passed, 38 existing LanceDB warnings. This includes 34 new contract cases and
+22 additional catalog/prompt/bootstrap checks beyond the baseline selection.
+Raw command output is in the session tool transcript. Timings are not a performance
+comparison; test populations differ. No hardware throughput, live Qdrant or paid
+API validation claimed. Concurrency/device/batch code unchanged. Broader structural
+refactoring remains incomplete; parser separation requires its own characterization.
