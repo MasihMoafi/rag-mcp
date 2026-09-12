@@ -139,8 +139,14 @@ class RAGPipeline:
             return self._search(query)
 
     def close(self):
-        """Reject new searches, drain running searches, then release storage."""
-        self._queries.close(lambda: self.vector_db.client.close() if self.backend_type == 'qdrant' else None)
+        """Drain running searches before releasing owned storage and model clients."""
+        def release():
+            if self.backend_type == 'qdrant':
+                self.vector_db.client.close()
+            close_embedder = getattr(self.embedding_fn, 'close', None)
+            if close_embedder is not None:
+                close_embedder()
+        self._queries.close(release)
 
     def _search(self, query: str) -> list[dict] | str:
         """Return ranked passages from the configured local retrieval pipeline."""

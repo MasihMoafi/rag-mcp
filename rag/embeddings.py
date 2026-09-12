@@ -148,6 +148,9 @@ class OpenAICompatibleWrapper:
         # The SDK already classifies retryable errors and owns the retry budget.
         return self.client.embeddings.create(model=self.model_name, input=input_val)
 
+    def close(self):
+        self.client.close()
+
     def embed_documents(self, texts):
         if not texts:
             return []
