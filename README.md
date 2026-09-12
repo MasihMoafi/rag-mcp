@@ -435,8 +435,12 @@ failure and legacy-index migration checks; this does not certify OCR model quali
   LanceDB writes now stream Arrow batches instead of retaining all Python vectors.
   Prior-batch Python vectors are released before the next embedding call; late
   preparation failures preserve the existing table and original exception.
-  Input documents and native database buffers still occupy memory, so this is
-  not a total RAM limit or a measured large-corpus throughput claim.
+  A paired synthetic run (4,096 records × 4,096 dimensions, batches of512,
+  Linux/Python3.13.5/LanceDB0.37.1) reduced write peak RSS from1.23GiB to342MiB
+  and took3.55s versus3.00s, with matching stored text/schema and three retrieval
+  probes. This single run uses generated vectors, not provider inference or real
+  corpus parsing. Input documents and native buffers still occupy memory;
+  it is not a total RAM limit or a general throughput guarantee.
   POSIX metadata publication now synchronizes the parent directory after rename;
   failures are surfaced and published evidence is retained. Other crash points
   and full database power-loss durability remain unverified.
