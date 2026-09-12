@@ -51,6 +51,24 @@ def wrapper_with_response(monkeypatch, items):
     return wrapper
 
 
+@pytest.mark.parametrize('vectors', [[[]], [[float('nan')]], [[float('inf')]], [[1.], [1., 2.]]])
+def test_ollama_rejects_invalid_vector_values(vectors):
+    from unittest.mock import Mock
+    from rag.embeddings import DirectOllamaGPUWrapper
+
+    wrapper = DirectOllamaGPUWrapper('fixture', 'http://localhost:11434')
+    wrapper._requests = Mock()
+    wrapper._requests.post.return_value = Mock(status_code=200)
+    wrapper._requests.post.return_value.json.return_value = {'embeddings': vectors}
+    wrapper._verify_gpu = Mock()
+    with pytest.raises(ValueError, match='empty, inconsistent or non-finite'):
+        wrapper.embed_documents(['document'] * len(vectors))
+    if len(vectors) == 1:
+        with pytest.raises(ValueError, match='empty, inconsistent or non-finite'):
+            wrapper.embed_query('question')
+    wrapper._verify_gpu.assert_not_called()
+
+
 def item(index, vector):
     return SimpleNamespace(index=index, embedding=vector)
 

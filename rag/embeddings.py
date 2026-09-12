@@ -18,6 +18,17 @@ FULL_EXTRA_HINT = (
 )
 
 
+def _validate_vectors(vectors):
+    """Reject unusable vectors after the response count has been validated."""
+    dimensions = len(vectors[0])
+    if not dimensions or any(
+        len(vector) != dimensions or not all(math.isfinite(value) for value in vector)
+        for vector in vectors
+    ):
+        raise ValueError("Invalid embedding response: empty, inconsistent or non-finite vectors.")
+    return vectors
+
+
 def _fastembed_cache_dir(environ: Mapping[str, str] | None = None) -> str:
     environ = os.environ if environ is None else environ
     return environ.get("FASTEMBED_CACHE_PATH") or os.path.join(
@@ -114,7 +125,7 @@ class DirectOllamaGPUWrapper:
             embeddings = resp.json().get("embeddings", [])
             if len(embeddings) != len(batch):
                 raise ValueError("Ollama embedding count does not match input count.")
-            all_embeddings.extend(embeddings)
+            all_embeddings.extend(_validate_vectors(embeddings))
         self._verify_gpu()
         return all_embeddings
 
@@ -129,6 +140,7 @@ class DirectOllamaGPUWrapper:
         embeddings = resp.json().get("embeddings", [])
         if len(embeddings) != 1:
             raise ValueError("Ollama embedding count does not match input count.")
+        _validate_vectors(embeddings)
         self._verify_gpu()
         return embeddings[0]
 
@@ -165,14 +177,7 @@ class OpenAICompatibleWrapper:
         items = sorted(resp.data, key=lambda item: item.index)
         if [item.index for item in items] != list(range(len(texts))):
             raise ValueError("Invalid embedding response: missing or duplicate input indices.")
-        vectors = [item.embedding for item in items]
-        dimensions = len(vectors[0])
-        if not dimensions or any(
-            len(vector) != dimensions or not all(math.isfinite(value) for value in vector)
-            for vector in vectors
-        ):
-            raise ValueError("Invalid embedding response: empty, inconsistent or non-finite vectors.")
-        return vectors
+        return _validate_vectors([item.embedding for item in items])
 
     def embed_query(self, text):
         return self.embed_documents([text])[0]
