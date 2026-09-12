@@ -9,7 +9,18 @@
     "queries": 30,
     "shared_top5_passages": 119,
     "identical_top5_orders": 1,
-    "review": "Compared fusion-only additions for the four existing incomplete cases (0,7,21,27): none supplies the missing support. This does not establish whole-suite relative quality; the other 26 paired cases still need support review. Passage overlap and reordered lists are not relevance grades.",
+    "review": "Completed manual nonblind paired support review at bb047b9: inspected changed passages and shared supporting witnesses. Both modes have26 full,3 partial and1 missing answers under the existing criteria. No coverage gain demonstrated; ordering and distracting passages differ. This is not independent grading or generated-answer evaluation.",
+    "support_counts_each": {"full":26,"partial":3,"missing":1},
+    "partial_indices": [0,21,27],
+    "missing_indices": [7],
+    "shared_full_support_chunk_witnesses": {
+      "1":[10,22,24], "2":[13,26,27], "3":[33], "4":[46],
+      "5":[10,35], "6":[21], "8":[33], "9":[16,25,26],
+      "10":[46], "11":[41], "12":[28], "13":[43], "14":[43],
+      "15":[48], "16":[31], "17":[14,16], "18":[60], "19":[44],
+      "20":[19], "22":[2,45], "23":[16], "24":[53], "25":[29],
+      "26":[76], "28":[31], "29":[24]
+    },
     "decision": "Do not disable reranking based on the interpretability miss. Qwen cache has no safetensors/bin weights; no alternate-model download performed.",
     "new_api_spend_usd": 0
   },
