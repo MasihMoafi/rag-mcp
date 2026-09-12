@@ -152,7 +152,7 @@ def _get_scoped_pipeline(key, doc_path):
         else:
             config["persist_dir"] = os.path.join(current_dir, config["persist_dir"])
             config["document_paths"] = [os.path.join(current_dir, path) for path in config["document_paths"]]
-        scope_root = Path(config['persist_dir'])
+        scope_root = Path(config['persist_dir']).resolve()
         config['index_scope'] = str(scope_root)
         config['persist_dir'] = str(active_directory(scope_root))
         
