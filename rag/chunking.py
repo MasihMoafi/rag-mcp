@@ -141,6 +141,11 @@ def chunk_document(
 
     ext = os.path.splitext(file_path)[1].lower()
 
+    if ext == '.pdf':
+        return [{'content': chunk, 'heading': ''}
+                for section in text.split('\n\n')
+                for chunk in chunk_text(section, chunk_size, chunk_overlap)]
+
     if ext in _MD_EXTS and _HEADING_RE.search(text):
         results = []
         for breadcrumb, section in _split_markdown_sections(text):
