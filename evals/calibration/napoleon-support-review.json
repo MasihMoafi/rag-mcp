@@ -1,5 +1,5 @@
 {
-  "purpose": "First fifteen queries in existing CSV order; diagnostic calibration, not a full-suite score.",
+  "purpose": "First twenty-three queries in existing CSV order; diagnostic calibration, not a full-suite score.",
   "reviewer": "assistant, non-blind, not independently reviewed",
   "report": "/tmp/rag-napoleon-lexical-13f0603.json",
   "source_sha256": "d95be21cea799bc87f28937940c3b556bcff6540f6815f5bd988fcb6d753c6b5",
@@ -20,8 +20,16 @@
     {"index": 11, "grade": "partial", "ranks": [1, 2, 3], "note": "Necker and read-cover-to-cover conversation retrieved at p301-302, but specific title absent. Original p354 footnote358 identifies Dernières Vues de politique et de finances. This requires linking a distant footnote, not merely a modestly larger neighboring chunk."},
     {"index": 12, "grade": "full", "ranks": [2, 4], "note": "p168-169 names Austerlitz and preceding passage links the day to coronation anniversary."},
     {"index": 13, "grade": "full", "ranks": [1], "note": "p178-179 explicitly identifies Larrey, surgeon general, and last-will description."},
-    {"index": 14, "grade": "full", "ranks": [1], "note": "p174 explicitly identifies Moniteur as soul/chief strength and communication intermediary."}
+    {"index": 14, "grade": "full", "ranks": [1], "note": "p174 explicitly identifies Moniteur as soul/chief strength and communication intermediary."},
+    {"index": 15, "grade": "full", "ranks": [1], "note": "p176 explicitly gives six thousand francs for electricity/galvanism advances."},
+    {"index": 16, "grade": "full", "ranks": [1, 2], "note": "p91 supplies agreed-upon fiction and material-fact/moral-intent distinction."},
+    {"index": 17, "grade": "missing", "ranks": [], "note": "Conversation opening retrieved at p51-52 but no hometown. Original PDF p53 confirms Nantes in Brittany. Relevant scene alone is not answer support."},
+    {"index": 18, "grade": "full", "ranks": [1], "note": "p241-242 explicitly identifies Achilles and divine/mortal parentage."},
+    {"index": 19, "grade": "full", "ranks": [2], "note": "p172-173 supplies sacred squadron, Grouchy, and proximity to Emperor. French translation in reference absent; substantive unit identification supported."},
+    {"index": 20, "grade": "full", "ranks": [1, 2], "note": "p218-219 links second party to independent/aristocratic constitution and property owners/priests influencing masses."},
+    {"index": 21, "grade": "partial", "ranks": [1, 2, 3, 5], "note": "Affection, firm-heart requirement and start of deathbed bulletin retrieved, but promised meeting is cut off. Reference also misattributes observations: Duroc's criticism concerns Napoleon's reactions to other comrades, not an observer describing Napoleon after Duroc died. Spoiled-for-war phrase was located in the Austerlitz passage at p168, a different event."},
+    {"index": 22, "grade": "full", "ranks": [1, 2, 3, 5], "note": "Calculation then allowance for accident, decimal sensitivity, creation and indeterminate equation supported. Source says almost mathematically exact; reference drops almost, so preserve source qualification."}
   ],
-  "limits": "Only 15 of 30 reviewed: 8 full, 5 partial, 2 missing under this question-support rubric. No hybrid comparison or overall quality claim. Nearby context and distant footnote omissions identified for individual cases, not proven global parser causality. Existing CSV and runtime remain unchanged.",
+  "limits": "Only 23 of 30 reviewed: 14 full, 6 partial, 3 missing under this question-support rubric. No hybrid comparison or overall quality claim. Nearby context and distant footnote omissions identified for individual cases, not proven global parser causality. Existing CSV and runtime remain unchanged.",
   "next": "Complete source-grounded grading before using reference answers as acceptance criteria; isolate candidate selection versus missing neighboring explanation in any later ablation."
 }
