@@ -12,6 +12,7 @@ from .discovery import resolve_path, find_all_indexable_files, find_relevant_fil
 from .formats import INDEXABLE_EXTENSIONS as _INDEXABLE_EXTENSIONS
 from .settings import contextual_retrieval_enabled, embedding_config, retrieval_config
 from .index_lifecycle import active_directory, open_or_build, source_snapshot
+from .query_lifecycle import PipelineClosedError
 
 def _env_str(name: str, default: str) -> str:
     value = os.environ.get(name, "").strip()
@@ -270,7 +271,10 @@ def query_documents(
                 doc_path = all_files
 
         pipeline = get_rag_pipeline_v2(doc_path=doc_path)
-        return pipeline.search(query)
+        try:
+            return pipeline.search(query)
+        except PipelineClosedError:
+            return get_rag_pipeline_v2(doc_path=doc_path).search(query)
     except Exception as e:
         import traceback
         traceback.print_exc()

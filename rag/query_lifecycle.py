@@ -4,6 +4,10 @@ from contextlib import contextmanager
 from threading import Condition
 
 
+class PipelineClosedError(RuntimeError):
+    """Search was rejected before execution because its pipeline is retiring."""
+
+
 class QueryLifecycle:
     def __init__(self):
         self.condition = Condition()
@@ -15,7 +19,7 @@ class QueryLifecycle:
     def query(self):
         with self.condition:
             if self.closing:
-                raise RuntimeError('Pipeline is closing or closed; retry with a new pipeline.')
+                raise PipelineClosedError('Pipeline is closing or closed; retry with a new pipeline.')
             self.active += 1
         try:
             yield
