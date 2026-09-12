@@ -7,6 +7,7 @@ import pytest
 from rag.core import RAGPipeline
 from rag.embeddings import OpenAICompatibleWrapper
 from rag.query_lifecycle import QueryLifecycle
+from rag import core
 
 
 def test_pipeline_close_releases_actual_sdk_client_without_network():
@@ -53,6 +54,41 @@ def test_api_client_stays_open_until_active_search_finishes():
                 finish.set()
             searching.result(timeout=5)
             closing.result(timeout=5)
+        assert embedder.client.is_closed()
+    finally:
+        embedder.client.close()
+
+
+@pytest.mark.parametrize('stage', ['probe', 'storage', 'reranker', 'index'])
+@pytest.mark.parametrize('cleanup_fails', [False, True])
+def test_failed_startup_releases_embedding_client(stage, cleanup_fails, monkeypatch, tmp_path):
+    embedder = OpenAICompatibleWrapper('unused-model', api_key='unused-test-key')
+    failure = RuntimeError(f'{stage} failed')
+
+    if cleanup_fails:
+        def close_then_fail():
+            embedder.client.close()
+            raise OSError('cleanup failed')
+        monkeypatch.setattr(embedder, 'close', close_then_fail)
+
+    def fail(*args, **kwargs):
+        raise failure
+
+    monkeypatch.setattr(core, 'build_embedder', lambda *a, **k: embedder)
+    monkeypatch.setattr(core, 'select_device', lambda: 'cpu')
+    monkeypatch.setattr(core, 'probe_dimensions', fail if stage == 'probe' else lambda e: 3)
+    if stage == 'storage':
+        monkeypatch.setattr(core, 'LanceDBBackend', fail)
+    elif stage == 'reranker':
+        monkeypatch.setattr(core.reranking, 'initialize_reranker', fail)
+    elif stage == 'index':
+        monkeypatch.setattr(RAGPipeline, '_load_or_create_database', fail)
+    try:
+        with pytest.raises(RuntimeError) as caught:
+            RAGPipeline(dict(persist_dir=str(tmp_path/'index'), document_paths=[],
+                             backend='lancedb', embed_provider='openai_compatible',
+                             reranker_type='off'))
+        assert caught.value is failure
         assert embedder.client.is_closed()
     finally:
         embedder.client.close()
