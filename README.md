@@ -29,12 +29,21 @@ checkout. Installing `ragmcp` provides the `rag` command; there is no separate
 
 ```text
 rag-mcp/
-├── rag/                                # Core Hybrid RAG Pipeline & Storage Backends
-│   ├── core.py                         # 2-Stage pipeline: Chunking, Ollama Embed, RRF Hybrid & Reranking
-│   ├── lancedb_backend.py              # LanceDB vector table + Tantivy FTS index integration
-│   ├── qdrant_backend.py               # Alternative Qdrant vector store backend
-│   ├── fetch.py                        # Document ingestion, PDF, OCR & multiformat parser
-│   └── notebook_chunker.py             # Jupyter Notebook cell & code-block specialized chunker
+├── rag/                                # Retrieval engine and adapters
+│   ├── core.py                         # RAGPipeline composition and search
+│   ├── fetch.py                        # Scoped pipeline cache and query entry points
+│   ├── discovery.py                    # Path resolution and bounded file discovery
+│   ├── formats.py                      # Shared discovery allowlist
+│   ├── parsing.py                      # Extraction dispatch and legacy method adapters
+│   ├── parsers/                        # Named readers: text, pdf, json, notebook, office/OCR
+│   ├── chunking.py                     # Source-preserving chunks and heading labels
+│   ├── ingestion.py                    # Indexing, source locations and persisted documents
+│   ├── bm25.py                         # In-memory lexical ranking for the Qdrant path
+│   ├── reranking.py                    # Rank fusion and configured reranker inference
+│   ├── embeddings.py                   # Embedding-provider and ONNX reranker adapters
+│   ├── lancedb_backend.py              # Vector storage and Tantivy FTS
+│   ├── qdrant_backend.py               # Alternative vector storage
+│   └── notebook_chunker.py             # Compatibility imports for notebook metadata readers
 │
 ├── tests/                              # Pytest automated test suite
 │   ├── unit/                           # Chunking logic, breadcrumb generation & GPU guardrail unit tests
@@ -281,8 +290,15 @@ Coding agents commonly retrieve context by either opening files one by one or lo
 <img src="assets/architecture.svg" alt="rag-mcp technical retrieval pipeline architecture" width="100%">
 
 The retrieval pipeline operates across two decoupled stages:
-1. **Scope Ingestion & Storage**: Target files matching the allowlist (`.rs`, `.py`, `.ts`, `.md`, `.ipynb`, `.pdf`) are processed through structure-aware AST chunking (`chunk_document`), preserving markdown heading hierarchies, code symbol scopes, and notebook cells. Chunks are always indexed for exact-word BM25 search; when `rag setup` has selected an embedding model, the same chunks also go into a dense vector table.
+
+1. **Scope Ingestion & Storage**: Discovery selects allowed files; format readers extract text; `chunking.chunk_document` produces source-preserving chunks. Markdown headings establish section boundaries; code symbols receive best-effort regex labels, not AST parsing. PDF page and notebook cell separators support location recovery, but do not guarantee chunk boundaries. HTML and other plain-text formats retain their source syntax. Chunks are indexed for exact-word search and, when an embedding model is configured, dense retrieval.
 2. **Retrieval & Precision Funnel**: Each `query_knowledge_base` invocation runs BM25 and, when configured, dense vector search. Candidates are unified via Reciprocal Rank Fusion (`RRF`, `k=60`), then optionally reranked according to the saved retrieval setting before ranked source citations are returned.
+
+Use `rag.core.RAGPipeline` and `rag.fetch.query_documents` for new Python callers.
+`RAGPipelineV2`, `fetchExternalKnowledge`, and the original core chunk/BM25 imports
+remain compatibility entry points. Parser functions can also be imported directly,
+for example `rag.parsers.pdf.extract_pdf_text`; importing one reader does not load
+unrelated formats. Existing pipeline extraction overrides are retained.
 
 ## How it works
 
@@ -376,7 +392,7 @@ set it, it does nothing useful.
 
 ### Implemented but not yet covered by the current tests
 
-- The alternative Ollama embedding-provider path in `rag/core.py`.
+- The Ollama embedding-provider adapter in `rag/embeddings.py`.
 - The `openai_compatible` embedding provider: client construction is verified, a real
   call against a paid provider is not.
 
@@ -428,7 +444,7 @@ printf '%s\n%s\n%s\n' \
   | RAG_MCP_WORKSPACE_ROOT="$PWD" .venv/bin/python server.py
 ```
 
-A successful self-query should return evidence pointing at the RRF implementation in `rag/core.py`.
+A successful self-query should return evidence pointing at rank fusion in `rag/reranking.py`.
 
 What the tests prove: MCP transport/scoping/guardrail behavior covered by those cases.
 
