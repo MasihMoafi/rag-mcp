@@ -29,7 +29,7 @@ def test_legacy_query_keeps_patchable_pipeline_and_discovery(monkeypatch, tmp_pa
     monkeypatch.setattr(fetch, 'find_all_indexable_files', discover)
     monkeypatch.setattr(fetch, 'get_rag_pipeline_v2', pipeline)
     assert fetch.fetchExternalKnowledge('question', str(tmp_path)) is result
-    assert calls == [('discover', str(tmp_path), 500), ('pipeline', selected)]
+    assert calls == [('discover', str(tmp_path), 501), ('pipeline', selected)]
     replacement = [{'content': 'replacement'}]
     monkeypatch.setattr(fetch, 'fetchExternalKnowledgeV2', lambda *args, **kwargs: replacement)
     assert fetch.fetchExternalKnowledge('question') is replacement
@@ -56,3 +56,21 @@ def test_discovery_module_reexports_and_shared_os(monkeypatch, tmp_path):
     file.touch()
     monkeypatch.setattr(fetch.os, 'listdir', lambda path: [file.name])
     assert discovery.find_all_indexable_files(str(tmp_path)) == [str(file)]
+
+
+@pytest.mark.parametrize('count', [500, 501])
+def test_folder_limit_does_not_silently_drop_documents(monkeypatch, tmp_path, count):
+    for index in range(count):
+        (tmp_path / f'doc-{index}.txt').touch()
+    selected = []
+    def pipeline(doc_path):
+        selected.extend(doc_path)
+        return SimpleNamespace(search=lambda query: [])
+    monkeypatch.setattr(fetch, 'get_rag_pipeline_v2', pipeline)
+    if count == 501:
+        with pytest.raises(ValueError, match='500-document limit'):
+            fetch.query_documents('question', str(tmp_path))
+        assert not selected
+    else:
+        assert fetch.query_documents('question', str(tmp_path)) == []
+        assert len(selected) == 500

@@ -136,6 +136,10 @@ rag studio                    # pair the hosted Studio; --studio-url http://loca
 
 Run `rag` from any directory after installing the tool. Use ↑/↓ and Enter to select providers, models, settings, apps, and files or folders. Escape goes back; typing is reserved for the final “enter a path/model ID” option. Completed actions return to the main menu. Piped input retains numbered choices for scripts; model-list positions follow discovery, so use explicit command flags for automation.
 
+Folder queries reject scopes with more than 500 discovered indexable files; select
+a smaller folder instead of relying on a silently truncated index. Existing file
+type, depth, hidden/generated-file and symlink exclusions still apply.
+
 The provider-first picker lists only sources detected on the machine or explicitly supported by the CLI. Selecting Ollama opens the embedding models reported by its `/api/show` capabilities; selecting an API provider loads that provider's live embedding catalog. “Local CPU” opens FastEmbed's supported-model catalog and labels download sizes. Custom server URLs and model identifiers are requested only in their dedicated final-entry flows, with the required format shown in the question.
 
 `--top N` (or `--top3`, `--top-5`) sets how many passages a query returns. `rag connect claude --scope project` writes `.mcp.json` in the current folder instead of the user config. Registration always uses a command that outlives the current process: `rag mcp` when installed, or `uvx --from ragmcp==<version> rag mcp` when launched through npx/uvx.
