@@ -132,16 +132,21 @@ def test_pdf_failure_requires_nonempty_fallback(pipeline, fallback):
 
 
 @pytest.mark.parametrize('empty', [[], ['  ']])
-def test_failed_ocr_with_empty_fallback_propagates(pipeline, monkeypatch, empty):
-    error = RuntimeError('OCR unavailable')
+def test_failed_ocr_with_empty_fallback_propagates(pipeline, monkeypatch, empty, capsys):
+    error = RuntimeError('private-document-marker')
     monkeypatch.setitem(sys.modules, 'rapidocr_onnxruntime',
                         SimpleNamespace(RapidOCR=Mock(side_effect=error)))
     for name in ('unstructured', 'unstructured.partition', 'unstructured.partition.auto'):
         monkeypatch.setitem(sys.modules, name, SimpleNamespace())
     sys.modules['unstructured.partition.auto'].partition = Mock(return_value=empty)
     with pytest.raises(RuntimeError) as caught:
-        pipeline._extract_text_with_unstructured('image.png')
+        pipeline._extract_text_with_unstructured('private-source-marker.png')
     assert caught.value is error
+    captured = capsys.readouterr()
+    output = captured.out + captured.err
+    assert 'private-document-marker' not in output
+    assert 'private-source-marker' not in output
+    assert 'RuntimeError' in output
 
 
 def test_successful_empty_ocr_and_fallback_remain_empty(pipeline, monkeypatch):
