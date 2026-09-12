@@ -11,6 +11,49 @@ import pytest
 from rag import core
 
 
+def test_multi_batch_api_failure_preserves_table_and_retry_restores_all_rows(tmp_path, monkeypatch):
+    from rag.embeddings import OpenAICompatibleWrapper
+    from rag.lancedb_backend import LanceDBBackend
+
+    calls = []
+    incomplete = False
+
+    def respond(request):
+        inputs = json.loads(request.content)['input']
+        calls.append(len(inputs))
+        data = [{'index': index, 'embedding': [float(text), 1.]}
+                for index, text in enumerate(inputs)]
+        if incomplete and inputs == ['1024']:
+            data = []
+        return httpx.Response(200, json={'data': data[::-1]})
+
+    with httpx.Client(transport=httpx.MockTransport(respond)) as transport:
+        real_client = openai.OpenAI
+        monkeypatch.setattr(openai, 'OpenAI', lambda **kwargs: real_client(http_client=transport, **kwargs))
+        embedder = OpenAICompatibleWrapper('fixture', api_key='test-only')
+        backend = LanceDBBackend('batch_contract', embedder, vector_size=2, persist_path=str(tmp_path))
+        try:
+            backend.add_documents_batch([{'id': 'old', 'content': '-1'}])
+            documents = [{'id': str(i), 'content': str(i)} for i in range(1025)]
+            calls.clear()
+            incomplete = True
+            with pytest.raises(ValueError, match='No embedding data received'):
+                backend.add_documents_batch(documents)
+            assert calls == [512, 512, 1]
+            assert backend.table.to_arrow().to_pylist()[0]['id'] == 'old'
+            assert backend.table.count_rows() == 1
+            calls.clear()
+            incomplete = False
+            backend.add_documents_batch(documents)
+            assert calls == [512, 512, 1]
+            rows = backend.table.to_arrow().to_pylist()
+            assert len(rows) == 1025
+            assert {row['id'] for row in rows} == {str(i) for i in range(1025)}
+            assert all(row['vector'] == [float(row['id']), 1.] for row in rows)
+        finally:
+            embedder.close()
+
+
 @pytest.mark.parametrize('status', [401, 429, 503])
 def test_query_provider_failure_is_reported_and_pipeline_can_recover(tmp_path, monkeypatch, status, capsys):
     import server
