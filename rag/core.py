@@ -177,7 +177,7 @@ class RAGPipeline:
             top_k = self.config.get("top_k", 20)
             rerank_top_k = self.config.get("rerank_top_k", 3)
             
-            print(f"[RAG V2] Searching with query: '{query[:50]}...' (backend: {self.backend_type})")
+            print(f"[RAG V2] Searching (backend: {self.backend_type})")
             
             if self.backend_type == "lancedb":
                 vector_results = []
@@ -219,7 +219,7 @@ class RAGPipeline:
             return final_docs
             
         except Exception as e:
-            print(f"[RAG V2] Search error: {e}", file=sys.stderr)
+            print(f"[RAG V2] Search error: {type(e).__name__}", file=sys.stderr)
             raise
 
 
