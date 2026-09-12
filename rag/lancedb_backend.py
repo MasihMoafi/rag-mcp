@@ -115,6 +115,7 @@ class LanceDBBackend:
                     "file_path": str(doc.get("file_path", "")),
                     "source": str(doc.get("source", doc.get("file_path", ""))),
                     "heading": str(doc.get("heading", "")),
+                    "location": str(doc.get("location", "")),
                     "start_line": int(doc.get("start_line", 0)),
                     "end_line": int(doc.get("end_line", 0)),
                     "page_number": int(doc.get("page_number", 0)),
