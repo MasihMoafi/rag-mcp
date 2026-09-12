@@ -54,7 +54,9 @@ def load_or_create_database(self):
 
     if not os.path.exists(persist_dir) or self.config.get("force_reindex", False):
         print(f"[RAG V2] Creating new database at {persist_dir}...")
-        if self.config.get("force_reindex", False):
+        # LanceDB replaces its table after extraction and embedding succeed;
+        # dropping it first destroys recovery data on a failed refresh.
+        if self.config.get("force_reindex", False) and self.backend_type != "lancedb":
             try:
                 self.vector_db.clear()
             except Exception as e:

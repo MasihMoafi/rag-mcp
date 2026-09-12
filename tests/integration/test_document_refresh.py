@@ -41,6 +41,37 @@ def test_emptied_file_cannot_return_old_passages(tmp_path, local_search):
         local_search(document)
 
 
+@pytest.mark.parametrize("failure", ["extraction", "embedding"])
+def test_failed_refresh_preserves_previous_index_without_serving_it(tmp_path, local_search, monkeypatch, failure):
+    from rag.lancedb_backend import LanceDBBackend
+    document = tmp_path / "note.txt"
+    document.write_text("Meeting: Friday.")
+    assert local_search(document)[0]["content"] == "Meeting: Friday."
+    previous = fetch.get_rag_pipeline_v2(str(document))
+    manifest = next((tmp_path / "index").rglob("source-manifest.json"))
+    original_manifest = manifest.read_bytes()
+    document.write_text("" if failure == "extraction" else "Meeting: Monday.")
+    original_add = LanceDBBackend.add_documents_batch
+    if failure == "embedding":
+        def fail_embedding(self, documents, batch_size=512):
+            raise RuntimeError("embedding provider unavailable")
+        monkeypatch.setattr(LanceDBBackend, "add_documents_batch", fail_embedding)
+    error, message = (ValueError, "No readable text") if failure == "extraction" else (RuntimeError, "embedding provider unavailable")
+    for _ in range(2):
+        with pytest.raises(error, match=message):
+            local_search(document)
+        assert manifest.read_bytes() == original_manifest
+        # Inspect storage directly: a failed rebuild must not destroy recovery data.
+        stored = LanceDBBackend(previous.vector_db.table_name, None,
+                                persist_path=previous.vector_db.persist_path)
+        assert stored.count() == 1
+        assert stored.search_fts("Meeting")[0]["content"] == "Meeting: Friday."
+        fetch.reset_pipelines()
+    monkeypatch.setattr(LanceDBBackend, "add_documents_batch", original_add)
+    document.write_text("Meeting: Monday.")
+    assert local_search(document)[0]["content"] == "Meeting: Monday."
+
+
 def test_deleted_document_disappears_from_folder_results(tmp_path, local_search):
     folder = tmp_path / "documents"
     folder.mkdir()
