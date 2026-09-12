@@ -3,12 +3,30 @@ import json
 import os
 import stat
 from pathlib import Path
+import pytest
 
 from rag import settings, model_catalog
 
 
 def env_for(tmp_path: Path, **extra: str) -> dict[str, str]:
     return {"RAG_MCP_CONFIG": str(tmp_path / "rag" / "config.json"), **extra}
+
+
+def test_failed_settings_publication_preserves_old_configuration(tmp_path, monkeypatch):
+    from utils import persistence
+
+    environ = env_for(tmp_path)
+    path = settings.save_settings({'top_k': '5'}, environ)
+    original = path.read_bytes()
+    def fail_replace(source, destination):
+        assert Path(destination) == path
+        assert stat.S_IMODE(os.stat(source).st_mode) == 0o600
+        raise OSError('publication failed')
+    monkeypatch.setattr(persistence.os, 'replace', fail_replace)
+    with pytest.raises(OSError, match='publication failed'):
+        settings.save_settings({'top_k': '9'}, environ)
+    assert path.read_bytes() == original
+    assert list(path.parent.iterdir()) == [path]
 
 
 def test_defaults_are_exact_words_only_until_a_choice_is_saved(tmp_path: Path):
