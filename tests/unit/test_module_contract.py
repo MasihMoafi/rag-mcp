@@ -90,6 +90,7 @@ def test_reranking_short_results_do_not_call_model():
 
 def test_database_dispatch_preserves_instance_overrides(tmp_path):
     pipeline = RAGPipelineV2.__new__(RAGPipelineV2)
+    pipeline.backend_type = "qdrant"
     pipeline.config = {"persist_dir": str(tmp_path)}
     pipeline._load_existing_database = Mock()
     pipeline._index_documents = Mock()
