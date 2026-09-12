@@ -78,5 +78,19 @@
     ],
     "limits": "Local lexical diagnostic only; no new full-suite relevance score, reranking, API inference or runtime-default changes. Model-free query timing is not API latency. Same input hashes and original top5 ranks retained despite newer runtime revision."
   },
-  "next": "Candidate-depth diagnostic identifies missed evidence at ranks17/64; test evidence selection without increasing final passage count. Resolve flagged reference claims before strict acceptance grading."
+  "candidate_rerank_diagnostic": {
+    "report": "/tmp/rag-napoleon-rerank-depth.json",
+    "harness": "/tmp/rag-napoleon-rerank-depth.py",
+    "model": "cross-encoder/ms-marco-MiniLM-L-6-v2",
+    "snapshot": "c5ee24cb16019beea0893ab7796b1df96625c6b8",
+    "method": "CPU replay of fixed100 lexical candidates, unchanged full passage text, batch16, final5; questions7/9/17 only.",
+    "findings": [
+      {"index": 7, "grade": "missing", "note": "Career self-defense improves from lexical64 to reranked29, still absent from final5. Final passages remain general thought/history rather than requested self-defense."},
+      {"index": 9, "grade": "missing", "note": "Equality/distinctions passage improves from17 to6, narrowly outside final5. No acceptance-threshold change to count this as success."},
+      {"index": 17, "grade": "missing", "note": "Final5 contains conversation opening but not hometown answer; reranking cannot recover evidence absent from supplied candidates."}
+    ],
+    "decision": "Do not promote this candidate-depth/reranker combination on these results. All three reviewed misses remain; no whole-suite improvement claim.",
+    "limits": "Assistant non-blind failure-subset review; no API/hybrid path or stronger pretrained reranker evaluated. CPU inference approximately1.7–2.1 seconds/query, not production latency. No paid calls or runtime changes."
+  },
+  "next": "Deeper lexical candidates plus cached MiniLM did not repair the three misses. Investigate missing passage identity/context and API hybrid candidate coverage; preserve final5 acceptance and resolve flagged reference uncertainty."
 }
