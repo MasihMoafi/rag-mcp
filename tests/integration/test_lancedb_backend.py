@@ -15,6 +15,48 @@ class DummyEmbedder:
         return [self.embed_query(t) for t in texts]
 
 
+def test_write_releases_python_vectors_between_batches(tmp_path, monkeypatch):
+    import weakref
+
+    class Vector(list):
+        pass
+
+    references = []
+    def embed(texts):
+        assert not any(reference() is not None for reference in references)
+        vectors = [Vector([float(text), 1.]) for text in texts]
+        references.extend(weakref.ref(vector) for vector in vectors)
+        return vectors
+
+    backend = LanceDBBackend('bounded', DummyEmbedder(), vector_size=2, persist_path=str(tmp_path))
+    monkeypatch.setattr(backend, '_batch_embed', embed)
+    backend.add_documents_batch([{'content': str(i)} for i in range(17)], batch_size=4)
+    assert backend.count() == 17
+    assert not any(reference() is not None for reference in references)
+
+
+def test_late_provider_failure_preserves_exception_and_table(tmp_path, monkeypatch, capfd):
+    backend = LanceDBBackend('error_identity', DummyEmbedder(), vector_size=4, persist_path=str(tmp_path))
+    backend.add_documents_batch([{'content': 'Original cedar evidence.'}])
+    error = ValueError('private-provider-detail')
+    calls = 0
+    def embed(texts):
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            raise error
+        return [[1., 0., 1., .5]]
+    monkeypatch.setattr(backend, '_batch_embed', embed)
+    with pytest.raises(ValueError) as caught:
+        backend.add_documents_batch([{'content': 'one'}, {'content': 'two'}], batch_size=1)
+    assert caught.value is error
+    reopened = LanceDBBackend('error_identity', None, persist_path=str(tmp_path))
+    assert reopened.count() == 1
+    assert reopened.search_fts('cedar')[0]['content'] == 'Original cedar evidence.'
+    output = capfd.readouterr()
+    assert 'private-provider-detail' not in output.out + output.err
+
+
 def test_late_incomplete_batch_keeps_existing_table(tmp_path, monkeypatch):
     backend = LanceDBBackend('integrity', DummyEmbedder(), vector_size=4, persist_path=str(tmp_path))
     backend.add_documents_batch([{'content': 'Original cedar evidence.'}])
