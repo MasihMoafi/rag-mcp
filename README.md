@@ -381,8 +381,8 @@ set it, it does nothing useful.
 
 ### Readiness audit — 2026-09-13
 
-At `e72c61f`, the selected offline/local regression suite passes 475 tests in
-46.65 seconds, with 407 existing LanceDB deprecation warnings and no expected
+At `78fc817`, the selected offline/local regression suite passes 490 tests in
+46.52 seconds, with 476 existing LanceDB deprecation warnings and no expected
 failures. This verifies the
 covered extraction/citation, API response handling, scope, cache, CLI/MCP and
 LanceDB lifecycle cases—not universal production readiness. API tests use an
@@ -402,8 +402,8 @@ exceptions rather than expect an empty string or list on failure.
 Managed indexes use parser stamp 7 and rebuild older generations on next use;
 API-backed indexes can incur re-embedding costs. Failed rebuilds preserve the
 previous generation but do not silently serve its incomplete results. The complete
-unit suite at `b161135` passes 326 tests; this is separate from the older combined
-regression run above and does not certify OCR model quality.
+unit suite is included in the combined regression run above, alongside the parser
+failure and legacy-index migration checks; this does not certify OCR model quality.
 
 - CLI/MCP and direct-engine refreshes now share isolated generation builds and publish
   an atomic pointer only after storage, metadata and the source manifest succeed.
