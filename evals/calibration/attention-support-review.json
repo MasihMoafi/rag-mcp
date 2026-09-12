@@ -1,6 +1,20 @@
 {
   "purpose": "Five non-random grading calibration cases, not a retrieval benchmark score.",
   "reviewer": "assistant; not independently reviewed",
+  "full_suite_depth_and_reranker_replay": {
+    "depth_report": "/tmp/rag-paper-full-depth.jsonl",
+    "reranker_report": "/tmp/rag-paper-rerank-replay.jsonl",
+    "queries": 30,
+    "method": "Reuse public index; batch all query embeddings once, preserve vectors and complete keyword/vector rankings. Replay RRF at candidate depths 5/20/76. Separately score all 76 passages per query using cached ms-marco-MiniLM-L-6-v2 on CUDA, then restrict candidates to depth 5/20/40/76 per retrieval branch. Five final passages throughout.",
+    "rrf_literal_containment": {"5": 10, "20": 11, "76": 11},
+    "reranked_literal_containment": {"5": 11, "20": 11, "40": 11, "76": 11},
+    "rrf_changed_literal_queries_5_to_20": [24],
+    "calibration": "Known supporting chunks remain in the final five for autoregression, label smoothing, attention scaling and sinusoidal preference in both RRF depths and all reranking depths. Interpretability chunk39 remains absent even after reranking the full corpus. F1 chunk52 reaches rank5 with RRF depth20 or with reranking depth5.",
+    "limits": "Literal containment is not a semantic score; other changed passages still need support review. Reranker replay scores the entire small corpus before filtering, so its timings are not production candidate-limited latency. No default change justified yet.",
+    "new_provider_reported_cost_usd": 0.00000606,
+    "cumulative_provider_reported_cost_usd": 0.00024851,
+    "reranker_api_cost_usd": 0
+  },
   "api_700_followup": {
     "report": "/tmp/rag-api-paper-evidence.json",
     "model": "qwen/qwen3-embedding-8b via OpenRouter",
