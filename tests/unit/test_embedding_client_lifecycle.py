@@ -12,6 +12,27 @@ from rag import core
 from rag import index_lifecycle
 
 
+def test_closed_pipeline_does_not_retain_reranking_models():
+    import weakref
+
+    class Model:
+        pass
+
+    pipeline = RAGPipeline.__new__(RAGPipeline)
+    pipeline._queries = QueryLifecycle()
+    pipeline.backend_type = 'lancedb'
+    pipeline.embedding_fn = None
+    references = []
+    for name in ('reranker', 'reranker_model', 'reranker_tokenizer'):
+        model = Model()
+        references.append(weakref.ref(model))
+        setattr(pipeline, name, model)
+    del model
+    assert all(reference() is not None for reference in references)
+    pipeline.close()
+    assert all(reference() is None for reference in references)
+
+
 @pytest.mark.parametrize('startup_fails', [False, True])
 @pytest.mark.parametrize('injected', [False, True])
 def test_contextual_client_ownership(monkeypatch, tmp_path, startup_fails, injected):

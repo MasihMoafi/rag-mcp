@@ -163,6 +163,8 @@ class RAGPipeline:
                 contextualizer = getattr(self, '_owned_contextualizer', None)
                 if contextualizer is not None:
                     contextualizer.close()
+        for name in ('reranker', 'reranker_model', 'reranker_tokenizer'):
+            setattr(self, name, None)
 
     def _search(self, query: str) -> list[dict] | str:
         """Return ranked passages from the configured local retrieval pipeline."""
