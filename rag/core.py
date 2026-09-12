@@ -163,7 +163,8 @@ class RAGPipeline:
                 contextualizer = getattr(self, '_owned_contextualizer', None)
                 if contextualizer is not None:
                     contextualizer.close()
-        for name in ('reranker', 'reranker_model', 'reranker_tokenizer'):
+        for name in ('reranker', 'reranker_model', 'reranker_tokenizer',
+                     'embedding_fn', 'vector_db', 'bm25_index'):
             setattr(self, name, None)
 
     def _search(self, query: str) -> list[dict] | str:
