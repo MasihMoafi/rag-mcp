@@ -425,6 +425,10 @@ matches while mean retrieved text grew from 2,941 to 6,432 characters. A manuall
 inspected "miss" already had the correct explanation ranked first. This is not
 evidence of poor semantic recall or a reason to change the default chunk size;
 support-based relevance judgments are still needed.
+The [five-case calibration review](evals/calibration/attention-support-review.json)
+records four confirmed containment false negatives and one missing-to-partial
+support change hidden by the unchanged diagnostic. It is deliberately selected,
+assistant-reviewed evidence, not an overall retrieval-quality score.
 
 ### Implemented and verified
 
