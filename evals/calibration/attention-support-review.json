@@ -1,6 +1,25 @@
 {
   "purpose": "Five non-random grading calibration cases, not a retrieval benchmark score.",
   "reviewer": "assistant; not independently reviewed",
+  "caption_boundaries_integrated_result": {
+    "revision": "d85153c",
+    "report": "/tmp/rag-caption-integrated-eval.jsonl",
+    "method": "Same public PDF/30 questions, model, cached unprefixed query vectors, candidate20/final5 and actual MiniLM reranker. Re-embed changed document chunks into isolated temporary storage. Caption-aware parsing/chunking is the experimental variable.",
+    "chunks_before_after": [76,79],
+    "support_counts_before": {"full":24,"partial":4,"missing":2},
+    "support_counts_after": {"full":26,"partial":3,"missing":1},
+    "gains": [
+      {"index":1,"before":"partial","after":"full","rank":1,"note":"Explicit joint-subspace/position explanation now intact."},
+      {"index":26,"before":"missing","after":"full","rank":1,"note":"Figure4 caption explicitly identifies anaphora resolution. Grade the asked phenomenon; caption references 'its' but does not independently explain both antecedent alternatives in the reference parenthesis."}
+    ],
+    "preservation_check": "For23 previously full cases, all entire previously cited supporting passages occur in new returned evidence after whitespace normalization. The remaining full case24 was manually rechecked: Table4's semi-supervised Transformer92.7 is now rank1. Thus no prior full case lost support under this rubric.",
+    "remaining": "Indices0/21/27 remain partial;7 remains missing. Source BLEU inconsistency persists.",
+    "returned_character_ratio":0.96914,
+    "literal_containment_before_after":[11,11],
+    "provider_reported_cost_usd":0.00011664,
+    "cumulative_provider_reported_cost_usd":0.00037691,
+    "verification":"295 unit/citation/generation/refresh regressions pass. One public-document benchmark, manual non-blind grading; not a broad production guarantee or inference-throughput comparison."
+  },
   "caption_dilution_diagnostic": {
     "report": "/tmp/rag-caption-diagnostic.json",
     "query_index": 26,
