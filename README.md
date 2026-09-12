@@ -381,7 +381,7 @@ set it, it does nothing useful.
 
 ### Readiness audit — 2026-09-13
 
-At `cc89442`, the selected offline/local regression suite passes 395 tests, without expected
+At `0a32900`, the selected offline/local regression suite passes 418 tests, without expected
 failures. This verifies the
 covered extraction/citation, API response handling, scope, cache, CLI/MCP and
 LanceDB lifecycle cases—not universal production readiness. API tests use an
@@ -409,8 +409,15 @@ Remaining gates:
   already-started initialization. Direct constructors/other processes do not
   share this cache. Abrupt process exit immediately before/after publication
   leaves the old/new index searchable without reindexing on both backends.
-  Other crash points and power-loss durability remain unverified.
+  Process exit after a storage batch also preserves the previously published index.
+  POSIX metadata publication now synchronizes the parent directory after rename;
+  failures are surfaced and published evidence is retained. Other crash points
+  and full database power-loss durability remain unverified.
   Old generations are retained; bounded retention is unfinished.
+- Qwen reranking uses the selected compute device, requests only final-token logits,
+  and disables unused attention caching. Tiny real-Qwen CPU tests preserve scores;
+  pretrained-model memory/throughput and Apple hardware remain unverified. Its
+  fixed character cutoff and unbounded candidate batching remain limitations.
 - Realistic retrieval-quality evaluation of the current hybrid/API path, including
   larger private corpora; the new HTML reader currently has fixture-level coverage.
 - The c6dad47 source distribution and wheel built offline and installed into a
@@ -444,15 +451,19 @@ provider-reported embedding spend was $0.00037691, not an independent billing au
   formats and structured extraction for DOCX, PPTX, XLSX, and CSV files.
 - End-to-end registration was exercised through a real MCP client during development.
 
-### Implemented but not yet covered by the current tests
+### Provider verification limits
 
-- The Ollama embedding-provider adapter in `rag/embeddings.py`.
-- The `openai_compatible` embedding provider: client construction is verified, a real
-  call against a paid provider is not.
+- Ollama and other provider/model combinations are not covered by the readiness
+  suite above; do not extrapolate the OpenRouter result to every provider.
+- The `openai_compatible` path has real OpenRouter embedding evidence as described
+  above. Rate-limit, authentication and server-error recovery tests use simulated
+  HTTP responses; they do not establish a live provider's availability or latency.
 
 ### Planned
 
-Nothing is formally tracked yet. Extend it when a concrete retrieval failure or client requirement appears.
+The remaining readiness gates above track unfinished reliability and retrieval
+work. Per-question evidence and unresolved retrieval failures are recorded in
+`evals/calibration/`; passing one document's evaluation is not a release guarantee.
 
 ### Intentionally unsupported
 
@@ -464,7 +475,10 @@ Nothing is formally tracked yet. Extend it when a concrete retrieval failure or 
 
 These are design choices, not novelty claims:
 
-- **Local retrieval:** source files, embeddings, vector search, and reranking stay on the machine.
+- **Local storage and search:** source files and vector indexes stay on the machine.
+  Local embedding models keep passage processing local; API embedding providers
+  send passage and query text to the configured endpoint. Optional API contextual
+  enrichment also sends text externally. Choose providers accordingly for private data.
 - **Small transport layer:** the MCP host uses direct stdio JSON-RPC rather than depending on an MCP SDK.
 - **Per-call scope:** one server can search different files/directories instead of requiring one fixed knowledge base per project.
 - **Evidence in the response:** returned chunks include source paths rather than only synthesized prose.
