@@ -77,9 +77,16 @@ def reset_pipelines() -> None:
     """Drain cached pipelines and release storage before forgetting them."""
     with _scope_locks_guard:
         keys = set(_rag_system_v2_instances) | set(_scope_locks)
+    first_error = None
     for key in keys:
-        with _scope_lock(key):
-            _retire_cached_pipeline(key)
+        try:
+            with _scope_lock(key):
+                _retire_cached_pipeline(key)
+        except Exception as error:
+            if first_error is None:
+                first_error = error
+    if first_error is not None:
+        raise first_error
 
 def index_root() -> str:
     """Where indexes live: RAG_MCP_DATA_DIR, else the XDG data dir. Never inside the package."""
