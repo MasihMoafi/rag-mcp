@@ -1,6 +1,7 @@
 """Path resolution and file discovery, without loading retrieval models."""
 
 import os
+import stat
 from typing import Optional
 
 from .formats import INDEXABLE_EXTENSIONS as _INDEXABLE_EXTENSIONS
@@ -68,15 +69,13 @@ def find_all_indexable_files(
                 continue
 
             entry_path = os.path.join(path, entry)
-            # Folder selection does not authorize following linked targets.
-            if os.path.islink(entry_path):
-                continue
-
             # Apply exclude patterns
             if exclude_patterns and matches_pattern(entry_path, exclude_patterns):
                 continue
 
-            if os.path.isfile(entry_path):
+            # Read once without following links; metadata errors must not hide entries.
+            mode = os.lstat(entry_path).st_mode
+            if stat.S_ISREG(mode):
                 if excluded_paths and os.path.realpath(entry_path) in excluded_paths:
                     continue
                 if entry.lower().endswith(_INDEXABLE_EXTENSIONS):
@@ -89,7 +88,7 @@ def find_all_indexable_files(
 
                     if max_files and len(all_files) >= max_files:
                         return
-            elif os.path.isdir(entry_path):
+            elif stat.S_ISDIR(mode):
                 walk_dir(entry_path, depth + 1)
 
     print(f"[RAG] Scanning: {directory}")
