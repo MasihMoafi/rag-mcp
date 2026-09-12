@@ -112,5 +112,19 @@
     "answer_rank_after": 4,
     "limits": "Single-case oracle-context diagnostic after observing failure. No automatic heading extractor, no generalization or whole-suite quality claim. Source-derived label contains no hometown answer; other affected queries not evaluated. No runtime changes or paid calls."
   },
-  "next": "Source section identity recovers this answer in an oracle diagnostic. Evaluate automatic section identification and unrelated-query regressions before any production change."
+  "automatic_section_context_probe": {
+    "harness": "/tmp/rag-auto-section-probe.py",
+    "report": "/tmp/rag-auto-section-repeated.json",
+    "command": ".venv/bin/python /tmp/rag-auto-section-probe.py --repeated-titles",
+    "method": "Detect uppercase PDF source-line titles and optional adjacent source/date, map all occurrences, prepend only to wholly contained chunks. Existing 30 queries, lexical retrieval, unchanged 1147 chunks and final5; no query-driven assignment.",
+    "initial_failure": "Unique-only title matching excluded body titles also present in the contents and propagated an unrelated contents heading across pages. Preserved in /tmp/rag-auto-section-probe.json. Do not use this variant.",
+    "detected_heading_positions": 543,
+    "contextualized_chunks": 969,
+    "answer_rank_before": "outside final5",
+    "answer_rank_after": 4,
+    "verification": "All30 fresh baseline top5 ID lists match prior depth100 baseline. All300 returned original passages match source chunks. Automatically assigned correct title/date to148–150 and excluded cross-section147/151.",
+    "changed_query_indices": [1, 2, 4, 5, 6, 7, 9, 11, 13, 14, 17, 20, 21, 23, 24, 25, 26, 27, 28],
+    "limits": "Post-hoc heuristic on one book, not a general parser. Nineteen top5 lists changed; their collateral relevance has not been regraded. Heading correctness not exhaustively reviewed. No runtime changes, paid calls or general quality claim. Harness evolved after initial failed variant; current fingerprint is recorded in repeated-title report."
+  },
+  "next": "Automatic source context recovers the targeted answer, but review all19 changed query result sets and heading-boundary errors before any runtime adoption."
 }
