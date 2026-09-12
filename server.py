@@ -157,25 +157,30 @@ def _apply_settings(arguments: dict[str, Any]) -> dict[str, Any]:
     from rag.cli import _config_command, _probe_embedding
     import argparse
     import io
+    import tempfile
 
     changed = []
-    with contextlib.redirect_stdout(sys.stderr):
+    with tempfile.TemporaryDirectory(prefix="rag-settings-") as temporary, contextlib.redirect_stdout(sys.stderr):
+        staged_environ = dict(os.environ, RAG_MCP_CONFIG=str(Path(temporary) / "config.json"))
+        user_settings.save_settings(user_settings.load_settings(), staged_environ)
         for name, setting in (("top", "top"), ("reranker", "reranker"), ("contextual_retrieval", "contextual")):
             if name in arguments:
                 args = argparse.Namespace(setting=setting, value=str(arguments[name]), provider=None, no_verify=True)
-                code = _config_command(args, stdout=io.StringIO(), stderr=(err := io.StringIO()), environ=os.environ, verify=None)
+                code = _config_command(args, stdout=io.StringIO(), stderr=(err := io.StringIO()), environ=staged_environ, verify=None)
                 if code != 0:
                     return {"error": err.getvalue().strip()}
                 changed.append(name)
         if "embedding_model" in arguments or arguments.get("embedding_provider") == "none":
             if arguments.get("embedding_provider") == "none":
-                user_settings.update_settings({"embed_provider": "none", "embed_model": ""})
+                user_settings.update_settings({"embed_provider": "none", "embed_model": ""}, staged_environ)
             else:
                 args = argparse.Namespace(setting="embedding", value=str(arguments["embedding_model"]), provider=arguments.get("embedding_provider"), no_verify=False)
-                code = _config_command(args, stdout=io.StringIO(), stderr=(err := io.StringIO()), environ=os.environ, verify=_probe_embedding)
+                code = _config_command(args, stdout=io.StringIO(), stderr=(err := io.StringIO()), environ=staged_environ, verify=_probe_embedding)
                 if code != 0:
                     return {"error": err.getvalue().strip()}
             changed.append("embedding")
+        if changed:
+            user_settings.save_settings(user_settings.load_settings(staged_environ))
     if not changed:
         return {"error": "Nothing to change: pass top, reranker, contextual_retrieval, embedding_model or embedding_provider."}
     try:
