@@ -7,6 +7,26 @@ import pytest
 from rag import fetch
 
 
+def test_reset_attempts_other_pipelines_after_close_failure(monkeypatch):
+    calls = []
+    failure = RuntimeError('first close failed')
+
+    def close():
+        calls.append(True)
+        if len(calls) == 1:
+            raise failure
+
+    cache = {name: SimpleNamespace(close=close) for name in ('first', 'second')}
+    monkeypatch.setattr(fetch, '_rag_system_v2_instances', cache)
+    with pytest.raises(RuntimeError) as caught:
+        fetch.reset_pipelines()
+    assert caught.value is failure
+    assert len(calls) == 2
+    assert len(cache) == 1
+    fetch.reset_pipelines()
+    assert not cache
+
+
 @pytest.fixture
 def sources(tmp_path, monkeypatch):
     monkeypatch.setenv('RAG_MCP_DATA_DIR', str(tmp_path / 'index'))
