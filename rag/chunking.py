@@ -82,6 +82,7 @@ def _split_markdown_sections(text: str) -> List[Tuple[str, str]]:
     sections: List[Tuple[str, str]] = []
     stack: List[Tuple[int, str]] = []
     current_lines: List[str] = []
+    fence = ""
 
     def flush():
         if current_lines:
@@ -91,6 +92,16 @@ def _split_markdown_sections(text: str) -> List[Tuple[str, str]]:
                 sections.append((breadcrumb, body))
 
     for line in text.split("\n"):
+        marker = re.match(r"^ {0,3}(`{3,}|~{3,})(.*)$", line)
+        if fence:
+            current_lines.append(line)
+            if marker and marker[1][0] == fence[0] and len(marker[1]) >= len(fence) and not marker[2].strip():
+                fence = ""
+            continue
+        if marker and (marker[1][0] == "~" or "`" not in marker[2]):
+            fence = marker[1]
+            current_lines.append(line)
+            continue
         match = _HEADING_RE.match(line)
         if match:
             flush()

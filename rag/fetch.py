@@ -131,6 +131,7 @@ def get_rag_pipeline_v2(doc_path: Optional[str | list[str]] = None):
             "parsing_version": 4,  # Expand PDF Latin ligatures; retain source page/cell citation ranges.
             "storage": {name: config[name] for name in ("backend", "distance_metric")},
             "chunking": {
+                "version": 2,  # Fenced Markdown code does not create section headings.
                 "size": config["chunk_size"],
                 "overlap": config["chunk_overlap"],
             },

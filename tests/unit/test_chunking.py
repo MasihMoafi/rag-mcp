@@ -6,6 +6,27 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from rag.core import chunk_document, chunk_text
 
 
+def test_markdown_code_fences_do_not_create_fake_headings():
+    text = '# Guide\n\n```python\n# a code comment\nprint(1)\n```\n\n## Usage\nRun it.'
+    chunks = chunk_document(text, file_path='guide.md')
+    assert [chunk['heading'] for chunk in chunks] == ['Guide', 'Guide > Usage']
+    assert '# a code comment\nprint(1)' in chunks[0]['content']
+    assert all(chunk['content'] in text for chunk in chunks)
+
+
+def test_long_tilde_fence_is_not_closed_by_shorter_fence():
+    text = '# Guide\n~~~~text\n## example\n~~~\n## still example\n~~~~\n## Real\nEnd.'
+    chunks = chunk_document(text, file_path='guide.md')
+    assert [chunk['heading'] for chunk in chunks] == ['Guide', 'Guide > Real']
+
+
+def test_unclosed_and_mismatched_fences_keep_examples_inside_section():
+    for false_close in ['~~~', '```not a closing fence', '``']:
+        text = '# Guide\n```python\n# comment\n' + false_close + '\n## still code'
+        chunks = chunk_document(text, file_path='guide.md')
+        assert chunks == [{'content': text, 'heading': 'Guide'}]
+
+
 def test_markdown_headings_become_breadcrumbs():
     text = (
         "# Title\n\nIntro paragraph that is long enough to survive the fifty "
