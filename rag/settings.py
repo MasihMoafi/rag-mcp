@@ -9,10 +9,10 @@ from __future__ import annotations
 
 import json
 import os
-import stat
 from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import Any, TextIO
+from utils.persistence import write_json_atomic
 
 # Every choice the interactive chooser offers, in display order.
 # Defaults for explicit command-line provider flags; interactive choices use discovery.
@@ -90,8 +90,7 @@ def load_settings(environ: Mapping[str, str] | None = None) -> dict[str, Any]:
 def save_settings(settings: Mapping[str, Any], environ: Mapping[str, str] | None = None) -> Path:
     path = config_path(environ)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(dict(settings), indent=2) + "\n", encoding="utf-8")
-    path.chmod(stat.S_IRUSR | stat.S_IWUSR)
+    write_json_atomic(path, dict(settings))
     return path
 
 
