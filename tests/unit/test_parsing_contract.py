@@ -58,7 +58,8 @@ def test_named_notebook_reader_preserves_keyword_call(pipeline, tmp_path):
 
 
 def test_pdf_keyword_call_keeps_missing_file_contract(pipeline, tmp_path):
-    assert pipeline._extract_text_from_pdf(pdf_path=str(tmp_path / 'missing.pdf')) == ''
+    with pytest.raises(fitz.FileNotFoundError):
+        pipeline._extract_text_from_pdf(pdf_path=str(tmp_path / 'missing.pdf'))
 
 
 def test_notebook_sources_ignore_outputs_and_preserve_cell_separators(pipeline, tmp_path):
@@ -101,7 +102,8 @@ def test_pdf_document_is_closed_when_page_extraction_fails(monkeypatch):
         def close(self):
             closed.append(True)
     monkeypatch.setattr(pdf.fitz, 'open', lambda _: BrokenDocument())
-    assert pdf.extract_pdf_text('damaged.pdf') == ''
+    with pytest.raises(RuntimeError, match='damaged page'):
+        pdf.extract_pdf_text('damaged.pdf')
     assert closed == [True]
 
 
@@ -115,9 +117,18 @@ def test_pdf_dispatch_preserves_overrides_and_fallback(pipeline, text, expected_
     assert pipeline._extract_text_with_unstructured.call_count == expected_calls
 
 
-def test_missing_pdf_returns_empty(pipeline, tmp_path, capsys):
-    assert pipeline._extract_text_from_pdf(str(tmp_path / "missing.pdf")) == ""
-    assert "Error extracting text" in capsys.readouterr().out
+@pytest.mark.parametrize('fallback', ['', '   ', 'recovered text'])
+def test_pdf_failure_requires_nonempty_fallback(pipeline, fallback):
+    error = RuntimeError('damaged page')
+    pipeline._extract_text_from_pdf = Mock(side_effect=error)
+    pipeline._extract_text_with_unstructured = Mock(return_value=fallback)
+    if fallback.strip():
+        assert pipeline._extract_content('damaged.pdf') == fallback
+    else:
+        with pytest.raises(RuntimeError) as caught:
+            pipeline._extract_content('damaged.pdf')
+        assert caught.value is error
+    pipeline._extract_text_with_unstructured.assert_called_once_with('damaged.pdf')
 
 
 def test_image_ocr_short_circuits_fallback(pipeline, monkeypatch):
