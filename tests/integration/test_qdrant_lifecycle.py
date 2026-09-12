@@ -31,7 +31,8 @@ def test_failed_collection_initialization_releases_storage_lock(tmp_path, monkey
         reopened.client.close()
 
 
-def test_pipeline_reset_releases_storage_even_with_external_pipeline_reference(tmp_path, monkeypatch):
+@pytest.mark.parametrize('change', ['reset', 'settings'])
+def test_pipeline_replacement_releases_storage_even_with_external_reference(tmp_path, monkeypatch, change):
     monkeypatch.setenv('RAG_MCP_DATA_DIR', str(tmp_path / 'index'))
     monkeypatch.setenv('RAG_MCP_CONFIG', str(tmp_path / 'config.json'))
     monkeypatch.setenv('RAG_MCP_EMBED_PROVIDER', 'none')
@@ -44,7 +45,13 @@ def test_pipeline_reset_releases_storage_even_with_external_pipeline_reference(t
     source.write_text('Cedar evidence')
     previous = fetch.get_rag_pipeline_v2(str(source))
     try:
-        fetch.reset_pipelines()
+        def unexpected_reindex(*args, **kwargs):
+            pytest.fail('Reset or ranking-only changes must not re-embed documents')
+        monkeypatch.setattr(QdrantVectorDB, 'add_documents_batch', unexpected_reindex)
+        if change == 'reset':
+            fetch.reset_pipelines()
+        else:
+            monkeypatch.setitem(fetch.RAG_CONFIG_V2, 'rrf_k', 12)
         reopened = fetch.get_rag_pipeline_v2(str(source))
         try:
             assert reopened is not previous

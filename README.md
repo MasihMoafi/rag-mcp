@@ -381,7 +381,7 @@ set it, it does nothing useful.
 
 ### Readiness audit — 2026-09-12
 
-The selected offline/local regression suite passes 349 tests, without expected
+The selected offline/local regression suite passes 353 tests, without expected
 failures. This verifies the
 covered extraction/citation, API response handling, scope, cache, CLI/MCP and
 LanceDB lifecycle cases—not universal production readiness. API tests use an
@@ -400,8 +400,11 @@ Remaining gates:
   Source revisions are rechecked before publication; detected edits/deletions/additions
   reject the build. This metadata check is not an immutable content snapshot.
   Cache reset drains active searches before closing storage; Qdrant reopen and
-  parallel-query draining tests pass. Cache creation/settings-replacement races
-  and crash/power-loss durability remain unverified.
+  parallel-query draining tests pass. In-process same-scope initialization is
+  serialized, independent scopes can initialize together, and ranking-only
+  replacement reopens Qdrant without document re-embedding. Reset waits for
+  already-started initialization. Direct constructors/other processes do not
+  share this cache; crash/power-loss durability remains unverified.
   Old generations are retained; bounded retention is unfinished.
 - Realistic retrieval-quality evaluation of the current hybrid/API path, including
   larger private corpora; the new HTML reader currently has fixture-level coverage.
