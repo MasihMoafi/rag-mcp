@@ -3094,6 +3094,7 @@ version = "0.2.0"
 source = { editable = "." }
 dependencies = [
     { name = "fastembed" },
+    { name = "filelock" },
     { name = "lancedb" },
     { name = "openai" },
     { name = "pyarrow" },
@@ -3148,6 +3149,7 @@ dev = [
 requires-dist = [
     { name = "anthropic", marker = "extra == 'anthropic'", specifier = ">=0.40.0" },
     { name = "fastembed", specifier = ">=0.4" },
+    { name = "filelock", specifier = ">=3.13" },
     { name = "lancedb", specifier = ">=0.17.0" },
     { name = "openai", specifier = ">=1.0" },
     { name = "pdf2image", marker = "extra == 'ocr'", specifier = ">=1.17.0" },

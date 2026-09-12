@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 import shutil
 import tempfile
+from filelock import FileLock
 
 from utils.persistence import write_json_atomic
 
@@ -45,7 +46,10 @@ def open_or_build(config, build):
         if 'source_stamp' in config:
             write_json_atomic(pending / 'source-manifest.json', config['source_stamp'])
         # Storage and metadata must succeed before this generation becomes active.
-        write_json_atomic(root / 'active-index.json', pending.name)
+        with FileLock(str(root / '.publication.lock'), timeout=30):
+            if active_directory(root) != active:
+                raise RuntimeError('Index changed during another refresh; retry the query.')
+            write_json_atomic(root / 'active-index.json', pending.name)
         return instance
     except Exception:
         if instance is not None and instance.config.get('backend', 'lancedb') == 'qdrant':

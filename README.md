@@ -381,7 +381,7 @@ set it, it does nothing useful.
 
 ### Readiness audit — 2026-09-12
 
-The selected offline/local regression suite passes 338 tests, without expected
+The selected offline/local regression suite passes 340 tests, without expected
 failures. This verifies the
 covered extraction/citation, API response handling, scope, cache, CLI/MCP and
 LanceDB lifecycle cases—not universal production readiness. API tests use an
@@ -394,8 +394,11 @@ Remaining gates:
   Both backends preserve the old searchable generation after injected embedding,
   metadata, manifest and pointer-publication failures, including reopen and retry.
   Corrupt-metadata recovery also stages a replacement; injected recovery failures
-  preserve the previous stored evidence. Concurrent writer ordering and crash/power-loss durability
-  remain unverified. Old generations are retained; bounded retention is unfinished.
+  preserve the previous stored evidence. Overlapping publication is guarded by a
+  short file lock and generation check: a losing refresh raises a retry error
+  instead of overwriting the winner (thread and spawned-process tests pass).
+  Cache/client concurrency and crash/power-loss durability remain unverified.
+  Old generations are retained; bounded retention is unfinished.
 - Realistic retrieval-quality evaluation of the current hybrid/API path, including
   larger private corpora; the new HTML reader currently has fixture-level coverage.
 - Fresh installation and GPU throughput checks on this revision. Optional
