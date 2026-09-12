@@ -7,6 +7,44 @@ import pytest
 from rag.embeddings import OpenAICompatibleWrapper
 
 
+@pytest.mark.parametrize('operation,count', [('batch', 511), ('batch', 513), ('query', 0), ('query', 2)])
+def test_ollama_rejects_wrong_count_before_more_requests(operation, count):
+    from unittest.mock import Mock
+    from rag.embeddings import DirectOllamaGPUWrapper
+
+    wrapper = DirectOllamaGPUWrapper('fixture', 'http://localhost:11434')
+    wrapper._requests = Mock()
+    wrapper._requests.post.return_value = Mock(status_code=200)
+    wrapper._requests.post.return_value.json.return_value = {'embeddings': [[1., 0.]] * count}
+    wrapper._verify_gpu = Mock()
+    with pytest.raises(ValueError, match='embedding count'):
+        if operation == 'batch':
+            wrapper.embed_documents(['document'] * 513)
+        else:
+            wrapper.embed_query('question')
+    assert wrapper._requests.post.call_count == 1
+    wrapper._verify_gpu.assert_not_called()
+
+
+def test_ollama_valid_batches_preserve_vectors_and_timeouts():
+    from unittest.mock import Mock
+    from rag.embeddings import DirectOllamaGPUWrapper
+
+    wrapper = DirectOllamaGPUWrapper('fixture', 'http://localhost:11434')
+    wrapper._requests = Mock()
+    def respond(url, *, json, timeout):
+        vectors = [[float(text), 1.] for text in json['input']]
+        return SimpleNamespace(status_code=200, json=lambda: {'embeddings': vectors})
+    wrapper._requests.post.side_effect = respond
+    wrapper._verify_gpu = Mock()
+    assert wrapper.embed_documents([str(i) for i in range(513)]) == [[float(i), 1.] for i in range(513)]
+    assert wrapper.embed_query('514') == [514., 1.]
+    calls = wrapper._requests.post.call_args_list
+    assert [len(call.kwargs['json']['input']) for call in calls] == [512, 1, 1]
+    assert [call.kwargs['timeout'] for call in calls] == [180, 180, 60]
+    assert wrapper._verify_gpu.call_count == 2
+
+
 def wrapper_with_response(monkeypatch, items):
     wrapper = OpenAICompatibleWrapper.__new__(OpenAICompatibleWrapper)
     monkeypatch.setattr(wrapper, "_create_with_retry", lambda texts: SimpleNamespace(data=items))

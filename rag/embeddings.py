@@ -111,7 +111,10 @@ class DirectOllamaGPUWrapper:
             )
             if resp.status_code != 200:
                 raise RuntimeError(f"Ollama embedding failed ({resp.status_code}).")
-            all_embeddings.extend(resp.json().get("embeddings", []))
+            embeddings = resp.json().get("embeddings", [])
+            if len(embeddings) != len(batch):
+                raise ValueError("Ollama embedding count does not match input count.")
+            all_embeddings.extend(embeddings)
         self._verify_gpu()
         return all_embeddings
 
@@ -124,8 +127,10 @@ class DirectOllamaGPUWrapper:
         if resp.status_code != 200:
             raise RuntimeError(f"Ollama query embedding failed ({resp.status_code}).")
         embeddings = resp.json().get("embeddings", [])
+        if len(embeddings) != 1:
+            raise ValueError("Ollama embedding count does not match input count.")
         self._verify_gpu()
-        return embeddings[0] if embeddings else []
+        return embeddings[0]
 
 
 class OpenAICompatibleWrapper:
