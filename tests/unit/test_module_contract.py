@@ -100,5 +100,6 @@ def test_database_dispatch_preserves_instance_overrides(tmp_path):
     pipeline._index_documents.assert_not_called()
     pipeline.config["force_reindex"] = True
     pipeline.vector_db.clear.side_effect = RuntimeError("clear failed")
-    pipeline._load_or_create_database()
-    pipeline._index_documents.assert_called_once_with()
+    with pytest.raises(RuntimeError, match="clear failed"):
+        pipeline._load_or_create_database()
+    pipeline._index_documents.assert_not_called()
