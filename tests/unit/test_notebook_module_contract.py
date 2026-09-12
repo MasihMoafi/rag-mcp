@@ -33,6 +33,17 @@ def test_extracted_text_preserves_empty_cell_positions(tmp_path):
     assert extract_notebook_text(str(path)) == '\fFirst evidence\f\fsecond = 42'
 
 
+def test_notebook_requires_explicit_cell_list(tmp_path):
+    import pytest
+    path = tmp_path / 'invalid.ipynb'
+    for value in ({}, {'cells': None}, {'cells': {}}, {'cells': 'text'}, []):
+        path.write_text(json.dumps(value))
+        with pytest.raises(ValueError, match='cells'):
+            notebook_chunker.extract_cells_from_notebook(str(path))
+    path.write_text('{"cells": []}')
+    assert notebook_chunker.extract_cells_from_notebook(str(path)) == []
+
+
 def test_unreadable_notebook_raises(tmp_path):
     import pytest
     with pytest.raises(FileNotFoundError):
