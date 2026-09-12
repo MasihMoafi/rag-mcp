@@ -434,8 +434,13 @@ failure and legacy-index migration checks; this does not certify OCR model quali
   On-disk generations are retained; bounded disk retention is unfinished.
 - Qwen reranking uses the selected compute device, requests only final-token logits,
   and disables unused attention caching. Tiny real-Qwen CPU tests preserve scores;
-  pretrained-model memory/throughput and Apple hardware remain unverified. Its
-  fixed character cutoff and unbounded candidate batching remain limitations.
+  pretrained-model memory/throughput and Apple hardware remain unverified. Inputs
+  now use an 8192-token budget including the scoring prompt, following the
+  [Qwen reference example](https://huggingface.co/Qwen/Qwen3-Reranker-0.6B), instead
+  of discarding passage text after 1000 characters. Cached-tokenizer tests cover
+  longer passages and oversized queries; they do not prove ranking quality.
+  Long queries can exhaust the passage budget, and candidate batching remains
+  unbounded. Longer inputs can increase inference memory and latency.
 - Realistic retrieval-quality evaluation of the current hybrid/API path, including
   larger private corpora; the new HTML reader currently has fixture-level coverage.
 - The f4fcbc3 source distribution and wheel built offline and installed into a
