@@ -1,6 +1,21 @@
 {
   "purpose": "Five non-random grading calibration cases, not a retrieval benchmark score.",
   "reviewer": "assistant; not independently reviewed",
+  "repeated_resource_diagnostic_2026_09_13": {
+    "revision": "31b0d5e",
+    "report": "/tmp/rag-31b0d5e-memory.jsonl",
+    "harness": "/tmp/rag-c90ad3d-replay.py",
+    "command": ".venv/bin/python /tmp/rag-c90ad3d-replay.py --rounds 10 --output /tmp/rag-31b0d5e-memory.jsonl",
+    "searches": 300,
+    "changed_evidence_results": 0,
+    "elapsed_seconds": 24.286912431001838,
+    "round_end_cuda_allocated_bytes": 100295680,
+    "round_end_cuda_reserved_bytes": 411041792,
+    "first_last_round_rss_bytes": [1357524992, 1382371328],
+    "after_close_cuda_allocated_bytes": 100295680,
+    "new_api_spend_usd": 0,
+    "conclusion": "GPU allocated/reserved memory was constant at round boundaries; RSS fluctuated and ended about 25 MB higher. Close did not immediately release the model-sized CUDA allocation. No forced garbage collection was used. Investigate cleanup/cycles before claiming deterministic release; this short sequential single-index run does not establish sustained or concurrent production readiness."
+  },
   "cached_runtime_replay_2026_09_13": {
     "revision": "c90ad3d",
     "report": "/tmp/rag-c90ad3d-replay.jsonl",
