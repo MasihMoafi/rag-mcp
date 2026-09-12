@@ -120,3 +120,17 @@ def test_failed_fts_build_does_not_commit_manifest_and_is_retried(tmp_path, loca
     monkeypatch.setattr(table_type, "create_fts_index", original_build)
     assert local_search(document)[0]["content"] == "Meeting: Monday."
     assert manifest.read_bytes() != original_manifest
+
+
+@pytest.mark.parametrize('corruption', ['[truncated', '{}', '[{}]', '[]'])
+def test_invalid_metadata_rebuilds_from_sources(tmp_path, local_search, corruption):
+    import json
+    document = tmp_path / 'note.txt'
+    document.write_text('Meeting: Friday.')
+    assert local_search(document)
+    metadata = next((tmp_path / 'index').rglob('docs.json'))
+    metadata.write_text(corruption)
+    fetch.reset_pipelines()
+    assert local_search(document)[0]['content'] == 'Meeting: Friday.'
+    restored = json.loads(metadata.read_text())
+    assert isinstance(restored, list) and restored[0]['content'] == 'Meeting: Friday.'
