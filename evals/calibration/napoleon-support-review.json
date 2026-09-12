@@ -150,5 +150,17 @@
     "limits": "Diagnostic-only, source-era-specific year recognition, no general date/source parser. All-bracket stopping loses valid metadata after editorial notes; nearest dated editorial brackets could still be mistaken for source markers. Ten ordered lists changed and were not fully regraded. Fixing two known errors does not establish comprehensive provenance correctness. No runtime changes or paid calls.",
     "decision": "Keep runtime unchanged. Retain raw results for comparison; source-marker classification and general structural heading recognition remain unproven."
   },
-  "next": "The conservative metadata-boundary probe retains three gains but remains a book-specific heuristic. Validate actual source-marker and heading recognition before adopting any context propagation in runtime."
+  "explicit_outline_probe": {
+    "report": "/tmp/rag-auto-section-outline.json",
+    "harness": "/tmp/rag-auto-section-probe.py",
+    "command": ".venv/bin/python /tmp/rag-auto-section-probe.py --outline-titles",
+    "method": "PDF get_toc titles located exactly once on their destination page; unresolved destinations act as barriers. Only wholly contained original chunks receive title context, with no excerpt date. Same1147 chunks,30 questions,lexical final5.",
+    "resolved_outlines": 182,
+    "total_outlines": 189,
+    "contextualized_chunks": 936,
+    "findings": "Equality/distinctions remains rank2 and education rationale rank4. Hometown answer is absent from final5 despite correct source outline title on chunks148–150. Section title alone does not reproduce the title/date result.",
+    "limits": "Single-book post-hoc lexical diagnostic, no full relevance regrade or runtime change. Outline hierarchy flattened; exact destination matching can miss split titles, and unresolved barriers lose context conservatively. Source titles avoid guessed date provenance but do not solve excerpt identification. No paid calls.",
+    "decision": "Prefer explicit document structure over uppercase guessing for future parser work, but do not claim it solves the detached-evidence failure. Keep runtime unchanged pending implementation tests and wider relevance evaluation."
+  },
+  "next": "Explicit outlines provide source-grounded section identity; excerpt-local identity remains a separate unsolved problem. Avoid promoting the earlier book-specific date heuristic."
 }
