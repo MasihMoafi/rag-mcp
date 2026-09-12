@@ -39,8 +39,8 @@ def test_json_flattening(pipeline, tmp_path, data, expected):
 def test_malformed_json(pipeline, tmp_path, capsys):
     path = tmp_path / "bad.json"
     path.write_text("{")
-    assert pipeline._extract_content(str(path)) == ""
-    assert "Error extracting text" in capsys.readouterr().out
+    with pytest.raises(json.JSONDecodeError):
+        pipeline._extract_content(str(path))
 
 
 def test_named_json_reader_and_legacy_keyword_call_match(pipeline, tmp_path):
