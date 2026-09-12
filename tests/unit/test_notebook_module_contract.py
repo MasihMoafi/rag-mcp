@@ -33,8 +33,10 @@ def test_extracted_text_preserves_empty_cell_positions(tmp_path):
     assert extract_notebook_text(str(path)) == '\fFirst evidence\f\fsecond = 42'
 
 
-def test_unreadable_notebook_returns_empty(tmp_path):
-    assert notebook_chunker.extract_cells_from_notebook(str(tmp_path / 'missing.ipynb')) == []
+def test_unreadable_notebook_raises(tmp_path):
+    import pytest
+    with pytest.raises(FileNotFoundError):
+        notebook_chunker.extract_cells_from_notebook(str(tmp_path / 'missing.ipynb'))
 
 
 def test_legacy_notebook_imports_reference_named_parser():
