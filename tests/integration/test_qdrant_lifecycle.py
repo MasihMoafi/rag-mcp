@@ -14,6 +14,23 @@ class Embedder:
         return [1., 0.]
 
 
+def test_failed_collection_initialization_releases_storage_lock(tmp_path, monkeypatch):
+    def fail_initialization(self):
+        raise RuntimeError('collection initialization failed')
+    with monkeypatch.context() as fault:
+        fault.setattr(QdrantVectorDB, '_init_collection', fail_initialization)
+        with pytest.raises(RuntimeError, match='collection initialization failed') as failure:
+            QdrantVectorDB('recovery', Embedder(), vector_size=2, persist_path=str(tmp_path))
+    # Keep the exception traceback alive: recovery must not depend on garbage collection.
+    assert failure.value.__traceback__ is not None
+    reopened = QdrantVectorDB('recovery', Embedder(), vector_size=2, persist_path=str(tmp_path))
+    try:
+        reopened.add_documents_batch([{'content': 'Cedar evidence'}])
+        assert reopened.search('Cedar')[0]['content'] == 'Cedar evidence'
+    finally:
+        reopened.client.close()
+
+
 def test_qdrant_retrieval_and_reopen_preserve_source_metadata(tmp_path):
     docs = [{'content': 'Cedar evidence', 'id': 'notes.md::chunk:0', 'location': 'L3'},
             {'content': 'Other evidence', 'id': 'other.md::chunk:0', 'location': 'L8'}]

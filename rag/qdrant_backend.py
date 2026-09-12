@@ -54,7 +54,11 @@ class QdrantVectorDB:
         self.distance = distance_map.get(distance, Distance.COSINE)
 
         # Create or get collection
-        self._init_collection()
+        try:
+            self._init_collection()
+        except BaseException:
+            self.client.close()
+            raise
 
     def _init_collection(self):
         """Initialize Qdrant collection."""
