@@ -125,6 +125,8 @@ class DirectOllamaGPUWrapper:
             embeddings = resp.json().get("embeddings", [])
             if len(embeddings) != len(batch):
                 raise ValueError("Ollama embedding count does not match input count.")
+            if all_embeddings and len(embeddings[0]) != len(all_embeddings[0]):
+                raise ValueError("Ollama embedding dimensions changed between batches.")
             all_embeddings.extend(_validate_vectors(embeddings))
         self._verify_gpu()
         return all_embeddings

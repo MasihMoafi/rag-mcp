@@ -45,6 +45,23 @@ def test_ollama_valid_batches_preserve_vectors_and_timeouts():
     assert wrapper._verify_gpu.call_count == 2
 
 
+def test_ollama_rejects_dimension_change_between_batches():
+    from unittest.mock import Mock
+    from rag.embeddings import DirectOllamaGPUWrapper
+
+    wrapper = DirectOllamaGPUWrapper('fixture', 'http://localhost:11434')
+    wrapper._requests = Mock()
+    wrapper._requests.post.side_effect = [
+        SimpleNamespace(status_code=200, json=lambda: {'embeddings': [[1., 0.]] * 512}),
+        SimpleNamespace(status_code=200, json=lambda: {'embeddings': [[1., 0., 0.]]}),
+    ]
+    wrapper._verify_gpu = Mock()
+    with pytest.raises(ValueError, match='dimensions changed between batches'):
+        wrapper.embed_documents(['document'] * 513)
+    assert wrapper._requests.post.call_count == 2
+    wrapper._verify_gpu.assert_not_called()
+
+
 def wrapper_with_response(monkeypatch, items):
     wrapper = OpenAICompatibleWrapper.__new__(OpenAICompatibleWrapper)
     monkeypatch.setattr(wrapper, "_create_with_retry", lambda texts: SimpleNamespace(data=items))
