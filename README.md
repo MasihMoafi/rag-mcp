@@ -432,6 +432,11 @@ failure and legacy-index migration checks; this does not certify OCR model quali
   share this cache. Abrupt process exit immediately before/after publication
   leaves the old/new index searchable without reindexing on both backends.
   Process exit after a storage batch also preserves the previously published index.
+  LanceDB writes now stream Arrow batches instead of retaining all Python vectors.
+  Prior-batch Python vectors are released before the next embedding call; late
+  preparation failures preserve the existing table and original exception.
+  Input documents and native database buffers still occupy memory, so this is
+  not a total RAM limit or a measured large-corpus throughput claim.
   POSIX metadata publication now synchronizes the parent directory after rename;
   failures are surfaced and published evidence is retained. Other crash points
   and full database power-loss durability remain unverified.

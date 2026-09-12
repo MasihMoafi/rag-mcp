@@ -20,6 +20,7 @@ from utils.proxy import strip_socks as _strip_socks
 _strip_socks()
 
 import lancedb
+import pyarrow as pa
 
 
 class LanceDBBackend:
@@ -104,39 +105,57 @@ class LanceDBBackend:
 
 
 
-        all_records = []
-        for i in range(0, total, batch_size):
-            batch = documents[i : i + batch_size]
-            contents = [doc.get("content", "") for doc in batch]
-            # Without an embedding model the table has no vector column; FTS still works.
-            vectors = self._batch_embed(contents) if self.embedding_fn is not None else [None] * len(batch)
-            if len(vectors) != len(batch):
-                raise ValueError(f"Embedding count {len(vectors)} does not match document count {len(batch)}.")
+        batch_error = None
 
-            for j, (doc, vector) in enumerate(zip(batch, vectors)):
-                record = {
-                    "id": str(doc.get("id", i + j)),
-                    "content": doc.get("content", ""),
-                    "file_path": str(doc.get("file_path", "")),
-                    "source": str(doc.get("source", doc.get("file_path", ""))),
-                    "heading": str(doc.get("heading", "")),
-                    "location": str(doc.get("location", "")),
-                    "start_line": int(doc.get("start_line", 0)),
-                    "end_line": int(doc.get("end_line", 0)),
-                    "page_number": int(doc.get("page_number", 0)),
-                    "original_content": str(doc.get("original_content", doc.get("content", ""))),
-                }
-                if vector is not None:
-                    record["vector"] = vector
-                all_records.append(record)
+        def batches():
+            nonlocal batch_error
+            schema = None
+            try:
+                for i in range(0, total, batch_size):
+                    batch = documents[i : i + batch_size]
+                    contents = [doc.get("content", "") for doc in batch]
+                    vectors = self._batch_embed(contents) if self.embedding_fn is not None else [None] * len(batch)
+                    if len(vectors) != len(batch):
+                        raise ValueError(f"Embedding count {len(vectors)} does not match document count {len(batch)}.")
+                    records = []
+                    for j, (doc, vector) in enumerate(zip(batch, vectors)):
+                        record = {
+                            "id": str(doc.get("id", i + j)),
+                            "content": doc.get("content", ""),
+                            "file_path": str(doc.get("file_path", "")),
+                            "source": str(doc.get("source", doc.get("file_path", ""))),
+                            "heading": str(doc.get("heading", "")),
+                            "location": str(doc.get("location", "")),
+                            "start_line": int(doc.get("start_line", 0)),
+                            "end_line": int(doc.get("end_line", 0)),
+                            "page_number": int(doc.get("page_number", 0)),
+                            "original_content": str(doc.get("original_content", doc.get("content", ""))),
+                        }
+                        if vector is not None:
+                            record["vector"] = vector
+                        records.append(record)
+                    if schema is None:
+                        schema = pa.schema([
+                            (key, pa.int64() if key in {"start_line", "end_line", "page_number"} else pa.string())
+                            for key in records[0] if key != "vector"
+                        ])
+                        if self.embedding_fn is not None:
+                            schema = schema.append(pa.field("vector", pa.list_(pa.float32(), len(vectors[0]))))
+                    arrow_batch = pa.RecordBatch.from_pylist(records, schema=schema)
+                    del records, record, vectors, vector
+                    yield arrow_batch
+            except Exception as error:
+                batch_error = error
+                # Arrow wraps iterator errors; do not embed provider details in its message.
+                raise RuntimeError("Embedding batch preparation failed.") from None
 
-        # Overwrite or create table
-        self.table = self.db.create_table(
-            self.table_name,
-            data=all_records,
-            mode="overwrite",
-        )
-        sys.stderr.write(f"[LanceDB] Created table '{self.table_name}' with {len(all_records)} records.\n")
+        try:
+            self.table = self.db.create_table(self.table_name, data=batches(), mode="overwrite")
+        except Exception:
+            if batch_error is not None:
+                raise batch_error from None
+            raise
+        sys.stderr.write(f"[LanceDB] Created table '{self.table_name}' with {total} records.\n")
 
         # Create Full Text Search (FTS) index using Tantivy
         try:
