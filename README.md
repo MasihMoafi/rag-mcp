@@ -393,6 +393,15 @@ used the API embeddings with local reranking; results and limitations are below.
 
 Remaining gates:
 
+Extraction failures now abort a refresh instead of silently dropping unreadable
+files from an otherwise readable corpus. Text, JSON, notebook and damaged-PDF
+preservation/repair checks pass on both local storage backends. PDF extraction can
+still recover through a nonempty fallback; genuinely empty successful extraction
+is distinct from an exception. Direct parser callers must now handle read/decode
+exceptions rather than expect an empty string or list on failure. The complete
+unit suite at `b161135` passes 326 tests; this is separate from the older combined
+regression run above and does not certify OCR model quality.
+
 - CLI/MCP and direct-engine refreshes now share isolated generation builds and publish
   an atomic pointer only after storage, metadata and the source manifest succeed.
   Both backends preserve the old searchable generation after injected embedding,
