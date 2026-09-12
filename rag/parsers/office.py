@@ -7,6 +7,7 @@ def extract_office_or_image_text(file_path: str) -> str:
     """Extract text, tables, and OCR/element descriptions using Unstructured and RapidOCR."""
     ext = os.path.splitext(file_path)[1].lower()
     image_exts = {".png", ".jpg", ".jpeg", ".webp", ".tiff", ".bmp"}
+    ocr_error = None
 
     # For standalone image files, run RapidOCR directly
     if ext in image_exts:
@@ -17,6 +18,7 @@ def extract_office_or_image_text(file_path: str) -> str:
             if result:
                 return "\n".join([line[1] for line in result])
         except Exception as e:
+            ocr_error = e
             print(f"[OCR] Warning: RapidOCR failed for {file_path}: {e}")
 
     from unstructured.partition.auto import partition
@@ -28,4 +30,6 @@ def extract_office_or_image_text(file_path: str) -> str:
             page_num = getattr(getattr(el, 'metadata', None), 'page_number', None)
             page_prefix = f"[Page {page_num}] " if page_num else ""
             parts.append(f"{page_prefix}{text}")
+    if not parts and ocr_error is not None:
+        raise ocr_error
     return "\n\n".join(parts)
