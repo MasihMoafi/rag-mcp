@@ -58,7 +58,7 @@ class LanceDBBackend:
                 self.table = self.db.open_table(self.table_name)
                 sys.stderr.write(f"[LanceDB] Opened existing table: {self.table_name} ({len(self.table)} rows)\n")
         except Exception as e:
-            sys.stderr.write(f"[LanceDB] Notice during init: {e}\n")
+            sys.stderr.write(f"[LanceDB] Notice during init: {type(e).__name__}\n")
 
     def _embed_single(self, text: str) -> List[float]:
         """Embed single query string."""
@@ -77,7 +77,7 @@ class LanceDBBackend:
             except Exception as e:
                 if not getattr(self.embedding_fn, "retry_batch_as_queries", True):
                     raise
-                sys.stderr.write(f"[LanceDB] Batch embed_documents failed: {e}\n")
+                sys.stderr.write(f"[LanceDB] Batch embed_documents failed: {type(e).__name__}\n")
 
         try:
             result = self.embedding_fn(texts)
@@ -143,7 +143,7 @@ class LanceDBBackend:
             self.table.create_fts_index("content", replace=True)
             sys.stderr.write(f"[LanceDB] Built Tantivy FTS index on 'content' column.\n")
         except Exception as e:
-            sys.stderr.write(f"[LanceDB] FTS index creation failed: {e}\n")
+            sys.stderr.write(f"[LanceDB] FTS index creation failed: {type(e).__name__}\n")
             raise
 
     def search_vector(self, query: str, top_k: int = 5) -> List[Dict[str, Any]]:
@@ -191,7 +191,7 @@ class LanceDBBackend:
                 formatted.append(doc)
             return formatted
         except Exception as e:
-            sys.stderr.write(f"[LanceDB] FTS search failed: {e}\n")
+            sys.stderr.write(f"[LanceDB] FTS search failed: {type(e).__name__}\n")
             raise
 
     def count(self) -> int:
@@ -205,4 +205,4 @@ class LanceDBBackend:
             self.table = None
             sys.stderr.write(f"[LanceDB] Dropped table: {self.table_name}\n")
         except Exception as e:
-            sys.stderr.write(f"[LanceDB] Clear notice: {e}\n")
+            sys.stderr.write(f"[LanceDB] Clear notice: {type(e).__name__}\n")
