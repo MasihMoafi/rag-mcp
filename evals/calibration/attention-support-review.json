@@ -20,7 +20,14 @@
       {"query_index_zero_based": 7, "grade": "missing", "support_ranks": []},
       {"query_index_zero_based": 8, "grade": "full", "support_ranks": [1]}
     ],
-    "conclusion": "Actual API hybrid execution verified. No support-grade improvement on the five calibration cases; interpretability still missing. No overall quality or model-superiority claim. Full support review and stage-level failure diagnosis remain. Production defaults unchanged."
+    "conclusion": "Actual API hybrid execution verified. No support-grade improvement on the five calibration cases; interpretability still missing. No overall quality or model-superiority claim. Full support review remains. Production defaults unchanged.",
+    "offline_stage_diagnosis": {
+      "report": "/tmp/rag-paper-stage-diagnosis.json",
+      "method": "Rebuilt the identical 76 chunks in temporary lexical storage; requested up to 76 FTS candidates. No paid requests.",
+      "interpretability": "Chunk 39 preserves both required claims together. Its FTS rank is 37, outside the five-candidate keyword pool. Parsing/chunking did not lose this answer. API vector candidate ranks were not recorded, so the API-specific exclusion stage remains unproven.",
+      "parsing_f1_query_24": "Chunk 52 explicitly pairs Transformer (4 layers), semi-supervised and 92.7. FTS rank 3 reproduces the lexical baseline, but the API hybrid final five omit it. This is a genuine answer-support regression, consistent with displacement during fusion/final truncation; record actual vector and fused ranks next to confirm.",
+      "next_check": "Capture vector, keyword and fused ranks on these fixed queries before choosing a remedy; do not blindly enlarge chunks or claim a better model solves ranking."
+    }
   },
   "source": {
     "path": "evals/experiments/experiment-unified-scaling/data/corpus/att.pdf",
