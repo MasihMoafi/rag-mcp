@@ -20,7 +20,7 @@ def local_search(tmp_path, monkeypatch):
     fetch.reset_pipelines()
 
 
-@pytest.mark.parametrize("extension", ["txt", "json", "ipynb", "pdf"])
+@pytest.mark.parametrize("extension", ["txt", "json", "ipynb", "pdf", "png"])
 @pytest.mark.parametrize("backend", ["lancedb", "qdrant"])
 def test_unreadable_member_cannot_publish_partial_corpus(tmp_path, local_search, extension, monkeypatch, backend):
     import fitz
@@ -39,6 +39,15 @@ def test_unreadable_member_cannot_publish_partial_corpus(tmp_path, local_search,
     good = corpus / "good.txt"
     damaged = corpus / f"damaged.{extension}"
     good.write_text("Meeting: Friday.")
+    if extension == 'png':
+        import sys
+        # Text-backed OCR adapter fixture: verify publication, not image recognition.
+        engine = lambda path: ([[None, damaged.read_text()]], None)
+        monkeypatch.setitem(sys.modules, 'rapidocr_onnxruntime',
+                            SimpleNamespace(RapidOCR=lambda: engine))
+        for name in ('unstructured', 'unstructured.partition', 'unstructured.partition.auto'):
+            monkeypatch.setitem(sys.modules, name, SimpleNamespace())
+        sys.modules['unstructured.partition.auto'].partition = lambda **kwargs: []
     def write_member(text):
         if extension == "pdf":
             with fitz.open() as document:
