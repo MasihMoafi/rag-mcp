@@ -386,6 +386,8 @@ failures. This verifies the
 covered extraction/citation, API response handling, scope, cache, CLI/MCP and
 LanceDB lifecycle cases—not universal production readiness. API tests use an
 in-memory HTTP transport with the real SDK and storage, not paid-provider inference.
+A separate live OpenRouter/Qwen3-Embedding-8B probe returned 4096 dimensions and
+reported $0.00000003 usage cost; full paid-provider retrieval quality is still unverified.
 
 Remaining gates:
 
