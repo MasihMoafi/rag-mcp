@@ -5,6 +5,7 @@ The CSV uses existing baseline or scaling-experiment column names. Exact answer 
 a diagnostic, not a semantic relevance grade. Existing output is never replaced.
 """
 
+import argparse
 import csv
 import hashlib
 import json
@@ -13,6 +14,7 @@ import subprocess
 import sys
 import tempfile
 import time
+from importlib.metadata import version
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -20,7 +22,12 @@ from rag.core import RAGPipeline
 
 
 def main():
-    source, queries, output = map(lambda value: Path(value).resolve(), sys.argv[1:])
+    parser = argparse.ArgumentParser(description=__doc__)
+    for name in ('source', 'queries', 'output'):
+        parser.add_argument(name, type=Path)
+    parser.add_argument('--chunk-size', type=int, default=700)
+    args = parser.parse_args()
+    source, queries, output = (path.resolve() for path in (args.source, args.queries, args.output))
     if output.exists():
         raise FileExistsError(output)
     inputs = {name: {'path': str(path), 'bytes': path.stat().st_size,
@@ -34,10 +41,17 @@ def main():
         if not question['Question'] or not question['Expected_Answer']:
             raise ValueError('Query CSV requires question and expected-answer fields.')
     config = dict(document_paths=[str(source)], embed_provider='none', backend='lancedb',
-                  reranker_type='off', use_contextual=False, chunk_size=700,
+                  reranker_type='off', use_contextual=False, chunk_size=args.chunk_size,
                   chunk_overlap=100, top_k=5, rerank_top_k=5, force_reindex=True)
     report = dict(inputs=inputs, config=config.copy(), queries=[], api_spend_usd=0,
                   revision=subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip())
+    root = Path(__file__).resolve().parents[1]
+    code = sorted([*root.glob('rag/**/*.py'), *root.glob('utils/**/*.py'), Path(__file__).resolve()])
+    fingerprint = hashlib.sha256()
+    for path in code:
+        fingerprint.update(str(path.relative_to(root)).encode() + b'\0' + path.read_bytes() + b'\0')
+    report['code_sha256'] = fingerprint.hexdigest()
+    report['dependencies'] = {name: version(name) for name in ('lancedb', 'pyarrow', 'pymupdf')}
     with tempfile.TemporaryDirectory(prefix='rag-lexical-eval-') as directory:
         config['persist_dir'] = directory
         started = time.perf_counter()
@@ -52,12 +66,14 @@ def main():
                 answer = ' '.join(question['Expected_Answer'].casefold().split())
                 report['queries'].append(dict(
                     **question, seconds=time.perf_counter() - started, results=results,
+                    retrieved_characters=sum(len(item['original_content']) for item in passages),
                     exact_answer_containment=bool(answer) and any(
                         answer in ' '.join(item['original_content'].casefold().split())
                         for item in passages)))
             except Exception as error:
                 report['queries'].append(dict(**question, error=str(error),
                                               seconds=time.perf_counter() - started))
+        pipeline.close()
     with output.open('x') as handle:
         json.dump(report, handle, ensure_ascii=False, indent=2)
     print(json.dumps({'queries': len(questions), 'chunks': report['chunks'],

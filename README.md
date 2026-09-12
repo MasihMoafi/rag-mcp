@@ -420,6 +420,11 @@ Remaining gates:
 The existing 30-question Attention paper run is a lexical-only diagnostic baseline.
 Literal expected-answer containment is not a relevance score: formatting and
 paraphrases can produce false negatives. No model-quality improvement is claimed.
+A controlled 700-vs-1400-character chunk comparison kept the same 11/30 literal
+matches while mean retrieved text grew from 2,941 to 6,432 characters. A manually
+inspected "miss" already had the correct explanation ranked first. This is not
+evidence of poor semantic recall or a reason to change the default chunk size;
+support-based relevance judgments are still needed.
 
 ### Implemented and verified
 
