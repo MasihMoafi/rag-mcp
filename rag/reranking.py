@@ -118,8 +118,11 @@ def rerank_documents(self, docs: List[Dict], query: str, k: int) -> List[Dict]:
             input_ids_list = []
             max_len = 0
             for doc in docs:
-                text = f"<Instruct>: {instruction}\n<Query>: {query}\n<Document>: {doc['content'][:1000]}"
-                inputs = self.reranker_tokenizer(text, return_attention_mask=False, add_special_tokens=False)
+                text = f"<Instruct>: {instruction}\n<Query>: {query}\n<Document>: {doc['content']}"
+                inputs = self.reranker_tokenizer(
+                    text, return_attention_mask=False, add_special_tokens=False,
+                    truncation=True, max_length=8192 - len(prefix_tokens) - len(suffix_tokens),
+                )
                 input_ids = prefix_tokens + inputs['input_ids'] + suffix_tokens
                 input_ids_list.append(input_ids)
                 if len(input_ids) > max_len:

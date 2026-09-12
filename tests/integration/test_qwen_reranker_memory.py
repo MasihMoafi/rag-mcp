@@ -7,6 +7,48 @@ import pytest
 from rag.reranking import rerank_documents
 
 
+@pytest.mark.parametrize('oversized', [None, 'query', 'passage'])
+def test_qwen_uses_token_budget_without_character_cutoff(oversized):
+    torch = pytest.importorskip('torch')
+    transformers = pytest.importorskip('transformers')
+    try:
+        tokenizer = transformers.AutoTokenizer.from_pretrained(
+            'Qwen/Qwen3-Reranker-0.6B', local_files_only=True, padding_side='left',
+        )
+    except OSError:
+        pytest.skip('Qwen tokenizer is not cached')
+
+    marker = 'The answer is Friday.'
+    passage = 'ordinary text ' * 100 + marker
+    query = 'When is the meeting?'
+    if oversized == 'query':
+        query *= 4000
+    elif oversized == 'passage':
+        passage *= 100
+    docs = [{'id': 0, 'content': 'irrelevant'}, {'id': 1, 'content': passage}]
+    calls = []
+
+    def forward(input_ids, **kwargs):
+        calls.append(input_ids)
+        assert input_ids.shape[1] <= 8192
+        decoded = tokenizer.batch_decode(input_ids)
+        assert all(text.endswith('<think>\n\n</think>\n\n') for text in decoded)
+        if oversized is None:
+            assert marker in decoded[1]
+        else:
+            assert input_ids.shape[1] == 8192
+        logits = torch.zeros(2, 1, len(tokenizer))
+        logits[1, 0, tokenizer.convert_tokens_to_ids('yes')] = 10
+        return SimpleNamespace(logits=logits)
+
+    pipeline = SimpleNamespace(reranker_type='qwen3', reranker_tokenizer=tokenizer,
+                               reranker_model=forward, device='cpu')
+    result = rerank_documents(pipeline, docs, query, 1)
+    assert len(calls) == 1
+    assert result == [docs[1]], 'Inference assertions must not be hidden by fallback'
+    assert result[0] is docs[1]
+
+
 def test_qwen_scores_match_full_logits_without_unused_outputs():
     torch = pytest.importorskip('torch')
     pytest.importorskip('transformers.models.qwen3.modeling_qwen3')
