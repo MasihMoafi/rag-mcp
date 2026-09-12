@@ -130,7 +130,11 @@ def test_lancedb_record_batches_and_fts_contract(dense, fts_failure, capsys):
         dict(content='فارسی', source='book.pdf', page_number=2),
         dict(content='Third'),
     ]
-    backend.add_documents_batch(docs, batch_size=2)
+    if fts_failure:
+        with pytest.raises(RuntimeError, match='FTS unavailable'):
+            backend.add_documents_batch(docs, batch_size=2)
+    else:
+        backend.add_documents_batch(docs, batch_size=2)
     assert batches == ([['Cedar', 'فارسی'], ['Third']] if dense else [])
     expected = [
         dict(id='source::0', content='Cedar', file_path='source.md', source='source.md',

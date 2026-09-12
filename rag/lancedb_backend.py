@@ -141,7 +141,8 @@ class LanceDBBackend:
             self.table.create_fts_index("content", replace=True)
             sys.stderr.write(f"[LanceDB] Built Tantivy FTS index on 'content' column.\n")
         except Exception as e:
-            sys.stderr.write(f"[LanceDB] FTS index creation note: {e}\n")
+            sys.stderr.write(f"[LanceDB] FTS index creation failed: {e}\n")
+            raise
 
     def search_vector(self, query: str, top_k: int = 5) -> List[Dict[str, Any]]:
         """Vector similarity search. Empty when no embedding model is configured."""
