@@ -188,8 +188,8 @@ class LanceDBBackend:
                 formatted.append(doc)
             return formatted
         except Exception as e:
-            sys.stderr.write(f"[LanceDB] FTS search fallback: {e}\n")
-            return []
+            sys.stderr.write(f"[LanceDB] FTS search failed: {e}\n")
+            raise
 
     def count(self) -> int:
         """Get document count."""

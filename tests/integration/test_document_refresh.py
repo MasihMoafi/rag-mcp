@@ -81,3 +81,19 @@ def test_deleted_document_disappears_from_folder_results(tmp_path, local_search)
     assert len(local_search(folder)) == 2
     second.unlink()
     assert [item["content"] for item in local_search(folder)] == ["Meeting: Friday."]
+
+
+def test_mcp_reports_storage_failure_as_error(tmp_path, local_search, monkeypatch):
+    import json
+    import server
+    from rag.lancedb_backend import LanceDBBackend
+
+    document = tmp_path / "note.txt"
+    document.write_text("Meeting: Friday.")
+    assert local_search(document)
+    def unavailable(self, query, top_k=5):
+        raise RuntimeError("storage unavailable")
+    monkeypatch.setattr(LanceDBBackend, "search_fts", unavailable)
+    response = json.loads(server.query_knowledge_base("Meeting", str(document)))
+    assert "result" not in response
+    assert "storage unavailable" in response["error"]
