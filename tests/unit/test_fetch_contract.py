@@ -118,7 +118,8 @@ def test_scoped_pipeline_cache_and_manifest(monkeypatch, tmp_path, as_list, sett
     scope = [str(source)] if as_list else str(source)
     first = fetch.get_rag_pipeline_v2(scope)
     assert first.config['document_paths'] == [str(source)]
-    assert first.config['persist_dir'] == str(root / fetch._safe_dir_name(str(source), embedding))
+    assert Path(first.config['persist_dir']).parent == root / fetch._safe_dir_name(str(source), embedding)
+    assert Path(first.config['persist_dir']).name.startswith('generation-')
     assert first.config['force_reindex'] is True
     assert fetch.get_rag_pipeline_v2(scope) is first
     fetch.reset_pipelines()
