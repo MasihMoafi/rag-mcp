@@ -37,7 +37,13 @@ def _extract_content(self, file_path: str) -> str:
     if ext in unstructured_exts:
         return self._extract_text_with_unstructured(file_path)
     elif ext == ".pdf":
-        text = self._extract_text_from_pdf(file_path)
+        try:
+            text = self._extract_text_from_pdf(file_path)
+        except Exception:
+            text = self._extract_text_with_unstructured(file_path)
+            if not text or not text.strip():
+                raise
+            return text
         if not text or not text.strip():
             text = self._extract_text_with_unstructured(file_path)
         return text
