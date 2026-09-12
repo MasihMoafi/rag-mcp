@@ -10,7 +10,10 @@ from rag import core
 
 
 @pytest.mark.parametrize('status', [401, 429, 503])
-def test_query_provider_failure_is_reported_and_pipeline_can_recover(tmp_path, monkeypatch, status):
+def test_query_provider_failure_is_reported_and_pipeline_can_recover(tmp_path, monkeypatch, status, capsys):
+    import server
+    from rag import fetch
+
     source = tmp_path / 'facts.txt'
     source.write_text('Cedar owns a bicycle.')
     failing = False
@@ -19,7 +22,7 @@ def test_query_provider_failure_is_reported_and_pipeline_can_recover(tmp_path, m
     def respond(request):
         requests.append(request)
         if failing:
-            return httpx.Response(status, json={'error': {'message': 'fixture unavailable'}})
+            return httpx.Response(status, json={'error': {'message': 'private-provider-body-marker'}})
         inputs = json.loads(request.content)['input']
         return httpx.Response(200, json={'data': [
             {'index': index, 'embedding': [1., 0.]} for index in range(len(inputs))]})
@@ -38,6 +41,24 @@ def test_query_provider_failure_is_reported_and_pipeline_can_recover(tmp_path, m
                 pipeline.search('Cedar')
             assert caught.value.status_code == status
             assert len(requests) == (1 if status == 401 else 2)
+            monkeypatch.setattr(fetch, 'get_rag_pipeline_v2', lambda **kwargs: pipeline)
+            responses = []
+            monkeypatch.setattr(server, '_result', lambda request_id, result: responses.append(result))
+            monkeypatch.setattr(server, '_initialized', False)
+            server._handle_request({'jsonrpc': '2.0', 'id': 0, 'method': 'initialize'})
+            responses.clear()
+            requests.clear()
+            server._handle_request({
+                'jsonrpc': '2.0', 'id': 1, 'method': 'tools/call',
+                'params': {'name': server._TOOLS[0]['name'], 'arguments': {
+                    'query': 'private-query-marker', 'doc_path': str(source)}}})
+            assert len(responses) == 1
+            assert responses[0]['isError'] is True
+            assert len(requests) == (1 if status == 401 else 2)
+            output = capsys.readouterr()
+            evidence = json.dumps(responses) + output.out + output.err
+            assert 'private-provider-body-marker' not in evidence
+            assert 'private-query-marker' not in evidence
             failing = False
             assert pipeline.search('Cedar')[0]['content'] == 'Cedar owns a bicycle.'
         finally:
