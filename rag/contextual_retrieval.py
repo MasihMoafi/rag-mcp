@@ -75,6 +75,9 @@ class AnthropicContextualizer:
             ) from error
         return Anthropic(timeout=timeout)
 
+    def close(self) -> None:
+        self.client.close()
+
     def __call__(self, chunk: str, document_context: str) -> str:
         response = self.client.messages.create(
             model=self.model,
