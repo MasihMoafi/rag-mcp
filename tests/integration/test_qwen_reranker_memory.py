@@ -49,7 +49,8 @@ def test_qwen_uses_token_budget_without_character_cutoff(oversized):
     assert result[0] is docs[1]
 
 
-def test_qwen_scores_match_full_logits_without_unused_outputs():
+@pytest.mark.parametrize('count,fail_second', [(2, False), (19, False), (19, True)])
+def test_qwen_scores_match_full_logits_without_unused_outputs(count, fail_second):
     torch = pytest.importorskip('torch')
     pytest.importorskip('transformers.models.qwen3.modeling_qwen3')
     from transformers import Qwen3Config, Qwen3ForCausalLM
@@ -78,6 +79,8 @@ def test_qwen_scores_match_full_logits_without_unused_outputs():
     expected_scores = []
 
     def forward(input_ids, **kwargs):
+        if fail_second and len(calls) == 1:
+            raise RuntimeError('late inference failure')
         with torch.no_grad():
             full = model(input_ids, attention_mask=kwargs['attention_mask'])
             actual = model(input_ids, **kwargs)
@@ -86,15 +89,30 @@ def test_qwen_scores_match_full_logits_without_unused_outputs():
         calls.append((kwargs, actual.logits.shape, actual.past_key_values))
         return actual
 
-    docs = [{'id': 0, 'content': 'short'}, {'id': 1, 'content': 'longer'}]
+    docs = [{'id': i, 'content': 'short' if i % 2 == 0 else 'longer'}
+            for i in range(count)]
     pipeline = SimpleNamespace(reranker_type='qwen3', reranker_tokenizer=Tokenizer(),
                                reranker_model=forward, device='cpu')
-    result = rerank_documents(pipeline, docs, 'question', 1)
-    assert len(calls) == 1, 'Qwen inference must run, not silently fall back'
-    kwargs, shape, cache = calls[0]
-    assert kwargs.get('logits_to_keep') == 1
-    assert kwargs.get('use_cache') is False
-    assert shape == (2, 1, 32)
-    assert cache is None
+    result = rerank_documents(pipeline, docs, 'question', count - 1)
+    if fail_second:
+        assert len(calls) == 1
+        assert calls[0][1] == (8, 1, 32)
+        assert result == docs[:count - 1]
+        return
+    assert [call[1][0] for call in calls] == ([2] if count == 2 else [8, 8, 3])
+    for kwargs, shape, cache in calls:
+        assert kwargs.get('logits_to_keep') == 1
+        assert kwargs.get('use_cache') is False
+        assert shape[1:] == (1, 32)
+        assert cache is None
+    assert len(expected_scores) == count
+    # Independent all-candidate reference: batching must not change scores.
+    rows = [([0] * 7 + [3, 4, 5, 6, 7, 3, 4]) if i % 2 == 0
+            else [3, 4] + [8] * 10 + [3, 4] for i in range(count)]
+    reference_ids = torch.tensor(rows)
+    with torch.no_grad():
+        reference = model(reference_ids, attention_mask=(reference_ids != 0).long())
+    reference_scores = reference.logits[:, -1, [1, 2]].softmax(dim=-1)[:, 1]
+    torch.testing.assert_close(torch.tensor(expected_scores), reference_scores)
     expected = sorted(zip(docs, expected_scores), key=lambda item: item[1], reverse=True)
-    assert result == [expected[0][0]]
+    assert result == [doc for doc, score in expected[:count - 1]]
