@@ -387,8 +387,8 @@ Use `cross-encoder`, `fastembed`, `auto` or `disabled` instead.
 
 ### Readiness audit — 2026-09-13
 
-At `894cd29`, the selected offline/local regression suite passes 512 tests in
-51.61 seconds, with 497 existing LanceDB deprecation warnings and no expected
+At `6c1e33b`, the selected offline/local regression suite passes 533 tests in
+55.45 seconds, with 501 existing LanceDB deprecation warnings and no expected
 failures. This verifies the
 covered extraction/citation, API response handling, scope, cache, CLI/MCP and
 LanceDB lifecycle cases—not universal production readiness. API tests use an
