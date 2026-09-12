@@ -10,6 +10,37 @@ import pytest
 from rag.index_lifecycle import active_directory, open_or_build, RebuildRequired
 
 
+@pytest.mark.parametrize('close_fails', [False, True])
+def test_lock_release_failure_does_not_delete_published_generation(monkeypatch, tmp_path, close_fails):
+    from rag import index_lifecycle
+    from unittest.mock import Mock
+
+    failure = OSError('lock release failed')
+    class FailingRelease:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            raise failure
+
+    monkeypatch.setattr(index_lifecycle, 'FileLock', FailingRelease)
+    close = Mock()
+    if close_fails:
+        close.side_effect = RuntimeError('client close failed')
+    def build(config):
+        (Path(config['persist_dir']) / 'evidence').write_text('complete index')
+        return SimpleNamespace(close=close)
+
+    with pytest.raises(OSError) as caught:
+        open_or_build({'persist_dir': str(tmp_path), 'force_reindex': True}, build)
+    assert caught.value is failure
+    close.assert_called_once_with()
+    assert (active_directory(tmp_path) / 'evidence').read_text() == 'complete index'
+
+
 def test_empty_scope_builds_once_without_initializing_models_for_an_empty_index(tmp_path):
     builds = []
     def build(config):
