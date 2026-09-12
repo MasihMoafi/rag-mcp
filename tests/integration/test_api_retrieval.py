@@ -4,8 +4,44 @@ import json
 
 import httpx
 import openai
+import pytest
 
 from rag import core
+
+
+@pytest.mark.parametrize('status', [401, 429, 503])
+def test_query_provider_failure_is_reported_and_pipeline_can_recover(tmp_path, monkeypatch, status):
+    source = tmp_path / 'facts.txt'
+    source.write_text('Cedar owns a bicycle.')
+    failing = False
+    requests = []
+
+    def respond(request):
+        requests.append(request)
+        if failing:
+            return httpx.Response(status, json={'error': {'message': 'fixture unavailable'}})
+        inputs = json.loads(request.content)['input']
+        return httpx.Response(200, json={'data': [
+            {'index': index, 'embedding': [1., 0.]} for index in range(len(inputs))]})
+
+    with httpx.Client(transport=httpx.MockTransport(respond)) as transport:
+        real_client = openai.OpenAI
+        monkeypatch.setattr(openai, 'OpenAI', lambda **kwargs: real_client(http_client=transport, **kwargs))
+        pipeline = core.RAGPipeline(dict(document_paths=[str(source)], persist_dir=str(tmp_path / 'index'),
+            embed_provider='openai_compatible', embed_model='fixture', embed_api_key='test-only',
+            backend='lancedb', reranker_type='off', use_contextual=False,
+            chunk_size=700, chunk_overlap=100, top_k=2, rerank_top_k=1, force_reindex=True))
+        try:
+            failing = True
+            requests.clear()
+            with pytest.raises(openai.APIStatusError) as caught:
+                pipeline.search('Cedar')
+            assert caught.value.status_code == status
+            assert len(requests) == (1 if status == 401 else 2)
+            failing = False
+            assert pipeline.search('Cedar')[0]['content'] == 'Cedar owns a bicycle.'
+        finally:
+            pipeline.close()
 
 
 def test_api_embeddings_retrieve_semantic_fixture_and_reopen(tmp_path, monkeypatch):
