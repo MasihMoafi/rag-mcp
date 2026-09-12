@@ -54,7 +54,12 @@ def test_callable_batch_follows_method_failure(backend, capsys):
     backend.embedding_fn = Embedder()
     assert backend._batch_embed(['a', 'b']) == [[1.0], [2.0]]
     assert calls == [['a', 'b']]
-    assert 'batch unavailable' in capsys.readouterr().err
+    logs = capsys.readouterr().err
+    if isinstance(backend, LanceDBBackend):
+        assert 'RuntimeError' in logs
+        assert 'batch unavailable' not in logs
+    else:
+        assert 'batch unavailable' in logs
 
 
 def test_parallel_fallback_keeps_two_workers_and_input_order(backend, monkeypatch):
@@ -152,7 +157,9 @@ def test_lancedb_record_batches_and_fts_contract(dense, fts_failure, capsys):
     assert indexes == [('content', {'replace': True})]
     assert backend.table is table
     if fts_failure:
-        assert 'FTS unavailable' in capsys.readouterr().err
+        logs = capsys.readouterr().err
+        assert 'RuntimeError' in logs
+        assert 'FTS unavailable' not in logs
     backend.add_documents_batch([])
     assert len(writes) == 1
 

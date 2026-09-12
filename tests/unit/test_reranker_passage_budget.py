@@ -30,4 +30,4 @@ def test_invalid_reranker_scores_preserve_fallback_passages(scores, capsys):
     pipeline = SimpleNamespace(reranker_type='cross-encoder',
         reranker=SimpleNamespace(predict=lambda pairs: scores))
     assert rerank_documents(pipeline, docs, 'question', 2) == docs[:2]
-    assert 'one finite score per passage' in capsys.readouterr().out
+    assert 'ValueError' in capsys.readouterr().out
