@@ -20,15 +20,23 @@ def local_search(tmp_path, monkeypatch):
     fetch.reset_pipelines()
 
 
-@pytest.mark.parametrize("extension", ["txt", "json", "ipynb"])
-def test_unreadable_member_cannot_publish_partial_corpus(tmp_path, local_search, extension):
+@pytest.mark.parametrize("extension", ["txt", "json", "ipynb", "pdf"])
+def test_unreadable_member_cannot_publish_partial_corpus(tmp_path, local_search, extension, monkeypatch):
+    import fitz
+    from rag.core import RAGPipeline
+
     corpus = tmp_path / "corpus"
     corpus.mkdir()
     good = corpus / "good.txt"
     damaged = corpus / f"damaged.{extension}"
     good.write_text("Meeting: Friday.")
     def write_member(text):
-        if extension == "ipynb":
+        if extension == "pdf":
+            with fitz.open() as document:
+                document.new_page().insert_text((72, 72), text)
+                document.save(str(damaged))
+            return
+        elif extension == "ipynb":
             text = json.dumps({"cells": [{"cell_type": "markdown", "source": [text]}]})
         elif extension == "json":
             text = json.dumps(text)
@@ -38,11 +46,17 @@ def test_unreadable_member_cannot_publish_partial_corpus(tmp_path, local_search,
     previous = fetch.get_rag_pipeline_v2(str(corpus))
     storage = previous.vector_db
     manifests = {path: path.read_bytes() for path in (tmp_path / "index").rglob("source-manifest.json")}
+    pointers = {path: path.read_bytes() for path in (tmp_path / "index").rglob("active-index.json")}
+    assert pointers and manifests
     damaged.write_bytes(b"\xff\xfe")
-    with pytest.raises(UnicodeDecodeError):
+    if extension == "pdf":
+        # Real primary parser failure; deterministic empty OCR fallback, no model download.
+        monkeypatch.setattr(RAGPipeline, '_extract_text_with_unstructured', lambda self, path: '')
+    with pytest.raises(fitz.FileDataError if extension == "pdf" else UnicodeDecodeError):
         local_search(corpus)
     assert storage.count() == 2
     assert all(path.read_bytes() == data for path, data in manifests.items())
+    assert all(path.read_bytes() == data for path, data in pointers.items())
     write_member("Meeting: Tuesday.")
     assert any("Tuesday" in passage["content"] for passage in local_search(corpus))
 
