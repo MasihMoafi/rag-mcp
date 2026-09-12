@@ -15,8 +15,10 @@ def extract_pdf_text(pdf_path: str) -> str:
     destroyed and every chunk looks like it came from nowhere."""
     try:
         doc = fitz.open(pdf_path)
-        pages = [re.sub(r'\s+', ' ', page.get_text().translate(_LIGATURES)).strip() for page in doc]
-        doc.close()
+        try:
+            pages = [re.sub(r'\s+', ' ', page.get_text().translate(_LIGATURES)).strip() for page in doc]
+        finally:
+            doc.close()
         return "\f".join(pages)
     except Exception as e:
         print(f"Error extracting text from {pdf_path}: {e}")
