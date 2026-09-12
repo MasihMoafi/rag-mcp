@@ -9,6 +9,7 @@ from utils.persistence import write_json_atomic
 from .chunking import chunk_document
 from .contextual_retrieval import select_document_context
 from .formats import INDEXABLE_EXTENSIONS
+from .index_lifecycle import RebuildRequired
 
 
 def locate_chunk(self, full_text: str, content: str, ext: str, search_from: int) -> tuple:
@@ -54,10 +55,6 @@ def load_or_create_database(self):
 
     if not os.path.exists(persist_dir) or self.config.get("force_reindex", False):
         print(f"[RAG V2] Creating new database at {persist_dir}...")
-        # LanceDB replaces its table after extraction and embedding succeed;
-        # dropping it first destroys recovery data on a failed refresh.
-        if self.config.get("force_reindex", False) and self.backend_type != "lancedb":
-            self.vector_db.clear()
         self._index_documents()
     else:
         print(f"[RAG V2] Loading existing database from {persist_dir}...")
@@ -188,8 +185,7 @@ def load_existing_database(self):
                 raise ValueError("Metadata does not match stored documents")
         except (OSError, ValueError) as error:
             print(f"[RAG] Cannot reuse document metadata; rebuilding from sources: {error}", file=sys.stderr)
-            self._index_documents()
-            return
+            raise RebuildRequired("Document metadata needs recovery") from error
 
         if self.bm25_index is not None:
             print(f"[RAG V2] Loading {len(docs)} chunks and rebuilding BM25...")
@@ -199,6 +195,4 @@ def load_existing_database(self):
 
         print(f"[RAG V2] Loaded {len(docs)} chunks from existing database ({self.backend_type}: {db_count})")
     else:
-        # Database directory exists but empty - trigger indexing
-        print(f"[RAG V2] Database empty. Triggering indexing...")
-        self._index_documents()
+        raise RebuildRequired("Database or document metadata is missing")

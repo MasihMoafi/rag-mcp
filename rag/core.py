@@ -19,6 +19,7 @@ from .lancedb_backend import LanceDBBackend
 from . import ingestion, parsing, reranking
 from .bm25 import BM25Index
 from .chunking import chunk_text, chunk_document
+from .index_lifecycle import open_or_build
 
 
 def select_device() -> str:
@@ -34,10 +35,18 @@ class RAGPipeline:
     """Hybrid local retrieval with optional contextual indexing and reranking."""
     
     def __init__(self, config: dict):
-        self.config = config
-        self.backend_type = self.config.get("backend", os.environ.get("RAG_MCP_BACKEND", "lancedb")).lower()
+        config = dict(config)
+        self.backend_type = config.get("backend", os.environ.get("RAG_MCP_BACKEND", "lancedb")).lower()
         if self.backend_type not in {"lancedb", "qdrant"}:
             raise ValueError(f"Unknown retrieval backend: {self.backend_type}. Choose lancedb or qdrant.")
+        config['backend'] = self.backend_type
+        if config.pop('_staged_index', False):
+            self._initialize(config)
+        else:
+            open_or_build(config, self._initialize)
+
+    def _initialize(self, config):
+        self.config = config
         self.device = select_device()
         print(f"[RAG V2] Using compute device: {self.device}")
 
@@ -97,15 +106,14 @@ class RAGPipeline:
                 b=self.config.get("bm25_b", 0.75)
             )
 
-        reranking.initialize_reranker(self)
-
-        # Load or create database
         try:
+            reranking.initialize_reranker(self)
             self._load_or_create_database()
         except BaseException:
             if self.backend_type == 'qdrant':
                 self.vector_db.client.close()
             raise
+        return self
 
     _extract_text_from_pdf = parsing._extract_text_from_pdf
     _extract_text_with_unstructured = parsing._extract_text_with_unstructured

@@ -381,20 +381,20 @@ set it, it does nothing useful.
 
 ### Readiness audit — 2026-09-12
 
-The selected offline/local regression suite passes 316 tests, with one explicit
-expected failure for direct-engine Qdrant refresh losing the previous index. This verifies the
+The selected offline/local regression suite passes 338 tests, without expected
+failures. This verifies the
 covered extraction/citation, API response handling, scope, cache, CLI/MCP and
 LanceDB lifecycle cases—not universal production readiness. API tests use an
 in-memory HTTP transport with the real SDK and storage, not paid-provider inference.
 
 Remaining gates:
 
-- CLI/MCP source/configuration refreshes now build isolated generations and publish
+- CLI/MCP and direct-engine refreshes now share isolated generation builds and publish
   an atomic pointer only after storage, metadata and the source manifest succeed.
   Both backends preserve the old searchable generation after injected embedding,
   metadata, manifest and pointer-publication failures, including reopen and retry.
-  Direct-engine rebuilds and automatic corrupt-metadata recovery are not covered
-  by this transaction. Concurrent writer ordering and crash/power-loss durability
+  Corrupt-metadata recovery also stages a replacement; injected recovery failures
+  preserve the previous stored evidence. Concurrent writer ordering and crash/power-loss durability
   remain unverified. Old generations are retained; bounded retention is unfinished.
 - Realistic retrieval-quality evaluation of the current hybrid/API path, including
   larger private corpora; the new HTML reader currently has fixture-level coverage.
