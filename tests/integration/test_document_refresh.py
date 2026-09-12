@@ -143,3 +143,27 @@ def test_invalid_metadata_rebuilds_from_sources(tmp_path, local_search, corrupti
     restored = json.loads((Path(active.config['persist_dir']) / 'docs.json').read_text())
     assert isinstance(restored, list) and restored[0]['content'] == 'Meeting: Friday.'
     assert metadata.read_text() == corruption
+
+
+def test_source_change_during_indexing_preserves_previous_generation(tmp_path, local_search, monkeypatch):
+    from pathlib import Path
+    from rag.core import RAGPipeline
+    document = tmp_path / 'note.txt'
+    document.write_text('Meeting: Friday.')
+    assert local_search(document)[0]['content'] == 'Meeting: Friday.'
+    previous = fetch.get_rag_pipeline_v2(str(document))
+    pointer = Path(previous.config['index_scope']) / 'active-index.json'
+    published = pointer.read_bytes()
+    document.write_text('Meeting: Monday.')
+    save = RAGPipeline._save_database
+    def edit_after_indexing(self, docs):
+        save(self, docs)
+        document.write_text('Meeting: Tuesday.')
+    with monkeypatch.context() as fault:
+        fault.setattr(RAGPipeline, '_save_database', edit_after_indexing)
+        with pytest.raises(RuntimeError, match='Sources changed'):
+            local_search(document)
+    assert pointer.read_bytes() == published
+    assert previous.search('Meeting')[0]['content'] == 'Meeting: Friday.'
+    fetch.reset_pipelines()
+    assert local_search(document)[0]['content'] == 'Meeting: Tuesday.'

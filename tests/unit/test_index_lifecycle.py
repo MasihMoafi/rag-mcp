@@ -3,6 +3,7 @@ from types import SimpleNamespace
 from concurrent.futures import ThreadPoolExecutor
 from threading import Event
 import multiprocessing
+from pathlib import Path
 
 import pytest
 
@@ -94,3 +95,26 @@ def test_competing_process_cannot_replace_newer_publication(tmp_path):
             process.terminate()
         process.join(timeout=10)
         outcome.close()
+
+
+@pytest.mark.parametrize('change', ['edit', 'delete', 'add'])
+def test_changed_sources_cannot_be_published(tmp_path, change):
+    source_dir = tmp_path / 'sources'
+    source_dir.mkdir()
+    source = source_dir / 'note.txt'
+    source.write_text('Original evidence')
+    scope = tmp_path / 'index'
+    config = {'persist_dir': str(scope), 'force_reindex': True, 'document_paths': [str(source_dir)]}
+    previous = open_or_build(config, lambda config: SimpleNamespace(config=config))
+    def changed_build(config):
+        if change == 'edit':
+            source.write_text('Changed evidence')
+        elif change == 'delete':
+            source.unlink()
+        else:
+            (source_dir / 'added.txt').write_text('New evidence')
+        return SimpleNamespace(config=config)
+    with pytest.raises(RuntimeError, match='Sources changed'):
+        open_or_build(config, changed_build)
+    assert str(active_directory(scope)) == previous.config['persist_dir']
+    assert list(scope.glob('generation-*')) == [Path(previous.config['persist_dir'])]

@@ -9,7 +9,7 @@ from .core import RAGPipelineV2
 from .discovery import resolve_path, find_all_indexable_files, find_relevant_files
 from .formats import INDEXABLE_EXTENSIONS as _INDEXABLE_EXTENSIONS
 from .settings import contextual_retrieval_enabled, embedding_config, retrieval_config
-from .index_lifecycle import active_directory, open_or_build
+from .index_lifecycle import active_directory, open_or_build, source_snapshot
 
 def _env_str(name: str, default: str) -> str:
     value = os.environ.get(name, "").strip()
@@ -121,14 +121,6 @@ def get_rag_pipeline_v2(doc_path: Optional[str | list[str]] = None):
         config['index_scope'] = str(scope_root)
         config['persist_dir'] = str(active_directory(scope_root))
         
-        sources = []
-        for document_path in config["document_paths"]:
-            source = Path(document_path)
-            paths = source.rglob("*") if source.is_dir() else [source]
-            for path in paths:
-                if path.is_file():
-                    stat = path.stat()
-                    sources.append([str(path.resolve()), stat.st_size, stat.st_mtime_ns, stat.st_ctime_ns])
         stamp = {
             "version": 3,  # Source-qualified IDs, preserved by the storage backend.
             "parsing_version": 5,  # Static HTML content extraction with physical source-line positions.
@@ -138,7 +130,7 @@ def get_rag_pipeline_v2(doc_path: Optional[str | list[str]] = None):
                 "size": config["chunk_size"],
                 "overlap": config["chunk_overlap"],
             },
-            "sources": sorted(sources),
+            "sources": source_snapshot(config['document_paths']),
             "embedding": {
                 name: embedding.get(name, "")
                 for name in ("embed_provider", "embed_model", "embed_base_url", "ollama_url")
