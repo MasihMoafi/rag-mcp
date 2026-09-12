@@ -75,3 +75,25 @@ def test_reset_waits_for_inflight_initialization_then_retires_it(sources, monkey
         reset.result(timeout=5)
     assert closed.is_set()
     assert not fetch._rag_system_v2_instances
+
+
+def test_failed_lancedb_settings_replacement_keeps_previous_searchable(sources, monkeypatch):
+    previous = fetch.get_rag_pipeline_v2(sources[0])
+    monkeypatch.setenv('RAG_MCP_RERANKER_MODEL', 'changed-setting')
+
+    def fail(config):
+        raise RuntimeError('replacement setup failed')
+
+    try:
+        with monkeypatch.context() as patch:
+            patch.setattr(fetch, 'RAGPipelineV2', fail)
+            with pytest.raises(RuntimeError, match='replacement setup failed'):
+                fetch.get_rag_pipeline_v2(sources[0])
+        assert previous.search('Cedar')[0]['original_content'] == 'Cedar evidence'
+        replacement = fetch.get_rag_pipeline_v2(sources[0])
+        assert replacement is not previous
+        assert replacement.search('Cedar')[0]['original_content'] == 'Cedar evidence'
+        with pytest.raises(RuntimeError, match='closing or closed'):
+            previous.search('Cedar')
+    finally:
+        fetch.reset_pipelines()
