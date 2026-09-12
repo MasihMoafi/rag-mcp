@@ -43,7 +43,8 @@ def test_server_shutdown_releases_pipelines(monkeypatch, read_fails, cleanup_fai
 
 
 @pytest.fixture
-def delegation(monkeypatch):
+def delegation(monkeypatch, tmp_path):
+    monkeypatch.setenv('RAG_MCP_CONFIG', str(tmp_path / 'config.json'))
     calls = []
 
     def configure(args, **kwargs):
@@ -55,6 +56,33 @@ def delegation(monkeypatch):
     reset = Mock()
     monkeypatch.setattr(fetch, 'reset_pipelines', reset)
     return calls, reset
+
+
+@pytest.mark.parametrize('failure', ['validation', 'probe'])
+def test_failed_request_preserves_live_settings(monkeypatch, tmp_path, failure):
+    monkeypatch.setenv('RAG_MCP_CONFIG', str(tmp_path / 'config.json'))
+    path = server.user_settings.save_settings({'top_k': '5', 'custom': 'preserved'})
+    original = path.read_bytes()
+    reset = Mock()
+    monkeypatch.setattr(fetch, 'reset_pipelines', reset)
+    monkeypatch.setattr(cli, '_probe_embedding', Mock(side_effect=RuntimeError('probe failed')))
+    arguments = {'top': 9, 'contextual_retrieval': 'invalid'} if failure == 'validation' else {
+        'top': 9, 'embedding_provider': 'ollama', 'embedding_model': 'fixture'}
+    assert 'error' in server._apply_settings(arguments)
+    assert path.read_bytes() == original
+    reset.assert_not_called()
+
+
+def test_successful_request_publishes_all_settings(monkeypatch, tmp_path):
+    monkeypatch.setenv('RAG_MCP_CONFIG', str(tmp_path / 'config.json'))
+    server.user_settings.save_settings({'top_k': '5', 'custom': 'preserved'})
+    reset = Mock()
+    monkeypatch.setattr(fetch, 'reset_pipelines', reset)
+    result = server._apply_settings({'top': 9, 'reranker': 'off'})
+    assert result['changed'] == ['top', 'reranker']
+    assert server.user_settings.load_settings() == {
+        'top_k': '9', 'custom': 'preserved', 'reranker_type': 'off', 'reranker_model': ''}
+    reset.assert_called_once_with()
 
 
 def test_setting_order_and_alias_are_preserved(delegation):
