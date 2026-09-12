@@ -16,7 +16,14 @@ def extract_pdf_text(pdf_path: str) -> str:
     try:
         doc = fitz.open(pdf_path)
         try:
-            pages = [re.sub(r'\s+', ' ', page.get_text().translate(_LIGATURES)).strip() for page in doc]
+            pages = []
+            for page in doc:
+                sections = re.split(r'(?m)^(?=(?:Figure|Fig\.|Table)\s+\d+[.:]\s)',
+                                    page.get_text().translate(_LIGATURES))
+                pages.append('\n\n'.join(re.sub(r'\s+', ' ', part).strip()
+                                         for part in sections if part.strip()))
+                if len(sections) > 1:
+                    pages[-1] += '\n\n'  # Do not join a caption to the next page's diagram.
         finally:
             doc.close()
         return "\f".join(pages)

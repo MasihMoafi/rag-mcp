@@ -158,7 +158,7 @@ def _get_scoped_pipeline(key, doc_path):
         
         stamp = {
             "version": 3,  # Source-qualified IDs, preserved by the storage backend.
-            "parsing_version": 5,  # Static HTML content extraction with physical source-line positions.
+            "parsing_version": 6,  # PDF caption boundaries survive whitespace normalization.
             "storage": {name: config[name] for name in ("backend", "distance_metric")},
             "chunking": {
                 "version": 2,  # Fenced Markdown code does not create section headings.
