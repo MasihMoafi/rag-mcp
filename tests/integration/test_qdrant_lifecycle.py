@@ -44,6 +44,7 @@ def test_pipeline_replacement_releases_storage_even_with_external_reference(tmp_
     source = tmp_path / 'note.txt'
     source.write_text('Cedar evidence')
     previous = fetch.get_rag_pipeline_v2(str(source))
+    previous_storage = previous.vector_db
     try:
         def unexpected_reindex(*args, **kwargs):
             pytest.fail('Reset or ranking-only changes must not re-embed documents')
@@ -57,9 +58,10 @@ def test_pipeline_replacement_releases_storage_even_with_external_reference(tmp_
             assert reopened is not previous
             assert reopened.search('Cedar')[0]['content'] == 'Cedar evidence'
         finally:
-            reopened.vector_db.client.close()
+            reopened.close()
     finally:
-        previous.vector_db.client.close()
+        previous_storage.client.close()
+        previous.close()
         fetch.reset_pipelines()
 
 

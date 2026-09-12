@@ -12,7 +12,7 @@ from rag import core
 from rag import index_lifecycle
 
 
-def test_closed_pipeline_does_not_retain_reranking_models():
+def test_closed_pipeline_does_not_retain_models_or_indexes():
     import weakref
 
     class Model:
@@ -23,7 +23,8 @@ def test_closed_pipeline_does_not_retain_reranking_models():
     pipeline.backend_type = 'lancedb'
     pipeline.embedding_fn = None
     references = []
-    for name in ('reranker', 'reranker_model', 'reranker_tokenizer'):
+    for name in ('reranker', 'reranker_model', 'reranker_tokenizer',
+                 'embedding_fn', 'vector_db', 'bm25_index'):
         model = Model()
         references.append(weakref.ref(model))
         setattr(pipeline, name, model)
