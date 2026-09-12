@@ -21,6 +21,18 @@ def test_exercise_patterns_keep_priority():
     assert notebook_chunker.extract_exercise_number('no exercise') is None
 
 
+def test_extracted_text_preserves_empty_cell_positions(tmp_path):
+    from rag.parsers.notebook import extract_notebook_text
+    path = tmp_path / 'positions.ipynb'
+    path.write_text(json.dumps({'cells': [
+        {'cell_type': 'code', 'source': []},
+        {'cell_type': 'markdown', 'source': 'First evidence'},
+        {'cell_type': 'code', 'source': '  ', 'outputs': [{'text': 'JUNK'}]},
+        {'cell_type': 'code', 'source': 'second = 42'},
+    ]}))
+    assert extract_notebook_text(str(path)) == '\fFirst evidence\f\fsecond = 42'
+
+
 def test_unreadable_notebook_returns_empty(tmp_path):
     assert notebook_chunker.extract_cells_from_notebook(str(tmp_path / 'missing.ipynb')) == []
 
