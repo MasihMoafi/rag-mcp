@@ -1,0 +1,17 @@
+{
+  "purpose": "First five queries in existing CSV order; diagnostic calibration, not a full-suite score.",
+  "reviewer": "assistant, non-blind, not independently reviewed",
+  "report": "/tmp/rag-napoleon-lexical-13f0603.json",
+  "source_sha256": "d95be21cea799bc87f28937940c3b556bcff6540f6815f5bd988fcb6d753c6b5",
+  "queries_sha256": "e3fd49de7fde1565f84ccf033120c3de8529d94756eaac63299c6ee850da48db",
+  "rubric": "Full means returned evidence supports the substantive question; partial means some needed explanation is absent. Reference defects are recorded separately, never silently corrected.",
+  "cases": [
+    {"index": 0, "grade": "partial", "ranks": [3], "note": "Crisis reveals character is present at p45-46; secret momentary passions versus natural character is absent. Reference's second claim has not yet been independently located in source."},
+    {"index": 1, "grade": "full", "ranks": [1, 3, 5], "note": "Destiny as active self-fulfillment, fate beyond individual control, and the chain of actions are supported. Exact full-answer containment is falsely negative."},
+    {"index": 2, "grade": "full", "ranks": [2], "note": "p145 supports religion's social-order role and heavenly equality preventing violence against the rich. Reference conflates this with p146's separate vaccine metaphor concerning imagination, supernatural beliefs and dangerous doctrines. Vaccine wording is absent from retrieval; do not label the substantive social-order answer wrong solely for that absence."},
+    {"index": 3, "grade": "partial", "ranks": [1, 2], "note": "Civilian magistrate recommendation and common-good argument retrieved at p118. Missing civilization/property and civic-qualities rationale independently confirmed on source p117-118."},
+    {"index": 4, "grade": "partial", "ranks": [1, 2], "note": "Inevitable terror and volcanic analogy retrieved at p105; following passage about directing revolution through victories is missing. Reference's 'must be directed by force to succeed' is stronger than source's statement that revolution cannot be made/stopped but can be directed through victories."}
+  ],
+  "limits": "Only 5 of 30 reviewed. No hybrid comparison, no claim of overall quality or parser causality. Existing CSV and runtime remain unchanged.",
+  "next": "Complete source-grounded grading before using reference answers as acceptance criteria; isolate candidate selection versus missing neighboring explanation in any later ablation."
+}
