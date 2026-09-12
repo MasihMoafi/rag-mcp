@@ -58,6 +58,7 @@ def open_or_build(config, build):
         sources = source_snapshot(document_paths)
     pending = Path(tempfile.mkdtemp(prefix='generation-', dir=root))
     instance = None
+    published = False
     try:
         instance = build({**config, 'persist_dir': str(pending), 'force_reindex': True})
         if 'source_stamp' in config:
@@ -69,13 +70,15 @@ def open_or_build(config, build):
             if source_snapshot(document_paths) != sources:
                 raise RuntimeError('Sources changed during indexing; retry the query.')
             write_json_atomic(root / 'active-index.json', pending.name)
+            published = True
         return instance
     except Exception as error:
         try:
             close = getattr(instance, 'close', None)
             if close is not None:
                 close()
-            shutil.rmtree(pending)
+            if not published:
+                shutil.rmtree(pending)
         except Exception as cleanup_error:
             error.add_note(f"Staging cleanup failed ({type(cleanup_error).__name__}); inspect {pending}")
         raise
