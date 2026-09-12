@@ -1,6 +1,8 @@
 """Real SDK serialization, vector storage and retrieval; HTTP stays in memory."""
 
 import json
+from contextlib import ExitStack
+from types import SimpleNamespace
 
 import httpx
 import openai
@@ -83,20 +85,40 @@ def test_api_embeddings_retrieve_semantic_fixture_and_reopen(tmp_path, monkeypat
                   embed_provider='openai_compatible', embed_model='fixture', embed_api_key='test-only',
                   backend='lancedb', reranker_type='off',
                   use_contextual=False, chunk_size=700, chunk_overlap=100,
-                  top_k=2, rerank_top_k=1, force_reindex=True)
-    with httpx.Client(transport=httpx.MockTransport(respond)) as transport:
+                  top_k=2, rerank_top_k=2, force_reindex=True)
+    with ExitStack() as clients:
         real_client = openai.OpenAI
-        monkeypatch.setattr(openai, 'OpenAI', lambda **kwargs: real_client(http_client=transport, **kwargs))
+        monkeypatch.setattr(openai, 'OpenAI', lambda **kwargs: real_client(
+            http_client=clients.enter_context(httpx.Client(transport=httpx.MockTransport(respond))),
+            **kwargs))
         for reopen in [False, True]:
             config['force_reindex'] = not reopen
             previous_batches = sum(len(call['input']) > 1 for call in calls)
             pipeline = core.RAGPipeline(config.copy())
-            query = 'pedal ownership'
-            assert pipeline.vector_db.search_fts(query) == []
-            result = pipeline.search(query)[0]
-            assert 'Cedar' in result['original_content']
-            assert result['file_path'] == str(source)
-            assert result['location'] == 'L1-L2'
-            assert pipeline.vector_db.count() == 2
-            assert sum(len(call['input']) > 1 for call in calls) == previous_batches + (not reopen)
+            try:
+                query = 'pedal ownership'
+                assert pipeline.vector_db.search_fts(query) == []
+                fused = pipeline.search(query)
+                assert len(fused) == 2
+                assert 'Cedar' in fused[0]['original_content']
+                assert fused[0]['file_path'] == str(source)
+                assert fused[0]['location'] == 'L1-L2'
+                scored = []
+
+                def predict(pairs):
+                    scored.append(pairs)
+                    return [0.1, 0.9]
+
+                pipeline.reranker = SimpleNamespace(predict=predict)
+                pipeline.config['reranker_type'] = 'cross-encoder'
+                ranked = pipeline.search(query)
+                assert scored == [[[query, doc['content']] for doc in fused]]
+                assert ranked == fused[::-1]
+                pipeline.config['reranker_type'] = 'off'
+                assert pipeline.search(query) == fused
+                assert len(scored) == 1
+                assert pipeline.vector_db.count() == 2
+                assert sum(len(call['input']) > 1 for call in calls) == previous_batches + (not reopen)
+            finally:
+                pipeline.close()
     assert all(call['model'] == 'fixture' for call in calls)
