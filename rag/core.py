@@ -165,8 +165,8 @@ class RAGPipeline:
             return final_docs
             
         except Exception as e:
-            print(f"[RAG V2] Search error: {e}")
-            return []
+            print(f"[RAG V2] Search error: {e}", file=sys.stderr)
+            raise
 
 
 # Existing CLI, MCP callers and serialized class references use this name.

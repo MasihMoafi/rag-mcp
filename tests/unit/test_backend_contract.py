@@ -92,6 +92,18 @@ def test_parallel_query_failure_propagates(backend):
         backend._batch_embed(['a'])
 
 
+def test_fts_failure_is_not_reported_as_no_matches():
+    backend = LanceDBBackend.__new__(LanceDBBackend)
+    class BrokenTable:
+        def __len__(self):
+            return 1
+        def search(self, *args, **kwargs):
+            raise RuntimeError('FTS unavailable')
+    backend.table = BrokenTable()
+    with pytest.raises(RuntimeError, match='FTS unavailable'):
+        backend.search_fts('evidence')
+
+
 @pytest.mark.parametrize('dense', [False, True])
 @pytest.mark.parametrize('fts_failure', [False, True])
 def test_lancedb_record_batches_and_fts_contract(dense, fts_failure, capsys):

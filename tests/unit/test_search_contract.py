@@ -55,7 +55,9 @@ def test_search_empty_result_contract(pipeline):
     assert pipeline.search("missing") == "No relevant information found."
 
 
-def test_search_dependency_error_contract(pipeline, capsys):
-    pipeline.vector_db.search_fts.side_effect = RuntimeError("storage unavailable")
-    assert pipeline.search("evidence") == []
-    assert "[RAG V2] Search error: storage unavailable" in capsys.readouterr().out
+@pytest.mark.parametrize("branch", ["search_fts", "search_vector"])
+def test_search_dependency_error_contract(pipeline, branch):
+    pipeline.embedding_fn = object()
+    getattr(pipeline.vector_db, branch).side_effect = RuntimeError("storage unavailable")
+    with pytest.raises(RuntimeError, match="storage unavailable"):
+        pipeline.search("evidence")
