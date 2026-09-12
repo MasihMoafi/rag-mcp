@@ -92,5 +92,17 @@
     "decision": "Do not promote this candidate-depth/reranker combination on these results. All three reviewed misses remain; no whole-suite improvement claim.",
     "limits": "Assistant non-blind failure-subset review; no API/hybrid path or stronger pretrained reranker evaluated. CPU inference approximately1.7–2.1 seconds/query, not production latency. No paid calls or runtime changes."
   },
-  "next": "Deeper lexical candidates plus cached MiniLM did not repair the three misses. Investigate missing passage identity/context and API hybrid candidate coverage; preserve final5 acceptance and resolve flagged reference uncertainty."
+  "hometown_source_trace": {
+    "report": "/tmp/rag-napoleon-depth100-46b6786.json",
+    "question_index": 17,
+    "opening_chunk": 147,
+    "opening_location": "p.51-52",
+    "answer_chunk": 150,
+    "answer_location": "p.52-53",
+    "answer_indexing_evidence": "Chunk150 contains Nantes in Brittany and appears at rank37 for existing question3 in the same run, proving it was indexed and searchable. It is absent from question17's top100.",
+    "context_evidence": "Question17 rank1/chunk147 contains COLLOQUY WITH A STREETWALKER, Notebook and1787. Chunk150 has no heading metadata and contains conversation continuation without that identifying context.",
+    "inference": "This is candidate retrieval failure, not dropped parser text. Loss of section identity is a plausible contributor, not causally proven until controlled context enrichment is tested.",
+    "limits": "Existing raw passages inspected; no source upload, new inference, runtime change or full-suite score. Indexing proof comes from another query, not from modifying the failed question."
+  },
+  "next": "Test whether source-derived section identity helps retrieve the detached answer passage while preserving source citations and final5 budget; do not infer that parent context alone fixes other misses."
 }
