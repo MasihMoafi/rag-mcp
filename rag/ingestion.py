@@ -57,10 +57,7 @@ def load_or_create_database(self):
         # LanceDB replaces its table after extraction and embedding succeed;
         # dropping it first destroys recovery data on a failed refresh.
         if self.config.get("force_reindex", False) and self.backend_type != "lancedb":
-            try:
-                self.vector_db.clear()
-            except Exception as e:
-                print(f"[RAG V2] Warning: Failed to clear Qdrant collection: {e}")
+            self.vector_db.clear()
         self._index_documents()
     else:
         print(f"[RAG V2] Loading existing database from {persist_dir}...")
