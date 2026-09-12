@@ -49,6 +49,20 @@ def test_query_rejects_empty_vector(monkeypatch):
         wrapper.embed_query("question")
 
 
+def test_unknown_provider_does_not_load_a_local_model(monkeypatch):
+    from rag import embeddings
+    monkeypatch.setattr(embeddings, 'STWrapper', lambda *args: pytest.fail('Unexpected local model load'))
+    with pytest.raises(ValueError, match='Unknown embedding provider'):
+        embeddings.build_embedder({'embed_provider': 'openai_typo'})
+
+
+def test_unknown_backend_is_rejected_before_model_initialization(monkeypatch):
+    from rag import core
+    monkeypatch.setattr(core, 'build_embedder', lambda *args, **kwargs: pytest.fail('Unexpected model load'))
+    with pytest.raises(ValueError, match='Unknown retrieval backend'):
+        core.RAGPipeline({'backend': 'lance_typo', 'persist_dir': '/unused'})
+
+
 @pytest.mark.parametrize('status,expected_calls', [(401, 1), (400, 1), (429, 2), (503, 2)])
 def test_sdk_retry_budget_is_not_multiplied(monkeypatch, status, expected_calls):
     import httpx
