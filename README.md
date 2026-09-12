@@ -439,8 +439,11 @@ failure and legacy-index migration checks; this does not certify OCR model quali
   [Qwen reference example](https://huggingface.co/Qwen/Qwen3-Reranker-0.6B), instead
   of discarding passage text after 1000 characters. Cached-tokenizer tests cover
   longer passages and oversized queries; they do not prove ranking quality.
-  Long queries can exhaust the passage budget, and candidate batching remains
-  unbounded. Longer inputs can increase inference memory and latency.
+  Long queries can exhaust the passage budget. Inference processes at most eight
+  candidates per batch, scores all candidates before ranking, and preserves fused
+  order if any batch fails. Tiny real-model tests compare batched scores against
+  an all-candidate reference. This is not a total memory cap: longer inputs and
+  concurrent searches can still increase memory use and latency.
 - Realistic retrieval-quality evaluation of the current hybrid/API path, including
   larger private corpora; the new HTML reader currently has fixture-level coverage.
 - The f4fcbc3 source distribution and wheel built offline and installed into a
