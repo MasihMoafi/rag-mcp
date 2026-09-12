@@ -14,6 +14,39 @@ class Embedder:
         return [1., 0.]
 
 
+@pytest.mark.parametrize('backend', ['lancedb', 'qdrant'])
+def test_repeated_cache_churn_preserves_each_scope_without_reindex(tmp_path, monkeypatch, backend):
+    monkeypatch.setenv('RAG_MCP_DATA_DIR', str(tmp_path / 'index'))
+    monkeypatch.setenv('RAG_MCP_CONFIG', str(tmp_path / 'config.json'))
+    monkeypatch.setenv('RAG_MCP_EMBED_PROVIDER', 'none')
+    monkeypatch.setenv('RAG_MCP_RERANKER_TYPE', 'off')
+    monkeypatch.setenv('RAG_MCP_CACHE_SIZE', '2')
+    monkeypatch.setitem(fetch.RAG_CONFIG_V2, 'backend', backend)
+    monkeypatch.setattr(fetch, '_rag_system_v2_instances', {})
+    monkeypatch.setattr(Embedder, 'model_name', 'fixture', raising=False)
+    monkeypatch.setattr(core, 'build_embedder', lambda config, device: Embedder())
+    sources = [tmp_path / f'note-{index}.txt' for index in range(6)]
+    for index, source in enumerate(sources):
+        source.write_text(f'Cedar evidence for scope {index}.')
+    try:
+        for source in sources:
+            fetch.query_documents('Cedar', str(source))
+        generations = sorted((tmp_path / 'index').glob('*/generation-*'))
+        assert len(generations) == len(sources)
+        def unexpected_reindex(*args):
+            pytest.fail('Cache churn must not reindex unchanged source documents')
+        monkeypatch.setattr(core.RAGPipeline, '_index_documents', unexpected_reindex)
+        for _ in range(3):
+            for index, source in enumerate(sources):
+                result = fetch.query_documents('Cedar', str(source))
+                assert result[0]['content'] == f'Cedar evidence for scope {index}.'
+                assert result[0]['source'] == str(source)
+                assert len(fetch._rag_system_v2_instances) <= 2
+        assert sorted((tmp_path / 'index').glob('*/generation-*')) == generations
+    finally:
+        fetch.reset_pipelines()
+
+
 def test_failed_collection_initialization_releases_storage_lock(tmp_path, monkeypatch):
     def fail_initialization(self):
         raise RuntimeError('collection initialization failed')
