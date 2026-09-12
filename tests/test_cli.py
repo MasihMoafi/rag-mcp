@@ -5,6 +5,65 @@ from pathlib import Path
 from rag.cli import main
 
 
+class TTYStringIO(io.StringIO):
+    def isatty(self) -> bool:
+        return True
+
+
+def test_bare_cli_prints_help_and_menu_is_explicit():
+    output = io.StringIO()
+    assert main([], stdin=TTYStringIO(), stdout=output) == 0
+    assert "usage: rag" in output.getvalue()
+
+
+def test_query_json_format_is_stable_in_a_tty(tmp_path: Path):
+    document = tmp_path / "facts.md"
+    document.write_text("The launch codename is Cedar Lantern.")
+    output = TTYStringIO()
+
+    assert main(
+        ["query", "codename?", "--path", str(document), "--format", "json"],
+        stdin=TTYStringIO(),
+        stdout=output,
+        query_fn=lambda query, path: json.dumps({"result": [{"source": path}]}),
+    ) == 0
+    assert json.loads(output.getvalue()) == {"result": [{"source": str(document)}]}
+
+
+def test_query_text_format_is_stable_without_a_tty(tmp_path: Path):
+    document = tmp_path / "facts.md"
+    document.write_text("The launch codename is Cedar Lantern.")
+    output = io.StringIO()
+
+    assert main(
+        ["query", "codename?", "--path", str(document), "--format", "text"],
+        stdout=output,
+        query_fn=lambda query, path: json.dumps(
+            {"result": [{"content": "The launch codename is Cedar Lantern.", "source": path}]}
+        ),
+    ) == 0
+    assert "The launch codename is Cedar Lantern." in output.getvalue()
+    assert '"result"' not in output.getvalue()
+
+
+def test_setup_does_not_connect_an_agent_as_a_side_effect(tmp_path: Path, monkeypatch):
+    called = []
+    monkeypatch.setattr(
+        "rag.cli.user_settings.run_setup",
+        lambda **kwargs: 0,
+    )
+    monkeypatch.setattr("rag.cli._offer_agent_connection", lambda *args: called.append(args))
+
+    assert main(
+        ["setup"],
+        stdin=TTYStringIO(),
+        stdout=io.StringIO(),
+        stderr=io.StringIO(),
+        environ={"RAG_MCP_CONFIG": str(tmp_path / "config.json")},
+    ) == 0
+    assert called == []
+
+
 def test_doctor_reports_codex_login_as_json(tmp_path: Path):
     codex = tmp_path / "codex"
     codex.write_text("#!/bin/sh\nprintf 'Logged in using ChatGPT\\n'\n")
@@ -78,6 +137,38 @@ def test_setup_ollama_url_and_default_model_and_no_verify(tmp_path: Path):
     assert saved["ollama_url"] == "http://gpu-box:11434"
 
 
+def test_contextual_retrieval_can_be_toggled_from_config_command(tmp_path: Path):
+    config_path = tmp_path / "config.json"
+    environ = {"RAG_MCP_CONFIG": str(config_path)}
+
+    assert main(
+        ["config", "contextual", "on"],
+        stdout=io.StringIO(),
+        stderr=io.StringIO(),
+        environ=environ,
+    ) == 0
+    assert json.loads(config_path.read_text())["contextual_retrieval"] == "on"
+
+    assert main(
+        ["config", "contextual", "off"],
+        stdout=io.StringIO(),
+        stderr=io.StringIO(),
+        environ=environ,
+    ) == 0
+    assert json.loads(config_path.read_text())["contextual_retrieval"] == "off"
+
+
+def test_contextual_retrieval_config_rejects_unknown_mode(tmp_path: Path):
+    stderr = io.StringIO()
+    assert main(
+        ["config", "contextual", "maybe"],
+        stdout=io.StringIO(),
+        stderr=stderr,
+        environ={"RAG_MCP_CONFIG": str(tmp_path / "config.json")},
+    ) == 2
+    assert "on or off" in stderr.getvalue()
+
+
 def test_setup_api_option_requires_a_key(tmp_path: Path):
     stderr = io.StringIO()
     code = main(
@@ -135,7 +226,7 @@ def test_query_prints_the_real_query_result_contract(tmp_path: Path):
 
 def test_doctor_reports_missing_and_signed_out_codex(tmp_path: Path):
     output = io.StringIO()
-    assert main(["doctor", "--json"], stdout=output, environ={"PATH": str(tmp_path)}) == 1
+    assert main(["doctor", "--json"], stdout=output, environ={"PATH": str(tmp_path)}) == 0
     assert json.loads(output.getvalue())["codex"] == {
         "available": False,
         "authenticated": False,
@@ -146,7 +237,7 @@ def test_doctor_reports_missing_and_signed_out_codex(tmp_path: Path):
     codex.write_text("#!/bin/sh\nprintf 'Not logged in\n'\nexit 1\n")
     codex.chmod(0o755)
     output = io.StringIO()
-    assert main(["doctor", "--json"], stdout=output, environ={"PATH": str(tmp_path)}) == 1
+    assert main(["doctor", "--json"], stdout=output, environ={"PATH": str(tmp_path)}) == 0
     assert json.loads(output.getvalue())["codex"] == {
         "available": True,
         "authenticated": False,
@@ -176,6 +267,43 @@ def test_connect_codex_registers_the_current_server(tmp_path: Path):
     assert args[:4] == ["mcp", "add", "rag", "--"]
     assert Path(args[4]).resolve() == Path(__import__("sys").executable).resolve()
     assert Path(args[5]).resolve().name == "server.py"
+    assert not (tmp_path / ".codex" / "prompts" / "rag.md").exists()
+
+
+def test_connect_codex_does_not_replace_a_matching_registration(tmp_path: Path):
+    import server
+    import sys
+
+    marker = tmp_path / "unexpected-mutation"
+    codex = tmp_path / "codex"
+    transport = json.dumps(
+        {
+            "transport": {
+                "command": sys.executable,
+                "args": [str(Path(server.__file__).resolve())],
+            }
+        }
+    )
+    codex.write_text(
+        "#!/bin/sh\n"
+        "if [ \"$1 $2\" = \"mcp get\" ]; then\n"
+        f"  printf '%s\\n' '{transport}'\n"
+        "  exit 0\n"
+        "fi\n"
+        f"printf 'unexpected mutation\\n' > '{marker}'\n"
+        "exit 99\n"
+    )
+    codex.chmod(0o755)
+    output = io.StringIO()
+
+    assert main(
+        ["connect-codex"],
+        stdout=output,
+        stderr=io.StringIO(),
+        environ={"PATH": str(tmp_path), "HOME": str(tmp_path)},
+    ) == 0
+    assert "already connected" in output.getvalue()
+    assert not marker.exists()
 
 
 def test_studio_opens_a_session_token_and_serves_on_loopback():
@@ -235,7 +363,11 @@ def test_connect_claude_registers_the_server_in_user_scope(tmp_path: Path):
     claude.chmod(0o755)
     output = io.StringIO()
 
-    code = main(["connect", "claude"], stdout=output, environ={"PATH": str(tmp_path), "HOME": str(tmp_path)})
+    code = main(
+        ["connect", "claude", "--install-prompt"],
+        stdout=output,
+        environ={"PATH": str(tmp_path), "HOME": str(tmp_path)},
+    )
 
     assert code == 0
     assert "description:" in (tmp_path / ".claude" / "commands" / "rag.md").read_text()

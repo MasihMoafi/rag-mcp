@@ -110,7 +110,7 @@ _TOOL = {
 
 _SETTINGS_GET_TOOL = {
     "name": "get_rag_settings",
-    "description": "Show the local rag search setup: embedding model, passages per query (top N), reranker, and what this machine has (Ollama models, local runtimes, API keys).",
+    "description": "Show the local rag search setup: embedding model, passages per query (top N), reranker, contextual retrieval, and what this machine has (Ollama models, local runtimes, API keys).",
     "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False},
     "annotations": {"title": "Show rag settings", "readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": False},
 }
@@ -127,6 +127,7 @@ _SETTINGS_SET_TOOL = {
         "properties": {
             "top": {"type": "integer", "minimum": 1, "description": "How many passages a query returns"},
             "reranker": {"type": "string", "description": "off | auto | fastembed | a reranker model name"},
+            "contextual_retrieval": {"type": "string", "enum": ["on", "off"], "description": "Enable or disable Anthropic-style ingestion-time contextual retrieval"},
             "embedding_model": {"type": "string", "description": "Embedding model name, e.g. qwen3-embedding:0.6b or BAAI/bge-small-en-v1.5"},
             "embedding_provider": {"type": "string", "enum": ["fastembed", "ollama", "openai_compatible", "sentencetransformer", "none"], "description": "Where the embedding model runs; guessed when omitted"},
         },
@@ -168,6 +169,12 @@ def _apply_settings(arguments: dict[str, Any]) -> dict[str, Any]:
             if code != 0:
                 return {"error": err.getvalue().strip()}
             changed.append("reranker")
+        if "contextual_retrieval" in arguments:
+            args = argparse.Namespace(setting="contextual", value=str(arguments["contextual_retrieval"]), provider=None, no_verify=True)
+            code = _config_command(args, stdout=io.StringIO(), stderr=(err := io.StringIO()), environ=os.environ, verify=None)
+            if code != 0:
+                return {"error": err.getvalue().strip()}
+            changed.append("contextual_retrieval")
         if "embedding_model" in arguments or arguments.get("embedding_provider") == "none":
             if arguments.get("embedding_provider") == "none":
                 user_settings.update_settings({"embed_provider": "none", "embed_model": ""})
@@ -178,7 +185,7 @@ def _apply_settings(arguments: dict[str, Any]) -> dict[str, Any]:
                     return {"error": err.getvalue().strip()}
             changed.append("embedding")
     if not changed:
-        return {"error": "Nothing to change: pass top, reranker, embedding_model or embedding_provider."}
+        return {"error": "Nothing to change: pass top, reranker, contextual_retrieval, embedding_model or embedding_provider."}
     try:
         importlib.import_module("rag.fetch").reset_pipelines()
     except Exception:
@@ -432,7 +439,7 @@ def _handle_request(message: dict[str, Any]) -> None:
             request_id,
             {
                 "content": [{"type": "text", "text": output}],
-                "isError": False,
+                "isError": "error" in json.loads(output),
             },
         )
         return

@@ -50,6 +50,9 @@ def main(port: int, log_path: str) -> None:
             self.wfile.write(data)
 
         def do_GET(self) -> None:
+            if self.path == "/v1/models":
+                self._send(200, {"data": [{"id": "mock-embed-interactive"}]})
+                return
             if self.path == "/api/ps":
                 self._send(200, {"models": []})
             else:

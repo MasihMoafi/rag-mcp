@@ -2,8 +2,11 @@
 
 import fitz
 import pytest
+import json
+from pathlib import Path
 
 from rag import fetch
+from rag.core import BM25Index
 
 
 @pytest.fixture(autouse=True)
@@ -28,6 +31,32 @@ def test_markdown_citations_survive_search_and_reopening(tmp_path):
         assert result["location"] == "L5-L7"
         assert (result["start_line"], result["end_line"]) == (5, 7)
         assert result["original_content"] in source.read_text()
+        fetch.reset_pipelines()
+
+
+def test_same_named_sources_keep_distinct_ids_across_storage_and_fusion(tmp_path):
+    corpus = tmp_path / "corpus"
+    for name, detail in [("alpha", "Cedar grows in the north."), ("beta", "Cedar grows in the south.")]:
+        directory = corpus / name
+        directory.mkdir(parents=True)
+        (directory / "notes.txt").write_text(detail)
+    for _ in range(2):
+        pipeline = fetch.get_rag_pipeline_v2([str(path) for path in sorted(corpus.rglob("*.txt"))])
+        # Qdrant's lexical arm is rebuilt from this same persisted source cache;
+        # LanceDB itself uses its FTS index instead of the in-memory BM25 class.
+        documents = json.loads((Path(pipeline.config["persist_dir"]) / "docs.json").read_text())
+        lexical_index = BM25Index()
+        for document in documents:
+            lexical_index.add_document(document)
+        lexical = lexical_index.search("Cedar", k=5)
+        stored = pipeline.vector_db.search_fts("Cedar", top_k=5)
+        assert len({doc["id"] for doc, _score in lexical}) == 2
+        assert {doc["id"] for doc in stored} == {doc["id"] for doc, _score in lexical}
+        # Feed real stored documents as the dense arm, with controlled ranks;
+        # no model is needed to verify fusion identity and score accumulation.
+        fused = pipeline._rrf_fusion([(doc, 0.1) for doc in stored], lexical)
+        assert len(fused) == 2
+        assert len({doc["file_path"] for doc in fused}) == 2
         fetch.reset_pipelines()
 
 

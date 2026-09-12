@@ -16,6 +16,7 @@ clear_proxy_settings()
 
 from collections import Counter
 from .embeddings import build_embedder, probe_dimensions
+from .contextual_retrieval import AnthropicContextualizer, select_document_context
 from .lancedb_backend import LanceDBBackend
 
 
@@ -196,7 +197,7 @@ class BM25Index:
         N = len(self.documents)
         self._idf = {}
         for term, freq in self._doc_freqs.items():
-            # IDF formula from tutorial: log(((N - freq + 0.5) / (freq + 0.5)) + 1)
+            # Standard BM25 IDF formula.
             idf_score = math.log(((N - freq + 0.5) / (freq + 0.5)) + 1)
             self._idf[term] = idf_score
 
@@ -294,18 +295,20 @@ class BM25Index:
 
 
 class RAGPipelineV2:
-    """
-    RAG Pipeline V2 implementing tutorial techniques:
-    1. Custom VectorIndex and BM25Index
-    2. RRF (Reciprocal Rank Fusion) instead of weighted ensemble
-    3. LLM-based reranking with Ollama
-    4. Contextual chunk preprocessing
-    """
+    """Hybrid local retrieval with optional contextual indexing and reranking."""
     
     def __init__(self, config: dict):
         self.config = config
         self.device = select_device()
         print(f"[RAG V2] Using compute device: {self.device}")
+
+        self.contextualizer = self.config.get("contextualizer")
+        if self.config.get("use_contextual", False) and self.contextualizer is None:
+            self.contextualizer = AnthropicContextualizer(
+                model=str(self.config.get("contextual_model", "claude-haiku-4-5")),
+                max_tokens=int(self.config.get("contextual_max_tokens", 128)),
+                timeout=float(self.config.get("contextual_timeout", 30)),
+            )
 
         # Embeddings come from the user's `rag setup` choice (or RAG_MCP_* env).
         # None means exact-word (BM25) search only.
@@ -452,16 +455,21 @@ class RAGPipelineV2:
         return (location, start + 1)
 
     def _add_context_to_chunk(self, chunk: str, document_context: str) -> str:
-        """
-        STEP 7: CONTEXTUAL RETRIEVAL
-        Add context to chunks using LLM before embedding.
-        This helps chunks be more searchable by providing situational context.
-        """
-        # Always return chunk without context to avoid Ollama hanging
-        return chunk
+        if not self.config.get("use_contextual", False):
+            return chunk
+
+        try:
+            context = self.contextualizer(chunk, document_context).strip()
+        except Exception as error:
+            print(
+                f"[RAG V2] Contextual retrieval failed; keeping the original chunk: {error}",
+                file=sys.stderr,
+            )
+            return chunk
+        return f"{context}\n{chunk}" if context else chunk
 
     def _load_or_create_database(self):
-        """Load or create the V2 database with all tutorial techniques"""
+        """Load or create the persisted database."""
         persist_dir = self.config.get("persist_dir")
 
         if not os.path.exists(persist_dir) or self.config.get("force_reindex", False):
@@ -477,7 +485,7 @@ class RAGPipelineV2:
             self._load_existing_database()
 
     def _index_documents(self):
-        """Index all documents using V2 techniques"""
+        """Extract, chunk, optionally contextualize, and persist documents."""
         import sys
         import concurrent.futures
         all_docs = []
@@ -521,8 +529,6 @@ class RAGPipelineV2:
         for file_path, full_content in document_contents.items():
             print(f"[RAG V2] Processing {os.path.basename(file_path)}...")
 
-            # STEP 1: CHUNKING (structure-aware: markdown headings / code
-            # symbols / paragraphs first, raw sliding-window as last resort)
             chunks = chunk_document(
                 full_content,
                 file_path=file_path,
@@ -531,6 +537,7 @@ class RAGPipelineV2:
             )
 
             ext = os.path.splitext(file_path)[1].lower()
+            raw_chunks = [item["content"].replace("\f", " ") for item in chunks]
             search_from = 0
             for i, item in enumerate(chunks):
                 chunk = item["content"]
@@ -538,8 +545,17 @@ class RAGPipelineV2:
                     location, search_from = self._locate_chunk(full_content, chunk, ext, search_from)
                     clean_chunk = chunk.replace("\f", " ")
 
-                    # STEP 7: CONTEXTUAL RETRIEVAL
-                    contextualized_chunk = self._add_context_to_chunk(clean_chunk, full_content)
+                    document_context = full_content
+                    if self.config.get("use_contextual", False):
+                        document_context = select_document_context(
+                            full_content,
+                            raw_chunks,
+                            i,
+                            max_source_chars=int(self.config.get("contextual_source_max_chars", 12000)),
+                            start_chunks=int(self.config.get("contextual_start_chunks", 2)),
+                            previous_chunks=int(self.config.get("contextual_prev_chunks", 2)),
+                        )
+                    contextualized_chunk = self._add_context_to_chunk(clean_chunk, document_context)
 
                     doc = {
                         "content": contextualized_chunk,
@@ -552,17 +568,16 @@ class RAGPipelineV2:
                         "page_number": int(location[2:]) if location.startswith("p.") else 0,
                         "heading": item["heading"],
                         "chunk_id": i,
-                        "id": f"{os.path.basename(file_path)}_chunk_{i}"
+                        "id": f"{os.path.realpath(file_path)}::chunk:{i}"
                     }
                     all_docs.append(doc)
 
         if not all_docs:
-            raise ValueError("No documents processed.")
+            raise ValueError("No readable text found in the selected files.")
 
         # Add documents to indexes
         print(f"[RAG V2] Indexing {len(all_docs)} chunks...")
 
-        # STEP 2 & 4: Indexing into vector database and lexical index
         self.vector_db.add_documents_batch(all_docs, batch_size=512)
 
 
@@ -752,34 +767,9 @@ class RAGPipelineV2:
         return [doc for doc, score in rrf_results]
 
     def _llm_rerank(self, docs: List[Dict], query: str, k: int) -> List[Dict]:
-        """
-        STEP 6b: LLM-BASED RERANKING (Alternative to CrossEncoder)
-
-        Instead of a specialized CrossEncoder (like Qwen3 or MS-MARCO), this uses 
-        a generative LLM to act as a judge, analyzing each chunk's relevance to the query.
-        
-        Why this exists:
-        - Portability: Users don't need heavy ML frameworks (Torch/Transformers).
-        - Reasoning: Large LLMs can reason through complex semantic connections that 
-          smaller cross-encoders might miss.
-        """
+        """Preserve fused order for the unsupported legacy LLM setting."""
         print("[RAG Core] Executing LLM-based Reranking...")
-        
-        # NOTE: In a full production environment, this would call your Ollama/OpenAI API.
-        # This implementation serves as the scaffolding for the LLM judge logic.
-        scores = []
-        for doc in docs:
-            # Hypothetical Prompt Structure:
-            # prompt = f"Query: {query}\nPassage: {doc['content']}\nScore this passage from 0 to 10 based on its ability to answer the query."
-            # response = llm.generate(prompt)
-            # score = parse_score(response)
-            
-            # Since we don't want to block the execution with an API call here unless configured,
-            # we simulate an LLM pass-through for now, ready to be wired to the TUI's LLM engine.
-            scores.append(1.0) 
-            
-        ranked = sorted(zip(docs, scores), key=lambda x: x[1], reverse=True)
-        return [doc for doc, score in ranked[:k]]
+        return docs[:k]
 
 
     def _crossencoder_rerank(self, docs: List[Dict], query: str, k: int) -> List[Dict]:
@@ -868,16 +858,7 @@ class RAGPipelineV2:
             return docs[:k]
 
     def search(self, query: str) -> str:
-        """
-        Main search method implementing all 7 tutorial steps:
-        1. ✅ Chunking (in indexing)
-        2. ✅ Embeddings (in vector search)  
-        3. ✅ Vector Search (semantic similarity)
-        4. ✅ BM25 (keyword search)
-        5. ✅ Hybrid (RRF fusion)
-        6. ✅ Reranking (LLM-based)
-        7. ✅ Contextual (in indexing)
-        """
+        """Return ranked passages from the configured local retrieval pipeline."""
         try:
             top_k = self.config.get("top_k", 20)
             rerank_top_k = self.config.get("rerank_top_k", 3)

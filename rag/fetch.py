@@ -4,11 +4,8 @@ import json
 import tempfile
 from pathlib import Path
 from typing import Dict, Optional
-try:
-    from .core import RAGPipelineV2
-except Exception:
-    from .core_2 import RAGPipelineV2
-from .settings import embedding_config, retrieval_config
+from .core import RAGPipelineV2
+from .settings import contextual_retrieval_enabled, embedding_config, retrieval_config
 
 def _env_str(name: str, default: str) -> str:
     value = os.environ.get(name, "").strip()
@@ -39,7 +36,6 @@ RAG_CONFIG_V2 = {
     # rerank_top_k / reranker_type / reranker_model come from rag.settings.retrieval_config()
     # at pipeline creation (`rag config`, overridable by RAG_MCP_RERANK_TOP_K etc.).
     "force_reindex": False,
-    "use_contextual": False,  # Disable contextual retrieval for performance
     "bm25_k1": 1.5,  # BM25 parameters
     "bm25_b": 0.75,
     "distance_metric": "cosine",  # Vector distance metric
@@ -126,6 +122,16 @@ def get_rag_pipeline_v2(doc_path: Optional[str | list[str]] = None):
         config["top_k"] = max(final_count, int(config["top_k"]))
         config["reranker_type"] = retrieval["reranker_type"]
         config["reranker_model"] = retrieval["reranker_model"]
+        config["use_contextual"] = contextual_retrieval_enabled(retrieval)
+        for name in (
+            "contextual_model",
+            "contextual_max_tokens",
+            "contextual_timeout",
+            "contextual_source_max_chars",
+            "contextual_start_chunks",
+            "contextual_prev_chunks",
+        ):
+            config[name] = retrieval[name]
         current_dir = index_root()
         if isinstance(doc_path, list):
             config["document_paths"] = doc_path
@@ -152,7 +158,7 @@ def get_rag_pipeline_v2(doc_path: Optional[str | list[str]] = None):
                     stat = path.stat()
                     sources.append([str(path.resolve()), stat.st_size, stat.st_mtime_ns, stat.st_ctime_ns])
         stamp = {
-            "version": 2,
+            "version": 3,  # Source-qualified IDs, preserved by the storage backend.
             "chunking": {
                 "size": config["chunk_size"],
                 "overlap": config["chunk_overlap"],
@@ -161,6 +167,19 @@ def get_rag_pipeline_v2(doc_path: Optional[str | list[str]] = None):
             "embedding": {
                 name: embedding.get(name, "")
                 for name in ("embed_provider", "embed_model", "embed_base_url", "ollama_url")
+            },
+            "contextual": {
+                "enabled": config["use_contextual"],
+                **{
+                    name: config[name]
+                    for name in (
+                        "contextual_model",
+                        "contextual_max_tokens",
+                        "contextual_source_max_chars",
+                        "contextual_start_chunks",
+                        "contextual_prev_chunks",
+                    )
+                },
             },
         }
         config["source_stamp"] = stamp
@@ -171,6 +190,13 @@ def get_rag_pipeline_v2(doc_path: Optional[str | list[str]] = None):
             "rerank_top_k",
             "reranker_type",
             "reranker_model",
+            "use_contextual",
+            "contextual_model",
+            "contextual_max_tokens",
+            "contextual_timeout",
+            "contextual_source_max_chars",
+            "contextual_start_chunks",
+            "contextual_prev_chunks",
             "source_stamp",
         )):
             return cached
@@ -331,19 +357,19 @@ def fetchExternalKnowledgeV2(
 ) -> str:
     try:
         if not isinstance(query, str) or not query:
-            return "Error: Invalid or empty query provided."
+            raise ValueError("Enter a question to search for.")
 
         # The MCP host may pass a validated manifest so a directory is not
         # recursively enumerated a second time in the same process.
         if isinstance(doc_path, list):
             all_files = doc_path
             if not all_files:
-                return "No indexable files found in provided scope"
+                raise ValueError("No readable documents found in the selected scope.")
             doc_path = all_files
         elif doc_path:
             resolved_path = resolve_path(doc_path)
             if not os.path.exists(resolved_path):
-                return f"Error: Path does not exist: {resolved_path}"
+                raise ValueError(f"Path does not exist: {resolved_path}")
 
             if os.path.isdir(resolved_path):
                 # Find ALL indexable files recursively (limit to 100 like v1)
@@ -358,7 +384,7 @@ def fetchExternalKnowledgeV2(
                 )
 
                 if not all_files:
-                    return f"No indexable files found in {resolved_path}"
+                    raise ValueError(f"No readable documents found in {resolved_path}")
 
                 print(f"[RAG V2] Indexing {len(all_files)} files from {resolved_path}")
 
@@ -370,7 +396,7 @@ def fetchExternalKnowledgeV2(
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return f"Sorry, an error occurred while searching: {e}"
+        raise
 
 # For compatibility with a unified interface
 def fetchExternalKnowledge(
