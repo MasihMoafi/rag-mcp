@@ -379,9 +379,9 @@ Gemini's OpenAI-compatible modes — install the optional `openai` package
 `RAG_MCP_EMBED_MODEL` to the provider's model name, `RAG_MCP_EMBED_API_KEY`, and
 `RAG_MCP_EMBED_BASE_URL` if the provider isn't OpenAI itself. The client construction is
 verified; a real embedding call against a paid provider is not — test it against your own
-key before trusting it. A cross-encoder reranker type named `llm` also exists in the code
-but its scoring is unimplemented scaffolding (every passage gets the same score) — do not
-set it, it does nothing useful.
+key before trusting it. The unsupported `reranker_type=llm` setting is rejected
+before resource initialization; it previously returned fusion order without scoring.
+Use `cross-encoder`, `fastembed`, `auto` or `disabled` instead.
 
 ## Current state
 
