@@ -1,9 +1,55 @@
 """Application-owned retrieval logs must not echo user/provider payloads."""
-from unittest.mock import Mock
+from unittest.mock import MagicMock, Mock
 
 import pytest
 
 from rag.core import RAGPipeline
+
+
+@pytest.mark.parametrize("operation", ["init", "embed", "fts", "create_fts", "clear"])
+def test_storage_errors_omit_payloads_and_preserve_failure_contract(capsys, operation):
+    from rag.lancedb_backend import LanceDBBackend
+
+    backend = LanceDBBackend.__new__(LanceDBBackend)
+    backend.db = Mock()
+    backend.table = MagicMock()
+    backend.table.__len__.return_value = 1
+    backend.table_name = "fixture"
+    backend.embedding_fn = Mock()
+    error = RuntimeError("private-storage-response-marker")
+    if operation == "init":
+        backend.db.table_names.side_effect = error
+        action = backend._init_table
+    elif operation == "embed":
+        backend.embedding_fn.embed_documents.side_effect = error
+        backend.embedding_fn.return_value = [[1.0]]
+        action = lambda: backend._batch_embed(["private-document-marker"])
+    elif operation == "fts":
+        backend.table.search.side_effect = error
+        action = lambda: backend.search_fts("private-query-marker")
+    elif operation == "create_fts":
+        backend.embedding_fn = None
+        backend.db.create_table.return_value = backend.table
+        backend.table.create_fts_index.side_effect = error
+        action = lambda: backend.add_documents_batch([{"id": "1", "content": "private-document-marker"}])
+    else:
+        backend.db.drop_table.side_effect = error
+        action = backend.clear
+    if operation in {"init", "clear"}:
+        previous_table = backend.table
+        action()
+        assert backend.table is previous_table
+    elif operation == "embed":
+        assert action() == [[1.0]]
+        backend.embedding_fn.assert_called_once_with(["private-document-marker"])
+    else:
+        with pytest.raises(RuntimeError) as raised:
+            action()
+        assert raised.value is error
+    captured = capsys.readouterr()
+    logs = captured.out + captured.err
+    assert "private-" not in logs
+    assert "RuntimeError" in logs
 
 
 def test_fetch_failure_logs_omit_chained_provider_bodies(monkeypatch, capsys):
