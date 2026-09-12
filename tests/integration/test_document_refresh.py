@@ -48,6 +48,7 @@ def test_failed_refresh_preserves_previous_index_without_serving_it(tmp_path, lo
     document.write_text("Meeting: Friday.")
     assert local_search(document)[0]["content"] == "Meeting: Friday."
     previous = fetch.get_rag_pipeline_v2(str(document))
+    previous_storage = previous.vector_db
     manifest = next((tmp_path / "index").rglob("source-manifest.json"))
     original_manifest = manifest.read_bytes()
     document.write_text("" if failure == "extraction" else "Meeting: Monday.")
@@ -62,8 +63,8 @@ def test_failed_refresh_preserves_previous_index_without_serving_it(tmp_path, lo
             local_search(document)
         assert manifest.read_bytes() == original_manifest
         # Inspect storage directly: a failed rebuild must not destroy recovery data.
-        stored = LanceDBBackend(previous.vector_db.table_name, None,
-                                persist_path=previous.vector_db.persist_path)
+        stored = LanceDBBackend(previous_storage.table_name, None,
+                                persist_path=previous_storage.persist_path)
         assert stored.count() == 1
         assert stored.search_fts("Meeting")[0]["content"] == "Meeting: Friday."
         fetch.reset_pipelines()
@@ -96,7 +97,8 @@ def test_mcp_reports_storage_failure_as_error(tmp_path, local_search, monkeypatc
     monkeypatch.setattr(LanceDBBackend, "search_fts", unavailable)
     response = json.loads(server.query_knowledge_base("Meeting", str(document)))
     assert "result" not in response
-    assert "storage unavailable" in response["error"]
+    assert "RuntimeError" in response["error"]
+    assert "storage unavailable" not in response["error"]
 
 
 def test_failed_fts_build_does_not_commit_manifest_and_is_retried(tmp_path, local_search, monkeypatch):
@@ -104,6 +106,7 @@ def test_failed_fts_build_does_not_commit_manifest_and_is_retried(tmp_path, loca
     document.write_text("Meeting: Friday.")
     assert local_search(document)
     previous = fetch.get_rag_pipeline_v2(str(document))
+    previous_storage = previous.vector_db
     manifest = next((tmp_path / "index").rglob("source-manifest.json"))
     original_manifest = manifest.read_bytes()
     table_type = type(previous.vector_db.table)
@@ -117,8 +120,8 @@ def test_failed_fts_build_does_not_commit_manifest_and_is_retried(tmp_path, loca
             local_search(document)
         assert manifest.read_bytes() == original_manifest
         from rag.lancedb_backend import LanceDBBackend
-        stored = LanceDBBackend(previous.vector_db.table_name, None,
-                                persist_path=previous.vector_db.persist_path)
+        stored = LanceDBBackend(previous_storage.table_name, None,
+                                persist_path=previous_storage.persist_path)
         assert stored.search_fts("Meeting")[0]["content"] == "Meeting: Friday."
         fetch.reset_pipelines()
     monkeypatch.setattr(table_type, "create_fts_index", original_build)
