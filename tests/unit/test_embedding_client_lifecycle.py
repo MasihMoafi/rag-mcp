@@ -12,6 +12,53 @@ from rag import core
 from rag import index_lifecycle
 
 
+@pytest.mark.parametrize('startup_fails', [False, True])
+@pytest.mark.parametrize('injected', [False, True])
+def test_contextual_client_ownership(monkeypatch, tmp_path, startup_fails, injected):
+    from unittest.mock import Mock
+    from rag.contextual_retrieval import AnthropicContextualizer
+
+    client = Mock()
+    monkeypatch.setattr(AnthropicContextualizer, '_build_client', staticmethod(lambda timeout: client))
+    context = AnthropicContextualizer(model='unused', max_tokens=8, timeout=1)
+    monkeypatch.setattr(core, 'AnthropicContextualizer', lambda **kwargs: context)
+    failure = RuntimeError('embedding setup failed')
+
+    def embedder(*args, **kwargs):
+        if startup_fails:
+            raise failure
+        return None
+
+    monkeypatch.setattr(core, 'build_embedder', embedder)
+    monkeypatch.setattr(RAGPipeline, '_load_or_create_database', lambda self: None)
+    config = dict(persist_dir=str(tmp_path), _staged_index=True, use_contextual=True,
+                  embed_provider='none', reranker_type='disabled', backend='lancedb')
+    if injected:
+        config['contextualizer'] = context
+    if startup_fails:
+        with pytest.raises(RuntimeError) as caught:
+            RAGPipeline(config)
+        assert caught.value is failure
+    else:
+        pipeline = RAGPipeline(config)
+        pipeline.close()
+        pipeline.close()
+    assert client.close.call_count == (0 if injected else 1)
+
+
+def test_contextual_cleanup_still_runs_when_embedding_close_fails():
+    from unittest.mock import Mock
+
+    pipeline = RAGPipeline.__new__(RAGPipeline)
+    pipeline.backend_type = 'lancedb'
+    pipeline.embedding_fn = Mock()
+    pipeline.embedding_fn.close.side_effect = RuntimeError('embedding close failed')
+    pipeline._owned_contextualizer = Mock()
+    with pytest.raises(RuntimeError, match='embedding close failed'):
+        pipeline._release_resources()
+    pipeline._owned_contextualizer.close.assert_called_once_with()
+
+
 def test_pipeline_close_releases_actual_sdk_client_without_network():
     embedder = OpenAICompatibleWrapper('unused-model', api_key='unused-test-key')
     pipeline = RAGPipeline.__new__(RAGPipeline)

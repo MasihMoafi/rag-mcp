@@ -49,6 +49,7 @@ class RAGPipeline:
 
     def _initialize(self, config):
         self.embedding_fn = self.vector_db = None
+        self._owned_contextualizer = None
         try:
             return self._initialize_resources(config)
         except BaseException:
@@ -70,6 +71,7 @@ class RAGPipeline:
                 max_tokens=int(self.config.get("contextual_max_tokens", 128)),
                 timeout=float(self.config.get("contextual_timeout", 30)),
             )
+            self._owned_contextualizer = self.contextualizer
 
         # Embeddings come from the user's `rag setup` choice (or RAG_MCP_* env).
         # None means exact-word (BM25) search only.
@@ -153,9 +155,14 @@ class RAGPipeline:
             if self.backend_type == 'qdrant' and self.vector_db is not None:
                 self.vector_db.client.close()
         finally:
-            close_embedder = getattr(self.embedding_fn, 'close', None)
-            if close_embedder is not None:
-                close_embedder()
+            try:
+                close_embedder = getattr(self.embedding_fn, 'close', None)
+                if close_embedder is not None:
+                    close_embedder()
+            finally:
+                contextualizer = getattr(self, '_owned_contextualizer', None)
+                if contextualizer is not None:
+                    contextualizer.close()
 
     def _search(self, query: str) -> list[dict] | str:
         """Return ranked passages from the configured local retrieval pipeline."""
