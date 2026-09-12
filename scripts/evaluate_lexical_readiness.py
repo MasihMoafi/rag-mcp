@@ -37,7 +37,7 @@ def main():
         questions = list(csv.DictReader(handle))
     for question in questions:
         question['Question'] = question.get('Question', question.get('Q: The Question'))
-        question['Expected_Answer'] = question.get('Expected_Answer', question.get('Exact Answer'))
+        question['Expected_Answer'] = question.get('Expected_Answer', question.get('Exact Answer', question.get('Answer')))
         if not question['Question'] or not question['Expected_Answer']:
             raise ValueError('Query CSV requires question and expected-answer fields.')
     config = dict(document_paths=[str(source)], embed_provider='none', backend='lancedb',
