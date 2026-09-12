@@ -37,3 +37,21 @@ def test_entities_do_not_split_words_or_invent_source_lines(tmp_path):
     source = tmp_path / 'page.html'
     source.write_text('<p>caf&eacute; &NewLine; &#169;</p>\n<p>Second line</p>')
     assert extract_html_text(str(source)) == 'café ©\nSecond line'
+
+
+def test_self_closing_hidden_container_does_not_suppress_following_content(tmp_path):
+    source = tmp_path / 'page.html'
+    source.write_text('<div hidden/><p>Visible evidence</p>')
+    assert extract_html_text(str(source)) == 'Visible evidence'
+
+
+def test_multiline_character_reference_keeps_physical_line_numbers(tmp_path):
+    source = tmp_path / 'page.html'
+    source.write_text('<p>First&#10;line</p>\n<p>Second line</p>')
+    assert extract_html_text(str(source)) == 'First line\nSecond line'
+
+
+def test_preformatted_code_keeps_original_indentation(tmp_path):
+    source = tmp_path / 'page.html'
+    source.write_text('<pre>def run():\n    return 42</pre>')
+    assert extract_html_text(str(source)) == 'def run():\n    return 42'
