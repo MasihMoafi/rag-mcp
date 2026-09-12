@@ -392,8 +392,10 @@ Remaining gates:
   are not atomic together; Qdrant still clears its collection before a rebuild.
 - Realistic retrieval-quality evaluation of the current hybrid/API path, including
   larger private corpora; the new HTML reader currently has fixture-level coverage.
-- Fresh installation, optional Office/OCR extraction and GPU throughput checks on
-  this revision. These were not part of the selected regression run.
+- Fresh installation and GPU throughput checks on this revision. Optional
+  DOCX/PPTX/XLSX/CSV and image-OCR fixture tests subsequently passed on this host
+  with socket connections blocked; complex layouts, scanned PDFs and clean
+  installation of these optional dependencies remain unverified.
 
 The existing 30-question Attention paper run is a lexical-only diagnostic baseline.
 Literal expected-answer containment is not a relevance score: formatting and
