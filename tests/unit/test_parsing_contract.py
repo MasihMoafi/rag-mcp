@@ -145,5 +145,7 @@ def test_optional_extractor_page_labels_and_ocr_failure(pipeline, monkeypatch, c
     partition.assert_called_once_with(filename="image.png")
     assert "[OCR] Warning" in capsys.readouterr().out
     partition.side_effect = RuntimeError("parser failed")
-    assert pipeline._extract_content("document.docx") == ""
-    assert "[Unstructured] Warning" in capsys.readouterr().out
+    with pytest.raises(RuntimeError, match="parser failed"):
+        pipeline._extract_content("document.docx")
+    with pytest.raises(RuntimeError, match="parser failed"):
+        pipeline._extract_content("image.png")
