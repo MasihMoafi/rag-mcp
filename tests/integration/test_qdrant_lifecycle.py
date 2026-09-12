@@ -31,7 +31,7 @@ def test_failed_collection_initialization_releases_storage_lock(tmp_path, monkey
         reopened.client.close()
 
 
-@pytest.mark.parametrize('change', ['reset', 'settings'])
+@pytest.mark.parametrize('change', ['reset', 'settings', 'eviction'])
 def test_pipeline_replacement_releases_storage_even_with_external_reference(tmp_path, monkeypatch, change):
     monkeypatch.setenv('RAG_MCP_DATA_DIR', str(tmp_path / 'index'))
     monkeypatch.setenv('RAG_MCP_CONFIG', str(tmp_path / 'config.json'))
@@ -45,12 +45,22 @@ def test_pipeline_replacement_releases_storage_even_with_external_reference(tmp_
     source.write_text('Cedar evidence')
     previous = fetch.get_rag_pipeline_v2(str(source))
     previous_storage = previous.vector_db
+    original_add = QdrantVectorDB.add_documents_batch
     try:
         def unexpected_reindex(*args, **kwargs):
             pytest.fail('Reset or ranking-only changes must not re-embed documents')
         monkeypatch.setattr(QdrantVectorDB, 'add_documents_batch', unexpected_reindex)
         if change == 'reset':
             fetch.reset_pipelines()
+        elif change == 'eviction':
+            monkeypatch.setenv('RAG_MCP_CACHE_SIZE', '1')
+            other = tmp_path / 'other.txt'
+            other.write_text('Other evidence')
+            # The first scope must release its lock even with storage held externally.
+            monkeypatch.setattr(QdrantVectorDB, 'add_documents_batch', original_add)
+            fetch.get_rag_pipeline_v2(str(other))
+            assert previous._queries.closed
+            monkeypatch.setattr(QdrantVectorDB, 'add_documents_batch', unexpected_reindex)
         else:
             monkeypatch.setitem(fetch.RAG_CONFIG_V2, 'rrf_k', 12)
         reopened = fetch.get_rag_pipeline_v2(str(source))
