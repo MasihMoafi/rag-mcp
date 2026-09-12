@@ -65,6 +65,13 @@ def test_large_sources_use_start_and_previous_chunks_for_context():
     assert context == "abstract\n\nfirst\n\nsecond"
 
 
+def test_overlapping_context_windows_keep_order_without_duplicates():
+    assert select_document_context(
+        "long source", ["abstract", " ", "previous", "target"], 3,
+        max_source_chars=1, start_chunks=3, previous_chunks=3,
+    ) == "abstract\n\nprevious"
+
+
 def test_anthropic_contextualizer_sends_prompt_and_returns_text():
     calls = []
 

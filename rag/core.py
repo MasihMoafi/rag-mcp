@@ -1,10 +1,10 @@
 import sys
-import os, re, string, fitz, json, math
+import os, re, json, math
 try:
     import torch
 except ImportError:  # light install without PyTorch: CPU only, no sentence-transformers
     torch = None
-from typing import List, Dict, Tuple, Any, Callable
+from typing import List, Dict, Tuple, Any
 
 # --- FIX for Ollama Proxy ---
 # This is necessary to ensure the local Ollama server can be reached.
@@ -18,6 +18,8 @@ from collections import Counter
 from .embeddings import build_embedder, probe_dimensions
 from .contextual_retrieval import AnthropicContextualizer, select_document_context
 from .lancedb_backend import LanceDBBackend
+from . import parsing
+from .formats import INDEXABLE_EXTENSIONS
 
 
 def select_device() -> str:
@@ -217,11 +219,8 @@ class BM25Index:
         
         # Update statistics
         self._doc_len.append(len(doc_tokens))
-        seen_in_doc = set()
-        for token in doc_tokens:
-            if token not in seen_in_doc:
-                self._doc_freqs[token] = self._doc_freqs.get(token, 0) + 1
-                seen_in_doc.add(token)
+        for token in self._corpus_term_counts[-1]:
+            self._doc_freqs[token] = self._doc_freqs.get(token, 0) + 1
         
         self._index_built = False
 
@@ -265,13 +264,7 @@ class BM25Index:
         scores.sort(key=lambda x: x[0], reverse=True)
         
         # Convert to distance format (lower is better) for consistency with VectorIndex
-        results = []
-        for score, doc in scores[:k]:
-            # Convert score to distance using exponential normalization
-            distance = math.exp(-0.1 * score)
-            results.append((doc, distance))
-        
-        return results
+        return [(doc, math.exp(-0.1 * score)) for score, doc in scores[:k]]
 
     def _compute_bm25_score(self, query_tokens: List[str], doc_index: int) -> float:
         """Compute BM25 score for a document given query tokens"""
@@ -410,25 +403,11 @@ class RAGPipelineV2:
         # Load or create database
         self._load_or_create_database()
 
-    def _normalize_text(self, text: str) -> str:
-        """Same normalization as V2 for consistency"""
-        if not text: return ""
-        translator = str.maketrans('', '', string.punctuation + '،؛؟»«')
-        text = text.translate(translator)
-        return ' '.join(text.split()).lower()
-
-    def _extract_text_from_pdf(self, pdf_path: str) -> str:
-        """PDF extraction. Pages are joined with a form-feed marker so a chunk's
-        page number can be recovered later; without this the page boundary is
-        destroyed and every chunk looks like it came from nowhere."""
-        try:
-            doc = fitz.open(pdf_path)
-            pages = [re.sub(r'\s+', ' ', page.get_text()).strip() for page in doc]
-            doc.close()
-            return "\f".join(pages)
-        except Exception as e:
-            print(f"Error extracting text from {pdf_path}: {e}")
-            return ""
+    _extract_text_from_pdf = parsing._extract_text_from_pdf
+    _extract_text_with_unstructured = parsing._extract_text_with_unstructured
+    _extract_content = parsing._extract_content
+    _extract_text_from_notebook = parsing._extract_text_from_notebook
+    _extract_text_from_json = parsing._extract_text_from_json
 
     def _locate_chunk(self, full_text: str, content: str, ext: str, search_from: int) -> tuple:
         """Recover a human-readable location for a chunk: a page number for PDFs
@@ -486,7 +465,6 @@ class RAGPipelineV2:
 
     def _index_documents(self):
         """Extract, chunk, optionally contextualize, and persist documents."""
-        import sys
         import concurrent.futures
         all_docs = []
         document_contents = {}
@@ -499,14 +477,7 @@ class RAGPipelineV2:
 
             if os.path.isdir(path):
                 for file in os.listdir(path):
-                    indexable_exts = (
-                        '.rs', '.toml', '.yaml', '.yml', '.py', '.md', '.txt', '.json',
-                        '.js', '.ts', '.tsx', '.jsx', '.c', '.h', '.cpp', '.hpp',
-                        '.go', '.sh', '.bash', '.zsh', '.css', '.html', '.sql', '.java',
-                        '.kt', '.proto', '.pdf', '.ipynb', '.rst', '.ini', '.cfg', '.conf',
-                        '.png', '.jpg', '.jpeg', '.webp', '.tiff', '.bmp', '.docx', '.pptx', '.xlsx', '.csv'
-                    )
-                    if file.lower().endswith(indexable_exts):
+                    if file.lower().endswith(INDEXABLE_EXTENSIONS):
                         files_to_process.append(os.path.join(path, file))
             else:
                 files_to_process.append(path)
@@ -543,7 +514,7 @@ class RAGPipelineV2:
                 chunk = item["content"]
                 if chunk.strip():
                     location, search_from = self._locate_chunk(full_content, chunk, ext, search_from)
-                    clean_chunk = chunk.replace("\f", " ")
+                    clean_chunk = raw_chunks[i]
 
                     document_context = full_content
                     if self.config.get("use_contextual", False):
@@ -591,102 +562,6 @@ class RAGPipelineV2:
         self._save_database(all_docs)
         print(f"[RAG V2] Database created with {len(all_docs)} chunks")
 
-    def _extract_text_with_unstructured(self, file_path: str) -> str:
-        """Extract text, tables, and OCR/element descriptions using Unstructured and RapidOCR."""
-        ext = os.path.splitext(file_path)[1].lower()
-        image_exts = {".png", ".jpg", ".jpeg", ".webp", ".tiff", ".bmp"}
-
-        # For standalone image files, run RapidOCR directly
-        if ext in image_exts:
-            try:
-                from rapidocr_onnxruntime import RapidOCR
-                engine = RapidOCR()
-                result, _ = engine(file_path)
-                if result:
-                    return "\n".join([line[1] for line in result])
-            except Exception as e:
-                print(f"[OCR] Warning: RapidOCR failed for {file_path}: {e}")
-
-        try:
-            from unstructured.partition.auto import partition
-            elements = partition(filename=file_path)
-            parts = []
-            for el in elements:
-                text = str(el).strip()
-                if text:
-                    page_num = getattr(getattr(el, 'metadata', None), 'page_number', None)
-                    page_prefix = f"[Page {page_num}] " if page_num else ""
-                    parts.append(f"{page_prefix}{text}")
-            res = "\n\n".join(parts)
-            if res:
-                return res
-        except Exception as e:
-            print(f"[Unstructured] Warning: extraction failed for {file_path}: {e}")
-
-        return ""
-
-    def _extract_content(self, file_path: str) -> str:
-        """Extract content from various file types, using Unstructured for images and complex docs."""
-        ext = os.path.splitext(file_path)[1].lower()
-        unstructured_exts = {".png", ".jpg", ".jpeg", ".webp", ".tiff", ".bmp", ".docx", ".pptx", ".xlsx", ".csv"}
-        if ext in unstructured_exts:
-            return self._extract_text_with_unstructured(file_path)
-        elif ext == ".pdf":
-            text = self._extract_text_from_pdf(file_path)
-            if not text or not text.strip():
-                text = self._extract_text_with_unstructured(file_path)
-            return text
-        elif ext == ".json":
-            return self._extract_text_from_json(file_path)
-        elif ext == ".ipynb":
-            return self._extract_text_from_notebook(file_path)
-        else:
-            try:
-                with open(file_path, 'r', encoding='utf-8') as f:
-                    return f.read()
-            except Exception as e:
-                print(f"Error reading {file_path}: {e}")
-                return ""
-
-    def _extract_text_from_notebook(self, notebook_path: str) -> str:
-        """Extract text from Jupyter notebook (.ipynb). Cells are joined with a
-        form-feed marker, same as PDF pages, so a chunk's originating cell can
-        be recovered later instead of collapsing into one undifferentiated blob."""
-        try:
-            from .notebook_chunker import extract_cells_from_notebook
-            cells = extract_cells_from_notebook(notebook_path)
-            return "\f".join(cell['content'] for cell in cells)
-        except Exception as e:
-            print(f"Error extracting text from {notebook_path}: {e}")
-            return ""
-
-    def _extract_text_from_json(self, json_path: str) -> str:
-        """Extract text from JSON - handles various structures"""
-        try:
-            with open(json_path, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-
-            # Convert JSON to searchable text
-            def flatten_json(obj, prefix=''):
-                text_parts = []
-                if isinstance(obj, dict):
-                    for key, value in obj.items():
-                        if isinstance(value, (dict, list)):
-                            text_parts.extend(flatten_json(value, f"{prefix}{key}."))
-                        else:
-                            text_parts.append(f"{prefix}{key}: {value}")
-                elif isinstance(obj, list):
-                    for i, item in enumerate(obj):
-                        text_parts.extend(flatten_json(item, f"{prefix}[{i}]."))
-                else:
-                    text_parts.append(str(obj))
-                return text_parts
-
-            text_parts = flatten_json(data)
-            return "\n".join(text_parts)
-        except Exception as e:
-            print(f"Error extracting text from {json_path}: {e}")
-            return ""
 
     def _save_database(self, docs: List[Dict]):
         """Save the database (simplified for now)"""

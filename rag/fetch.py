@@ -44,13 +44,7 @@ RAG_CONFIG_V2 = {
 
 _rag_system_v2_instances: Dict[str, RAGPipelineV2] = {}
 
-_INDEXABLE_EXTENSIONS = (
-    '.rs', '.toml', '.yaml', '.yml', '.py', '.md', '.txt', '.json',
-    '.js', '.ts', '.tsx', '.jsx', '.c', '.h', '.cpp', '.hpp',
-    '.go', '.sh', '.bash', '.zsh', '.css', '.html', '.sql', '.java',
-    '.kt', '.proto', '.pdf', '.ipynb', '.rst', '.ini', '.cfg', '.conf',
-    '.png', '.jpg', '.jpeg', '.webp', '.tiff', '.bmp', '.docx', '.pptx', '.xlsx', '.csv'
-)
+from .formats import INDEXABLE_EXTENSIONS as _INDEXABLE_EXTENSIONS
 
 
 def reset_pipelines() -> None:
@@ -131,15 +125,15 @@ def get_rag_pipeline_v2(doc_path: Optional[str | list[str]] = None):
         config["reranker_type"] = retrieval["reranker_type"]
         config["reranker_model"] = retrieval["reranker_model"]
         config["use_contextual"] = contextual_retrieval_enabled(retrieval)
-        for name in (
+        contextual = {name: retrieval[name] for name in (
             "contextual_model",
             "contextual_max_tokens",
             "contextual_timeout",
             "contextual_source_max_chars",
             "contextual_start_chunks",
             "contextual_prev_chunks",
-        ):
-            config[name] = retrieval[name]
+        )}
+        config.update(contextual)
         current_dir = index_root()
         if doc_path:
             config["document_paths"] = doc_path if isinstance(doc_path, list) else [doc_path]
@@ -153,7 +147,7 @@ def get_rag_pipeline_v2(doc_path: Optional[str | list[str]] = None):
         sources = []
         for document_path in config["document_paths"]:
             source = Path(document_path)
-            paths = sorted(source.rglob("*")) if source.is_dir() else [source]
+            paths = source.rglob("*") if source.is_dir() else [source]
             for path in paths:
                 if path.is_file():
                     stat = path.stat()
@@ -172,14 +166,8 @@ def get_rag_pipeline_v2(doc_path: Optional[str | list[str]] = None):
             "contextual": {
                 "enabled": config["use_contextual"],
                 **{
-                    name: config[name]
-                    for name in (
-                        "contextual_model",
-                        "contextual_max_tokens",
-                        "contextual_source_max_chars",
-                        "contextual_start_chunks",
-                        "contextual_prev_chunks",
-                    )
+                    name: value for name, value in contextual.items()
+                    if name != "contextual_timeout"
                 },
             },
         }
@@ -192,12 +180,7 @@ def get_rag_pipeline_v2(doc_path: Optional[str | list[str]] = None):
             "reranker_type",
             "reranker_model",
             "use_contextual",
-            "contextual_model",
-            "contextual_max_tokens",
-            "contextual_timeout",
-            "contextual_source_max_chars",
-            "contextual_start_chunks",
-            "contextual_prev_chunks",
+            *contextual,
             "source_stamp",
         )):
             return cached

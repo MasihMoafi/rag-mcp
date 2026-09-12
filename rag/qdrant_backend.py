@@ -8,7 +8,6 @@ Key improvements:
 - Production-grade vector search
 """
 
-import os
 import sys
 
 # Central proxy manager — strip SOCKS, keep HTTP(S) for cloud
@@ -96,13 +95,10 @@ class QdrantVectorDB:
             points = []
             for j, (doc, vector) in enumerate(zip(batch, vectors)):
                 point_id = i + j
-                payload = {k: v for k, v in doc.items() if k != "content"}
-                payload["content"] = doc["content"]
-
                 points.append(PointStruct(
                     id=point_id,
                     vector=vector,
-                    payload=payload
+                    payload=dict(doc)
                 ))
 
             # Upsert batch
@@ -135,15 +131,11 @@ class QdrantVectorDB:
 
         # Parallel processing fallback (FAST)
         from concurrent.futures import ThreadPoolExecutor
-        import os
 
         max_workers = 2
 
-        def embed_chunk(text):
-            return self._embed_single(text)
-
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            vectors = list(executor.map(embed_chunk, texts))
+            vectors = list(executor.map(self._embed_single, texts))
 
         return vectors
 
@@ -179,16 +171,10 @@ class QdrantVectorDB:
             raise AttributeError("QdrantClient has neither 'search' nor 'query_points' method")
 
         # Convert to standard format
-        formatted = []
-        for hit in results:
-            doc = {
-                "content": hit.payload.get("content", ""),
-                "score": hit.score,
-                **{k: v for k, v in hit.payload.items() if k != "content"}
-            }
-            formatted.append(doc)
-
-        return formatted
+        return [
+            {"content": "", "score": hit.score, **hit.payload}
+            for hit in results
+        ]
 
     def count(self) -> int:
         """Get total document count."""

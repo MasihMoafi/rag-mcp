@@ -34,18 +34,13 @@ sys.path.insert(0, str(repo_root))
 
 from rag.settings import BM25_ONLY_NOTICE, embedding_config, has_embedding  # noqa: E402
 from rag import settings as user_settings  # noqa: E402
+from rag.formats import INDEXABLE_EXTENSIONS  # noqa: E402
 
 _SERVER_NAME = "rag-mcp"
 _SERVER_VERSION = "0.2.0"
 _use_content_length_framing = False
 _initialized = False
-_INDEXABLE_EXTENSIONS = {
-    ".rs", ".toml", ".yaml", ".yml", ".py", ".md", ".txt", ".json",
-    ".js", ".ts", ".tsx", ".jsx", ".c", ".h", ".cpp", ".hpp",
-    ".go", ".sh", ".bash", ".zsh", ".css", ".html", ".sql", ".java",
-    ".kt", ".proto", ".pdf", ".ipynb", ".rst", ".ini", ".cfg", ".conf",
-    ".png", ".jpg", ".jpeg", ".webp", ".tiff", ".bmp", ".docx", ".pptx", ".xlsx", ".csv",
-}
+_INDEXABLE_EXTENSIONS = set(INDEXABLE_EXTENSIONS)
 _UNSAFE_PATH_COMPONENTS = {"node_modules", ".git", ".venv", "venv", "dist", "build", "target", "__pycache__", "rag_db_v2"}
 _INDEX_EXCLUDED_PATH_COMPONENTS = {".ipynb_checkpoints", "migrations", "rag_db_v2"}
 _INDEX_EXCLUDED_FILE_PATTERNS = ("test_*.py", "*_test.py", "*__pycache__*", "*.pyc")
@@ -157,24 +152,13 @@ def _apply_settings(arguments: dict[str, Any]) -> dict[str, Any]:
 
     changed = []
     with contextlib.redirect_stdout(sys.stderr):
-        if "top" in arguments:
-            args = argparse.Namespace(setting="top", value=str(arguments["top"]), provider=None, no_verify=True)
-            code = _config_command(args, stdout=io.StringIO(), stderr=(err := io.StringIO()), environ=os.environ, verify=None)
-            if code != 0:
-                return {"error": err.getvalue().strip()}
-            changed.append("top")
-        if "reranker" in arguments:
-            args = argparse.Namespace(setting="reranker", value=str(arguments["reranker"]), provider=None, no_verify=True)
-            code = _config_command(args, stdout=io.StringIO(), stderr=(err := io.StringIO()), environ=os.environ, verify=None)
-            if code != 0:
-                return {"error": err.getvalue().strip()}
-            changed.append("reranker")
-        if "contextual_retrieval" in arguments:
-            args = argparse.Namespace(setting="contextual", value=str(arguments["contextual_retrieval"]), provider=None, no_verify=True)
-            code = _config_command(args, stdout=io.StringIO(), stderr=(err := io.StringIO()), environ=os.environ, verify=None)
-            if code != 0:
-                return {"error": err.getvalue().strip()}
-            changed.append("contextual_retrieval")
+        for name, setting in (("top", "top"), ("reranker", "reranker"), ("contextual_retrieval", "contextual")):
+            if name in arguments:
+                args = argparse.Namespace(setting=setting, value=str(arguments[name]), provider=None, no_verify=True)
+                code = _config_command(args, stdout=io.StringIO(), stderr=(err := io.StringIO()), environ=os.environ, verify=None)
+                if code != 0:
+                    return {"error": err.getvalue().strip()}
+                changed.append(name)
         if "embedding_model" in arguments or arguments.get("embedding_provider") == "none":
             if arguments.get("embedding_provider") == "none":
                 user_settings.update_settings({"embed_provider": "none", "embed_model": ""})

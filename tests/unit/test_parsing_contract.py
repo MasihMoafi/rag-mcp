@@ -1,0 +1,106 @@
+"""Extraction contracts without downloading optional OCR models."""
+
+import json
+import sys
+from types import ModuleType, SimpleNamespace
+from unittest.mock import Mock
+
+import fitz
+import pytest
+
+from rag.core import RAGPipelineV2
+
+
+@pytest.fixture
+def pipeline():
+    return RAGPipelineV2.__new__(RAGPipelineV2)
+
+
+def test_plain_text_preserves_source_and_read_errors(pipeline, tmp_path, capsys):
+    path = tmp_path / "source.py"
+    text = "# کتاب\n\ndef run():\n    return 1\n"
+    path.write_text(text)
+    assert pipeline._extract_content(str(path)) == text
+    assert pipeline._extract_content(str(tmp_path / "missing")) == ""
+    assert "Error reading" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("data,expected", [
+    ({"nested": {"x": "کتاب"}, "items": [{"n": 2}, "value", None]},
+     "nested.x: کتاب\nitems.[0].n: 2\nvalue\nNone"),
+    ([], ""), ("scalar", "scalar"), (False, "False"),
+])
+def test_json_flattening(pipeline, tmp_path, data, expected):
+    path = tmp_path / "data.json"
+    path.write_text(json.dumps(data))
+    assert pipeline._extract_content(str(path)) == expected
+
+
+def test_malformed_json(pipeline, tmp_path, capsys):
+    path = tmp_path / "bad.json"
+    path.write_text("{")
+    assert pipeline._extract_content(str(path)) == ""
+    assert "Error extracting text" in capsys.readouterr().out
+
+
+def test_notebook_sources_ignore_outputs_and_preserve_cell_separators(pipeline, tmp_path):
+    path = tmp_path / "cells.ipynb"
+    path.write_text(json.dumps({"cells": [
+        {"cell_type": "markdown", "source": ["# Title\n", "text"]},
+        {"cell_type": "code", "source": "print(1)", "outputs": [{"text": "output"}]},
+        {"cell_type": "code", "source": ["  "]},
+    ]}))
+    assert pipeline._extract_content(str(path)) == "# Title\ntext\fprint(1)"
+
+
+def test_pdf_normalization_and_page_separators(pipeline, tmp_path):
+    path = tmp_path / "pages.pdf"
+    with fitz.open() as doc:
+        doc.new_page().insert_text((72, 72), "First  page\nsecond line")
+        doc.new_page().insert_text((72, 72), "Next page")
+        doc.save(path)
+    assert pipeline._extract_content(str(path)) == "First page second line\fNext page"
+
+
+@pytest.mark.parametrize("text,expected_calls", [("text", 0), ("", 1), (" \n", 1)])
+def test_pdf_dispatch_preserves_overrides_and_fallback(pipeline, text, expected_calls):
+    pipeline._extract_text_from_pdf = Mock(return_value=text)
+    pipeline._extract_text_with_unstructured = Mock(return_value="OCR")
+    result = pipeline._extract_content("input.PDF")
+    assert result == ("OCR" if expected_calls else text)
+    pipeline._extract_text_from_pdf.assert_called_once_with("input.PDF")
+    assert pipeline._extract_text_with_unstructured.call_count == expected_calls
+
+
+def test_missing_pdf_returns_empty(pipeline, tmp_path, capsys):
+    assert pipeline._extract_text_from_pdf(str(tmp_path / "missing.pdf")) == ""
+    assert "Error extracting text" in capsys.readouterr().out
+
+
+def test_image_ocr_short_circuits_fallback(pipeline, monkeypatch):
+    engine = Mock(return_value=([[None, "first"], [None, "second"]], None))
+    monkeypatch.setitem(sys.modules, "rapidocr_onnxruntime", SimpleNamespace(RapidOCR=lambda: engine))
+    assert pipeline._extract_content("image.png") == "first\nsecond"
+    engine.assert_called_once_with("image.png")
+
+
+def test_optional_extractor_page_labels_and_ocr_failure(pipeline, monkeypatch, capsys):
+    class Element:
+        def __init__(self, text, page=None):
+            self.text = text
+            self.metadata = SimpleNamespace(page_number=page)
+
+        def __str__(self):
+            return self.text
+
+    partition = Mock(return_value=[Element(" title ", 2), Element("  "), Element("body")])
+    for name in ("unstructured", "unstructured.partition", "unstructured.partition.auto"):
+        monkeypatch.setitem(sys.modules, name, ModuleType(name))
+    sys.modules["unstructured.partition.auto"].partition = partition
+    monkeypatch.setitem(sys.modules, "rapidocr_onnxruntime", SimpleNamespace(RapidOCR=Mock(side_effect=RuntimeError("OCR failed"))))
+    assert pipeline._extract_content("image.png") == "[Page 2] title\n\nbody"
+    partition.assert_called_once_with(filename="image.png")
+    assert "[OCR] Warning" in capsys.readouterr().out
+    partition.side_effect = RuntimeError("parser failed")
+    assert pipeline._extract_content("document.docx") == ""
+    assert "[Unstructured] Warning" in capsys.readouterr().out

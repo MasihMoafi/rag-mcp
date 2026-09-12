@@ -1,7 +1,7 @@
 # Safe deletion-first RAG refactor
 
-Status: specification revised to the spec skill, 2026-09-12. Read-only preflight
-delegation authorized; implementation remains gated on verified recovery and tests.
+Status: audited mechanical pass verified, 2026-09-12; final evidence and retained
+behavior boundaries below. This is not a proof of globally minimal code.
 Specification, plan and atomic tasks are kept together to avoid workspace clutter.
 
 Execution clarification from Masih: use a reviewed local Git checkpoint, not an
@@ -33,10 +33,10 @@ The MCP server and CLI use the same retrieval engine. Existing parsing, indexing
 storage, provider and retrieval contracts below remain authoritative; this work
 does not replace the architecture.
 
-Observed baseline: HEAD ea8e67c; core.py 924 lines, fetch.py 407; rag/*.py plus
+Pre-execution observation: HEAD ea8e67c; core.py 924 lines, fetch.py 407; rag/*.py plus
 server.py 5,104 physical lines. Substantial tracked and untracked changes exist.
-Re-measure before implementation: HEAD alone is NOT the working baseline. This
-specification does not claim a recovery checkpoint, new test run or safe refactor.
+HEAD alone was not the working baseline. Checkpoint and subsequent verification
+are recorded separately below; this initial observation is retained as history.
 
 ## Acceptance Criteria
 
@@ -225,23 +225,24 @@ do not infer speed-ups from line counts or unrelated test-suite runtimes.
 
 ## Atomic tasks and dependency order
 
-- [ ] T1: Inventory the current working baseline. Done when every proposed touched
+- [x] T1: Inventory the current working baseline. Done when every proposed touched
   file has recorded status and an exclusive owner.
-- [ ] T2 (after T1): Create the recovery checkpoint. Done when the restore hash
+- [x] T2 (after T1): Create the recovery checkpoint. Done when the restore hash
   comparison passes.
-- [ ] T3 (after T2): Capture baseline verification. Done when selected commands have
+- [x] T3 (after T2): Capture baseline verification. Done when selected commands have
   saved raw outcomes and an explicit failure/skip inventory.
-- [ ] T4 (after T3, per responsibility): Fill the protecting-test gap. Done when
+- [x] T4 (after T3, per responsibility): Fill the protecting-test gap. Done when
   the relevant intentional mutation is caught for the expected reason.
-- [ ] T5 (after T4, per slice): Delete/simplify one cohesive piece. Done when its
+- [x] T5 (after T4, per slice): Delete/simplify one cohesive piece. Done when its
   focused contract checks pass unchanged.
-- [ ] T6 (after each T5): Independently review the slice. Done when its diff has
+- [x] T6 (after each T5): Independently review the slice. Done when its diff has
   no unexplained contract change. Repeat T4–T6 for subsequent bounded slices.
-- [ ] T7 (after approved slices): Verify combined integration. Done when applicable
+- [x] T7 (after approved slices): Verify combined integration. Done when applicable
   regression gates pass against the integrated candidate.
 - [ ] T8 (before accepting performance changes): Run the separately agreed fixed-
   workload comparison. Done when results satisfy its predeclared thresholds.
-- [ ] T9: Prepare handoff. Done when the acceptance checklist is evidence-linked
+  Not exercised: no hardware optimization or throughput claim in this pass.
+- [x] T9: Prepare handoff. Done when the acceptance checklist is evidence-linked
   and any unchecked item is explicitly reported to Masih.
 
 Agents refine each repeated slice into a named change and binary done-check before
@@ -297,3 +298,67 @@ Raw command output is in the session tool transcript. Timings are not a performa
 comparison; test populations differ. No hardware throughput, live Qdrant or paid
 API validation claimed. Concurrency/device/batch code unchanged. Broader structural
 refactoring remains incomplete; parser separation requires its own characterization.
+
+## Continued pass: evidence and deletion boundary
+
+Starting checkpoint d36d355. Two workers and coordinator reviewed core, parsing,
+discovery, provider/storage adapters, settings and MCP callers. No concurrent
+edits to the same file; the coordinator reviewed worker diffs and Halley separately
+reviewed coordinator settings/server changes. Original experiment edits untouched.
+
+Final verification: the same combined command above now reports **215 passed,
+38 existing LanceDB deprecation warnings**. No reported test failures remain.
+New contracts were established before each production slice, with targeted
+in-memory mutation failures for BM25 document frequency, notebook separators,
+uppercase discovery, contextual form-feed cleanup, cache-setting invalidation,
+metadata precedence, parallel fallback, setting order/types and context deduplication.
+Fresh-process MCP startup proves no eager core/fetch/torch/LanceDB import. Raw
+outputs are in the session tool transcript. No paid provider or live user data used.
+
+| Production scope | Original checkpoint 7054026 | Final candidate |
+| --- | ---: | ---: |
+| core.py | 924 | 787 |
+| fetch.py | 407 | 377 |
+| settings.py | 264 | 243 |
+| server.py | 463 | 447 |
+| lancedb_backend.py | 205 | 201 |
+| qdrant_backend.py | 202 | 188 |
+| New parsing.py / formats.py | 0 | 118 / 9 |
+| All rag/*.py plus server.py | 5,104 | 5,009 |
+
+Total net production reduction is **95 lines**, including new modules. Roughly
+110 parser-body lines were relocated, not deleted; direct method aliases preserve
+self-dispatch and overrides without inheritance. This continuation adds 582 net
+test lines (545 in new files, 37 in existing files), separate from production counts.
+The preceding pass added 211 test lines. Source-code reduction is modest compared
+with the reduction in core.py alone; it must not be presented otherwise.
+
+Removed work includes duplicate term tracking, unused normalization and backend
+metric work, redundant sorting/payload reconstruction, repeated configuration
+merging/dispatch, repeated format declarations and an unnecessary context list.
+Both backends' two-worker fallback is protected by barrier-based tests, including
+a deliberately serialized mutation that failed. Existing device/OOM tests pass;
+actual GPU throughput and remote-provider equivalence remain unmeasured.
+
+The audited stopping boundary is concrete:
+
+- Chunk validation, source text/cleaned text and location tracking preserve public
+  chunk entry points, citations and contextual retrieval; deleting them changes evidence.
+- Ordered ingestion state coalesces duplicate paths and preserves extraction order.
+  Streaming it is a redesign, not a harmless deletion.
+- Persistence, refresh, exclusions and scan limits protect stale/missing-file and
+  scope behavior. Removing them loses tested functionality or safety.
+- Provider/device/reranker branches, retry/fallback behavior and Qwen padding/cleanup
+  implement distinct supported modes. No mode was retired to meet a line count.
+- Backend compatibility and different exception contracts prevent blindly sharing
+  all embedding logic; changing write strategy can change partial-failure behavior.
+- Notebook metadata and exercise priority are exported functionality even though
+  the core parser consumes primarily text. HTML/LaTeX filtering is still out of scope.
+- CLI/companion validation, authentication, process/error handling and entry-point
+  compatibility remain product behavior; they were inspected, not stripped.
+
+No further demonstrated deletion in this audit meets the preservation contract.
+This is a defensible tested stopping point, not proof that future refactoring is
+impossible. A fresh wheel build was not run: build/hatchling tooling is absent in
+the active environment, and dependencies were not installed for this pass. Existing
+bootstrap/CLI tests and import checks pass. No deployment, restart or push performed.
