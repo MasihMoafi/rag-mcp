@@ -57,6 +57,46 @@ def test_cache_trim_retains_failed_cleanup_and_continues(monkeypatch):
     assert list(cache) == ['keep']
 
 
+def test_cache_trim_skips_locked_scope_without_blocking_other_retirement(monkeypatch):
+    from unittest.mock import Mock
+
+    busy, idle = Mock(return_value=True), Mock(return_value=True)
+    cache = {'busy': SimpleNamespace(close_if_idle=busy),
+             'idle': SimpleNamespace(close_if_idle=idle), 'keep': SimpleNamespace()}
+    monkeypatch.setattr(fetch, '_rag_system_v2_instances', cache)
+    monkeypatch.setenv('RAG_MCP_CACHE_SIZE', '1')
+    with ThreadPoolExecutor(max_workers=1) as workers:
+        with fetch._scope_lock('busy'):
+            workers.submit(fetch._trim_cached_pipelines, 'keep').result(timeout=1)
+            assert list(cache) == ['busy', 'keep']
+            busy.assert_not_called()
+            idle.assert_called_once_with()
+    fetch._trim_cached_pipelines('keep')
+    assert list(cache) == ['keep']
+
+
+def test_concurrent_cache_trim_does_not_wait_for_retirement(monkeypatch):
+    entered, finish = Event(), Event()
+
+    def close():
+        entered.set()
+        assert finish.wait(5)
+        return True
+
+    cache = {'old': SimpleNamespace(close_if_idle=close), 'keep': SimpleNamespace()}
+    monkeypatch.setattr(fetch, '_rag_system_v2_instances', cache)
+    monkeypatch.setenv('RAG_MCP_CACHE_SIZE', '1')
+    with ThreadPoolExecutor(max_workers=2) as workers:
+        retiring = workers.submit(fetch._trim_cached_pipelines, 'keep')
+        try:
+            assert entered.wait(5)
+            workers.submit(fetch._trim_cached_pipelines, 'keep').result(timeout=1)
+        finally:
+            finish.set()
+        retiring.result(timeout=5)
+    assert list(cache) == ['keep']
+
+
 @pytest.fixture
 def sources(tmp_path, monkeypatch):
     monkeypatch.setenv('RAG_MCP_DATA_DIR', str(tmp_path / 'index'))
