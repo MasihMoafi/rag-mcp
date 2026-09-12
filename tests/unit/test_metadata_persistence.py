@@ -1,11 +1,49 @@
 """Metadata publication must not expose incomplete JSON."""
 
 import json
+import os
+import stat
 from types import SimpleNamespace
 
 import pytest
 
 from rag import ingestion
+
+
+@pytest.mark.skipif(os.name != 'posix', reason='POSIX directory synchronization')
+@pytest.mark.parametrize('fail_directory_sync', [False, True])
+def test_atomic_write_syncs_directory_after_publication(tmp_path, monkeypatch, fail_directory_sync):
+    from utils import persistence
+
+    target = tmp_path / 'active-index.json'
+    target.write_text('"old"')
+    real_fsync = os.fsync
+    events = []
+    directory_fds = []
+
+    def sync(fd):
+        if stat.S_ISDIR(os.fstat(fd).st_mode):
+            events.append('directory')
+            directory_fds.append(fd)
+            assert json.loads(target.read_text()) == 'new'
+            if fail_directory_sync:
+                raise OSError('directory sync failed')
+        else:
+            events.append('file')
+            assert json.loads(target.read_text()) == 'old'
+        real_fsync(fd)
+
+    monkeypatch.setattr(persistence.os, 'fsync', sync)
+    if fail_directory_sync:
+        with pytest.raises(OSError, match='directory sync failed'):
+            persistence.write_json_atomic(target, 'new')
+    else:
+        persistence.write_json_atomic(target, 'new')
+    assert events == ['file', 'directory']
+    assert list(tmp_path.iterdir()) == [target]
+    assert json.loads(target.read_text()) == 'new'
+    with pytest.raises(OSError):
+        os.fstat(directory_fds[0])
 
 
 def test_failed_metadata_serialization_preserves_previous_file(tmp_path, monkeypatch):
