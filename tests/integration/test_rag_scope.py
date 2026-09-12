@@ -10,6 +10,19 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import server
 
 
+def test_folder_manifest_excludes_linked_files_and_directories(tmp_path):
+    scope = tmp_path / 'scope'
+    scope.mkdir()
+    local = scope / 'allowed.txt'
+    local.write_text('allowed')
+    outside = tmp_path / 'outside.txt'
+    outside.write_text('private')
+    (scope / 'linked.txt').symlink_to(outside)
+    (scope / 'cycle').symlink_to(scope, target_is_directory=True)
+    manifest = server._validate_rag_scope(scope)
+    assert manifest.files == (str(local),)
+
+
 def test_default_workspace_call_uses_workspace_root() -> None:
     original_workspace = server.workspace_root
     original_import = server.importlib.import_module
