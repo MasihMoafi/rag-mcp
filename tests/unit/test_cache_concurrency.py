@@ -43,6 +43,20 @@ def test_same_scope_initializes_once(sources, monkeypatch):
     assert len(calls) == 1
 
 
+def test_relative_index_directory_reuses_pipeline(sources, monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv('RAG_MCP_DATA_DIR', 'index')
+    first = fetch.get_rag_pipeline_v2(sources[0])
+    try:
+        second = fetch.get_rag_pipeline_v2(sources[0])
+        assert second is first
+        monkeypatch.setenv('RAG_MCP_DATA_DIR', str(tmp_path / 'index'))
+        assert fetch.get_rag_pipeline_v2(sources[0]) is first
+        assert first.search('Cedar')[0]['content'] == 'Cedar evidence'
+    finally:
+        fetch.reset_pipelines()
+
+
 def test_different_scopes_initialize_in_parallel(sources, monkeypatch):
     entered = Barrier(2)
     def build(config):
