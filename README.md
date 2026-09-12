@@ -379,6 +379,26 @@ set it, it does nothing useful.
 
 ## Current state
 
+### Readiness audit — 2026-09-12
+
+The selected offline/local regression suite passes 307 tests. This verifies the
+covered extraction/citation, API response handling, scope, cache, CLI/MCP and
+LanceDB lifecycle cases—not universal production readiness. API tests use an
+in-memory HTTP transport with the real SDK and storage, not paid-provider inference.
+
+Remaining gates:
+
+- Full refresh transaction/rollback: table, FTS, metadata and manifest publication
+  are not atomic together; Qdrant still clears its collection before a rebuild.
+- Realistic retrieval-quality evaluation of the current hybrid/API path, including
+  larger private corpora; the new HTML reader currently has fixture-level coverage.
+- Fresh installation, optional Office/OCR extraction and GPU throughput checks on
+  this revision. These were not part of the selected regression run.
+
+The existing 30-question Attention paper run is a lexical-only diagnostic baseline.
+Literal expected-answer containment is not a relevance score: formatting and
+paraphrases can produce false negatives. No model-quality improvement is claimed.
+
 ### Implemented and verified
 
 - MCP `initialize` → `tools/list` → `tools/call` protocol path.
