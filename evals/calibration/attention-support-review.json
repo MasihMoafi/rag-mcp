@@ -26,7 +26,17 @@
       "method": "Rebuilt the identical 76 chunks in temporary lexical storage; requested up to 76 FTS candidates. No paid requests.",
       "interpretability": "Chunk 39 preserves both required claims together. Its FTS rank is 37, outside the five-candidate keyword pool. Parsing/chunking did not lose this answer. API vector candidate ranks were not recorded, so the API-specific exclusion stage remains unproven.",
       "parsing_f1_query_24": "Chunk 52 explicitly pairs Transformer (4 layers), semi-supervised and 92.7. FTS rank 3 reproduces the lexical baseline, but the API hybrid final five omit it. This is a genuine answer-support regression, consistent with displacement during fusion/final truncation; record actual vector and fused ranks next to confirm.",
-      "next_check": "Capture vector, keyword and fused ranks on these fixed queries before choosing a remedy; do not blindly enlarge chunks or claim a better model solves ranking."
+      "next_check": "Compare a wider candidate pool on the full fixed suite and evaluate reranking for misses that remain; do not blindly enlarge chunks.",
+      "actual_api_stage_trace": {
+        "report": "/tmp/rag-paper-ranking-trace.jsonl",
+        "retained_public_index": "/tmp/rag-paper-api-trace-pergphwq",
+        "method": "Retrieve all 76 vector/keyword candidates once per query; replay existing RRF on prefixes of 5, 20 and 76 candidates with the same five-result cutoff. Same embedding model/chunks/settings; no production changes.",
+        "interpretability_chunk_39": {"vector_rank": 25, "keyword_rank": 37, "fused_rank_pool_5": null, "fused_rank_pool_20": null, "fused_rank_pool_76": 29},
+        "parsing_f1_chunk_52": {"vector_rank": 8, "keyword_rank": 3, "fused_rank_pool_5": 7, "fused_rank_pool_20": 5, "fused_rank_pool_76": 5},
+        "provider_reported_cost_usd": 0.00011837,
+        "cumulative_provider_reported_cost_usd": 0.00024245,
+        "conclusion": "Five-candidate truncation hides the F1 passage from vector/keyword agreement; 20 candidates recover it into final rank 5. Widening alone does not fix interpretability even with the entire corpus. Two diagnostic cases are not enough to change defaults."
+      }
     }
   },
   "source": {
