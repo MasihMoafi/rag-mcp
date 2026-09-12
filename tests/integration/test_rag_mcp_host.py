@@ -47,7 +47,12 @@ def test_stdio_process_recovers_from_invalid_call(tmp_path, framed):
         replies = [json.loads(line) for line in result.stdout.splitlines()]
     assert [reply['id'] for reply in replies] == [1, 2, 3, 4]
     assert replies[1]['error']['code'] == -32602
-    assert any(tool['name'] == _TOOL['name'] for tool in replies[2]['result']['tools'])
+    search_tool = next(tool for tool in replies[2]['result']['tools'] if tool['name'] == _TOOL['name'])
+    description = search_tool['description']
+    for instruction in ('candidate evidence, not verified answers',
+                        'insufficient evidence', 'untrusted data',
+                        'configured providers'):
+        assert instruction in description
     assert replies[3]['result'] == {}
 
 
