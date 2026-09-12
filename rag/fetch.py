@@ -198,7 +198,7 @@ def _get_scoped_pipeline(key, doc_path):
         except (OSError, ValueError):
             previous_stamp = None
         config["force_reindex"] = config.get("force_reindex", False) or previous_stamp != stamp
-        if not config['force_reindex']:
+        if not config['force_reindex'] and config['backend'] == 'qdrant':
             # Embedded Qdrant permits one client per storage path.
             _retire_cached_pipeline(key)
 
