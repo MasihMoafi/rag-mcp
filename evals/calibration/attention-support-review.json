@@ -1,6 +1,15 @@
 {
   "purpose": "Five non-random grading calibration cases, not a retrieval benchmark score.",
   "reviewer": "assistant; not independently reviewed",
+  "source_title_interpretability_probe": {
+    "revision": "7ade0ec",
+    "report": "/tmp/rag-7ade0ec-title.json",
+    "harness": "/tmp/rag-ebc8df7-paragraph.py --mode title",
+    "method": "Prefix the verified first-page title Attention Is All You Need to every existing candidate for question7; retain original chunks, query, MiniLM model and final5. PDF title metadata is empty, so first-line verification is specific to this paper.",
+    "baseline_title_rank": [17, 17],
+    "conclusion": "Title context alone does not recover the supporting chunk. Neither tested boundary-only nor title-only intervention justifies a runtime fix. Stop tailoring this one query; compare reranker suitability across the fixed suite before selecting further changes.",
+    "new_api_spend_usd": 0
+  },
   "intact_interpretability_paragraph_probe": {
     "revision": "ebc8df7",
     "report": "/tmp/rag-ebc8df7-paragraph.json",
