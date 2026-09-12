@@ -279,12 +279,12 @@ def _validate_rag_scope(path: Path) -> _ScopeManifest | None:
     estimated_tokens = 0
     indexed_files: list[str] = []
     watched_paths: dict[str, tuple[int, int, bool]] = {}
-    for current, dirs, files in os.walk(path):
+    def fail_scan(error):
+        raise error
+
+    for current, dirs, files in os.walk(path, onerror=fail_scan):
         current_path = Path(current)
-        try:
-            current_stat = current_path.stat()
-        except OSError:
-            continue
+        current_stat = current_path.stat()
         watched_paths[str(current_path)] = (current_stat.st_mtime_ns, 0, False)
         depth = len(current_path.relative_to(path).parts)
         dirs[:] = [
@@ -304,10 +304,7 @@ def _validate_rag_scope(path: Path) -> _ScopeManifest | None:
                 continue
             if candidate.suffix.lower() not in _INDEXABLE_EXTENSIONS:
                 continue
-            try:
-                candidate_stat = candidate.stat()
-            except OSError:
-                continue
+            candidate_stat = candidate.stat()
             watched_paths[str(candidate)] = (
                 candidate_stat.st_mtime_ns,
                 candidate_stat.st_size,
