@@ -8,7 +8,7 @@ from .text import extract_plain_text
 
 _VOID = set('area base br col embed hr img input link meta param source track wbr'.split())
 _SKIP = {'script', 'style', 'nav', 'template'}
-_BLOCK = set('p div section article header footer h1 h2 h3 h4 h5 h6 li ul ol table tr td th br hr pre'.split())
+_BLOCK = set('p div section article header footer h1 h2 h3 h4 h5 h6 li ul ol table tr td th br hr'.split())
 
 
 class _ContentReader(HTMLParser):
