@@ -29,7 +29,7 @@ def initialize_reranker(self):
             self.reranker_type = "qwen3"
             import torch
             from transformers import AutoModelForCausalLM, AutoTokenizer
-            print(f"[RAG V2] Loading Qwen3 Reranker on GPU from local cache: {reranker_model}")
+            print(f"[RAG V2] Loading Qwen3 Reranker on {self.device} from local cache: {reranker_model}")
             self.reranker_tokenizer = AutoTokenizer.from_pretrained(
                 reranker_model,
                 padding_side='left',
@@ -37,8 +37,8 @@ def initialize_reranker(self):
             )
             self.reranker_model = AutoModelForCausalLM.from_pretrained(
                 reranker_model,
-                torch_dtype=torch.float16,
-                device_map="cuda",
+                torch_dtype=torch.float16 if self.device == "cuda" else torch.float32,
+                device_map=self.device,
                 local_files_only=True
             ).eval()
 

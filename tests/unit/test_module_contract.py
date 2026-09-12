@@ -10,7 +10,8 @@ from rag.core import RAGPipelineV2
 
 
 @pytest.mark.parametrize("setting,model", [("off", ""), ("auto", ""), ("fastembed", ""), ("cross-encoder", "custom"), ("cross-encoder", "Qwen3-Reranker")])
-def test_reranker_initialization_contract(monkeypatch, tmp_path, setting, model):
+@pytest.mark.parametrize("device", ["cpu", "cuda", "mps"])
+def test_reranker_initialization_contract(monkeypatch, tmp_path, setting, model, device):
     from rag import core, embeddings
 
     cross = Mock()
@@ -20,12 +21,12 @@ def test_reranker_initialization_contract(monkeypatch, tmp_path, setting, model)
     monkeypatch.setitem(sys.modules, "sentence_transformers", None if setting == "auto" else SimpleNamespace(CrossEncoder=cross))
     monkeypatch.setitem(sys.modules, "transformers", SimpleNamespace(AutoTokenizer=tokenizer, AutoModelForCausalLM=causal))
     monkeypatch.setattr(embeddings, "FastEmbedReranker", fast)
-    monkeypatch.setattr(core, "select_device", lambda: "cpu")
+    monkeypatch.setattr(core, "select_device", lambda: device)
     monkeypatch.setattr(core, "build_embedder", lambda *a, **k: None)
     monkeypatch.setattr(core, "LanceDBBackend", Mock())
     monkeypatch.setattr(core.RAGPipeline, "_load_or_create_database", Mock())
     pipeline = core.RAGPipeline({"persist_dir": str(tmp_path), "reranker_type": setting, "reranker_model": model})
-    assert pipeline.device == "cpu"
+    assert pipeline.device == device
     if setting in {"off", "auto"}:
         assert pipeline.reranker is None
         cross.assert_not_called()
@@ -34,11 +35,12 @@ def test_reranker_initialization_contract(monkeypatch, tmp_path, setting, model)
         fast.assert_called_once_with("Xenova/ms-marco-MiniLM-L-6-v2")
         assert pipeline.reranker is fast.return_value
     elif model == "custom":
-        cross.assert_called_once_with("custom", device="cpu")
+        cross.assert_called_once_with("custom", device=device)
         assert pipeline.reranker is cross.return_value
     else:
         tokenizer.from_pretrained.assert_called_once_with(model, padding_side="left", local_files_only=True)
-        causal.from_pretrained.assert_called_once_with(model, torch_dtype=core.torch.float16, device_map="cuda", local_files_only=True)
+        dtype = core.torch.float16 if device == "cuda" else core.torch.float32
+        causal.from_pretrained.assert_called_once_with(model, torch_dtype=dtype, device_map=device, local_files_only=True)
         assert pipeline.reranker_type == "qwen3"
         assert pipeline.reranker_model is causal.from_pretrained.return_value.eval.return_value
 
