@@ -379,15 +379,16 @@ set it, it does nothing useful.
 
 ## Current state
 
-### Readiness audit — 2026-09-12
+### Readiness audit — 2026-09-13
 
-The selected offline/local regression suite passes 353 tests, without expected
+At `cc89442`, the selected offline/local regression suite passes 395 tests, without expected
 failures. This verifies the
 covered extraction/citation, API response handling, scope, cache, CLI/MCP and
 LanceDB lifecycle cases—not universal production readiness. API tests use an
 in-memory HTTP transport with the real SDK and storage, not paid-provider inference.
 A separate live OpenRouter/Qwen3-Embedding-8B probe returned 4096 dimensions and
-reported $0.00000003 usage cost; full paid-provider retrieval quality is still unverified.
+reported $0.00000003 usage cost. Subsequent public-paper retrieval experiments
+used the API embeddings with local reranking; results and limitations are below.
 
 Remaining gates:
 
@@ -406,11 +407,13 @@ Remaining gates:
   serialized, independent scopes can initialize together, and ranking-only
   replacement reopens Qdrant without document re-embedding. Reset waits for
   already-started initialization. Direct constructors/other processes do not
-  share this cache; crash/power-loss durability remains unverified.
+  share this cache. Abrupt process exit immediately before/after publication
+  leaves the old/new index searchable without reindexing on both backends.
+  Other crash points and power-loss durability remain unverified.
   Old generations are retained; bounded retention is unfinished.
 - Realistic retrieval-quality evaluation of the current hybrid/API path, including
   larger private corpora; the new HTML reader currently has fixture-level coverage.
-- The 7dc7dbb source distribution and wheel built offline and installed into a
+- The c6dad47 source distribution and wheel built offline and installed into a
   fresh Linux/Python 3.13 environment without PyTorch. Installed CLI retrieval,
   separate-process reopen and MCP stdio retrieval passed with correct citations
   and Python socket connections blocked. Other platforms/Python versions,
@@ -419,18 +422,16 @@ Remaining gates:
   with socket connections blocked; complex layouts, scanned PDFs and clean
   installation of these optional dependencies remain unverified.
 
-The existing 30-question Attention paper run is a lexical-only diagnostic baseline.
-Literal expected-answer containment is not a relevance score: formatting and
-paraphrases can produce false negatives. No model-quality improvement is claimed.
-A controlled 700-vs-1400-character chunk comparison kept the same 11/30 literal
-matches while mean retrieved text grew from 2,941 to 6,432 characters. A manually
-inspected "miss" already had the correct explanation ranked first. This is not
-evidence of poor semantic recall or a reason to change the default chunk size;
-support-based relevance judgments are still needed.
-The [five-case calibration review](evals/calibration/attention-support-review.json)
-records four confirmed containment false negatives and one missing-to-partial
-support change hidden by the unchanged diagnostic. It is deliberately selected,
-assistant-reviewed evidence, not an overall retrieval-quality score.
+The [public-paper evaluation record](evals/calibration/attention-support-review.json)
+includes a 30-question hybrid retrieval run using Qwen3 API embeddings and a local
+MiniLM reranker (20 candidates per retrieval channel, five final passages).
+Caption-aware PDF boundaries improved manually reviewed answer support from
+24 full / 4 partial / 2 missing to **26 full / 3 partial / 1 missing**, with about
+3.1% less returned text. Literal containment stayed at 11/30: it is not a
+relevance score. This is one public paper, assistant-reviewed and not blinded;
+it does not establish general production quality. Remaining misses include
+interpretability, incomplete explanations and table context. Cumulative
+provider-reported embedding spend was $0.00037691, not an independent billing audit.
 
 ### Implemented and verified
 
