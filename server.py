@@ -364,7 +364,13 @@ def query_knowledge_base(query: str, doc_path: str = "") -> str:
             fetch = getattr(module, "fetchExternalKnowledge", None)
             if not callable(fetch):
                 return json.dumps({"error": "rag.fetch has no fetchExternalKnowledge function"})
-            value = fetch(query=query, doc_path=fetch_doc_path)
+            try:
+                value = fetch(query=query, doc_path=fetch_doc_path)
+            except Exception as exc:
+                return json.dumps({"error": (
+                    f"RAG retrieval failed ({type(exc).__name__}). "
+                    "Check the configured provider and index availability."
+                )})
         response: dict[str, Any] = {"result": value}
         if not has_embedding(embedding_config()):
             response["notice"] = BM25_ONLY_NOTICE
