@@ -31,7 +31,11 @@ def test_incomplete_or_extra_vectors_never_write_a_batch(backend, vector_count):
     backend.embedding_fn = SimpleNamespace(embed_documents=lambda texts: [[1.0]] * vector_count)
     def unexpected_write(*args, **kwargs):
         pytest.fail('Mismatched embeddings reached storage')
-    backend.db = SimpleNamespace(create_table=unexpected_write)
+    def consume_stream(*args, data, **kwargs):
+        for batch in data:
+            unexpected_write(batch)
+        pytest.fail('Invalid input finished without an error')
+    backend.db = SimpleNamespace(create_table=consume_stream)
     backend.client = SimpleNamespace(upsert=unexpected_write)
     with pytest.raises(ValueError, match='Embedding count'):
         backend.add_documents_batch([{'content': 'first'}, {'content': 'second'}])
@@ -123,6 +127,7 @@ def test_lancedb_record_batches_and_fts_contract(dense, fts_failure, capsys):
             raise RuntimeError('FTS unavailable')
     table = SimpleNamespace(create_fts_index=create_fts_index)
     def create_table(name, **kwargs):
+        kwargs['data'] = [record for batch in kwargs['data'] for record in batch.to_pylist()]
         writes.append((name, kwargs))
         return table
     backend.db = SimpleNamespace(create_table=create_table)
