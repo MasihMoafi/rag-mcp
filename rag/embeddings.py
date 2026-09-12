@@ -8,6 +8,7 @@ inside the provider that needs them, so the light install never loads PyTorch.
 from __future__ import annotations
 
 import os
+import math
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
@@ -151,12 +152,23 @@ class OpenAICompatibleWrapper:
                 _time.sleep(min(3 * (attempt + 1), 20))
 
     def embed_documents(self, texts):
+        if not texts:
+            return []
         resp = self._create_with_retry(texts)
-        return [item.embedding for item in resp.data]
+        items = sorted(resp.data, key=lambda item: item.index)
+        if [item.index for item in items] != list(range(len(texts))):
+            raise ValueError("Invalid embedding response: missing or duplicate input indices.")
+        vectors = [item.embedding for item in items]
+        dimensions = len(vectors[0])
+        if not dimensions or any(
+            len(vector) != dimensions or not all(math.isfinite(value) for value in vector)
+            for vector in vectors
+        ):
+            raise ValueError("Invalid embedding response: empty, inconsistent or non-finite vectors.")
+        return vectors
 
     def embed_query(self, text):
-        resp = self._create_with_retry([text])
-        return resp.data[0].embedding
+        return self.embed_documents([text])[0]
 
 
 class STWrapper:
