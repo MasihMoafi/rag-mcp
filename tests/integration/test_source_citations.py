@@ -48,6 +48,18 @@ def test_notebook_citation_counts_empty_original_cells(tmp_path):
         fetch.reset_pipelines()
 
 
+def test_html_retrieves_content_without_navigation_or_scripts(tmp_path):
+    source = tmp_path / 'guide.html'
+    source.write_text('<nav>Decoy navigation</nav>\n<script>Decoy payload</script>\n'
+                      '<p>Cedar retrieval preserves evidence.</p>\n')
+    for _ in range(2):
+        result = fetch.fetchExternalKnowledge('Cedar', str(source))[0]
+        assert result['original_content'] == 'Cedar retrieval preserves evidence.'
+        assert result['location'] == 'L3'
+        assert fetch.fetchExternalKnowledge('Decoy', str(source)) == 'No relevant information found.'
+        fetch.reset_pipelines()
+
+
 @pytest.mark.parametrize('extension,location', [('.pdf', 'p.1-2'), ('.ipynb', 'cell 1-2')])
 def test_multisegment_passage_cites_its_full_range(tmp_path, extension, location):
     source = tmp_path / ('evidence' + extension)
