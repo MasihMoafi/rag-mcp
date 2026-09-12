@@ -1,6 +1,7 @@
 """Scoped pipeline configuration, cache reuse and document-query orchestration."""
 
 import os
+import sys
 import hashlib
 import json
 from pathlib import Path
@@ -69,7 +70,6 @@ def _trim_cached_pipelines(keep):
                 if close is not None and close():
                     del _rag_system_v2_instances[key]
             except Exception as error:
-                import sys
                 print(f'[RAG] Cache retirement failed: {type(error).__name__}', file=sys.stderr)
             finally:
                 lock.release()
@@ -307,8 +307,7 @@ def query_documents(
         except PipelineClosedError:
             return get_rag_pipeline_v2(doc_path=doc_path).search(query)
     except Exception as e:
-        import traceback
-        traceback.print_exc()
+        print(f"[RAG] Retrieval failed: {type(e).__name__}", file=sys.stderr)
         raise
 
 # Preserve legacy imports and the wrapper's patchable delegation target.

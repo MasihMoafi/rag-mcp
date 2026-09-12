@@ -6,6 +6,24 @@ import pytest
 from rag.core import RAGPipeline
 
 
+def test_fetch_failure_logs_omit_chained_provider_bodies(monkeypatch, capsys):
+    from rag import fetch
+
+    cause = ValueError("private-response-cause")
+    error = RuntimeError("private-provider-response-marker")
+    error.__cause__ = cause
+    pipeline = Mock()
+    pipeline.search.side_effect = error
+    monkeypatch.setattr(fetch, "get_rag_pipeline_v2", Mock(return_value=pipeline))
+    with pytest.raises(RuntimeError) as raised:
+        fetch.query_documents("private-query-marker")
+    assert raised.value is error
+    assert raised.value.__cause__ is cause
+    pipeline.search.assert_called_once_with("private-query-marker")
+    captured = capsys.readouterr()
+    assert "private-" not in captured.out + captured.err
+
+
 @pytest.mark.parametrize("failure", [False, True])
 def test_search_logs_omit_payloads_without_changing_results_or_errors(capsys, failure):
     pipeline = RAGPipeline.__new__(RAGPipeline)
