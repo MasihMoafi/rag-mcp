@@ -1,6 +1,19 @@
 {
   "purpose": "Five non-random grading calibration cases, not a retrieval benchmark score.",
   "reviewer": "assistant; not independently reviewed",
+  "cached_runtime_replay_2026_09_13": {
+    "revision": "c90ad3d",
+    "report": "/tmp/rag-c90ad3d-replay.jsonl",
+    "harness": "/tmp/rag-c90ad3d-replay.py",
+    "baseline": "/tmp/rag-caption-integrated-eval.jsonl",
+    "method": "Fixed 30 questions, existing 79-chunk index and cached API query vectors; current runtime with real cached MiniLM reranking on auto-selected CUDA. Source and query hashes verified. Provider requests, Python socket connections and reindexing forbidden.",
+    "unchanged_ordered_evidence_queries": 30,
+    "compared_fields": ["id", "content", "original_content", "file_path", "location"],
+    "load_seconds": 4.586672720000934,
+    "total_seconds": 6.850565503002144,
+    "new_api_spend_usd": 0,
+    "conclusion": "No observed retrieval-evidence regression on this fixed paper; prior support limitations remain. Not a quality improvement, fresh parser/index-build test, Qwen-reranker evaluation or independent grading. Timing is one local run, not a performance benchmark."
+  },
   "caption_boundaries_integrated_result": {
     "revision": "d85153c",
     "report": "/tmp/rag-caption-integrated-eval.jsonl",
