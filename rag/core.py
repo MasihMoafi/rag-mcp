@@ -100,7 +100,12 @@ class RAGPipeline:
         reranking.initialize_reranker(self)
 
         # Load or create database
-        self._load_or_create_database()
+        try:
+            self._load_or_create_database()
+        except BaseException:
+            if self.backend_type == 'qdrant':
+                self.vector_db.client.close()
+            raise
 
     _extract_text_from_pdf = parsing._extract_text_from_pdf
     _extract_text_with_unstructured = parsing._extract_text_with_unstructured

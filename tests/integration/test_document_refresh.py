@@ -116,10 +116,16 @@ def test_failed_fts_build_does_not_commit_manifest_and_is_retried(tmp_path, loca
         with pytest.raises(RuntimeError, match="keyword index build unavailable"):
             local_search(document)
         assert manifest.read_bytes() == original_manifest
+        from rag.lancedb_backend import LanceDBBackend
+        stored = LanceDBBackend(previous.vector_db.table_name, None,
+                                persist_path=previous.vector_db.persist_path)
+        assert stored.search_fts("Meeting")[0]["content"] == "Meeting: Friday."
         fetch.reset_pipelines()
     monkeypatch.setattr(table_type, "create_fts_index", original_build)
     assert local_search(document)[0]["content"] == "Meeting: Monday."
-    assert manifest.read_bytes() != original_manifest
+    active = fetch.get_rag_pipeline_v2(str(document))
+    from pathlib import Path
+    assert (Path(active.config['persist_dir']) / 'source-manifest.json').read_bytes() != original_manifest
 
 
 @pytest.mark.parametrize('corruption', ['[truncated', '{}', '[{}]', '[]'])
