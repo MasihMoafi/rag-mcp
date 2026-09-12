@@ -19,13 +19,14 @@ def local_search(tmp_path, monkeypatch):
     fetch.reset_pipelines()
 
 
-def test_unreadable_member_cannot_publish_partial_corpus(tmp_path, local_search):
+@pytest.mark.parametrize("extension", ["txt", "json"])
+def test_unreadable_member_cannot_publish_partial_corpus(tmp_path, local_search, extension):
     corpus = tmp_path / "corpus"
     corpus.mkdir()
     good = corpus / "good.txt"
-    damaged = corpus / "damaged.txt"
+    damaged = corpus / f"damaged.{extension}"
     good.write_text("Meeting: Friday.")
-    damaged.write_text("Meeting: Monday.")
+    damaged.write_text('"Meeting: Monday."' if extension == "json" else "Meeting: Monday.")
     assert len(local_search(corpus)) == 2
     previous = fetch.get_rag_pipeline_v2(str(corpus))
     storage = previous.vector_db
@@ -35,7 +36,7 @@ def test_unreadable_member_cannot_publish_partial_corpus(tmp_path, local_search)
         local_search(corpus)
     assert storage.count() == 2
     assert all(path.read_bytes() == data for path, data in manifests.items())
-    damaged.write_text("Meeting: Tuesday.")
+    damaged.write_text('"Meeting: Tuesday."' if extension == "json" else "Meeting: Tuesday.")
     assert any("Tuesday" in passage["content"] for passage in local_search(corpus))
 
 
