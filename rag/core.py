@@ -39,6 +39,8 @@ class RAGPipeline:
     def __init__(self, config: dict):
         self._queries = QueryLifecycle()
         config = dict(config)
+        if str(config.get("reranker_type", "auto")).lower() == "llm":
+            raise ValueError("LLM reranking is not implemented; choose cross-encoder, fastembed, auto or disabled.")
         for key in ("top_k", "rerank_top_k"):
             if key in config and (type(config[key]) is not int or config[key] <= 0):
                 raise ValueError(f"{key} must be a positive integer")
@@ -143,7 +145,6 @@ class RAGPipeline:
     _load_existing_database = ingestion.load_existing_database
 
     _rrf_fusion = reranking.fuse_rankings
-    _llm_rerank = reranking.legacy_llm_rerank
     _crossencoder_rerank = reranking.rerank_documents
 
     def search(self, query: str) -> list[dict] | str:
@@ -218,9 +219,6 @@ class RAGPipeline:
             elif self.reranker_type != "qwen3" and getattr(self, "reranker", None) is None:
                 # No reranker model is loaded (light install): keep the fusion order.
                 final_docs = fused_docs[:rerank_top_k]
-            elif reranker_type == "llm":
-                print(f"[RAG Core] Reranking {len(fused_docs)} initial results using LLM Reranker...")
-                final_docs = self._llm_rerank(fused_docs, query, k=rerank_top_k)
             else:
                 print(f"[RAG Core] Reranking {len(fused_docs)} initial results using CrossEncoder Reranker...")
                 final_docs = self._crossencoder_rerank(fused_docs, query, k=rerank_top_k)

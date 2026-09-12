@@ -86,12 +86,6 @@ def fuse_rankings(self, vector_results: List[Tuple], bm25_results: List[Tuple], 
     rrf_results.sort(key=lambda x: x[1], reverse=True)
     return [doc for doc, score in rrf_results]
 
-def legacy_llm_rerank(self, docs: List[Dict], query: str, k: int) -> List[Dict]:
-    """Preserve fused order for the unsupported legacy LLM setting."""
-    print("[RAG Core] Executing LLM-based Reranking...")
-    return docs[:k]
-
-
 def rerank_documents(self, docs: List[Dict], query: str, k: int) -> List[Dict]:
     """Rerank bounded passage text, retaining input order if inference fails."""
     if len(docs) < 2:

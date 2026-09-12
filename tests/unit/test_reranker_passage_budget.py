@@ -42,6 +42,15 @@ def test_cross_encoder_receives_answer_beyond_512_characters():
     assert received[1][1] == relevant['content']
 
 
+@pytest.mark.parametrize('setting', ['llm', 'LLM'])
+def test_unsupported_llm_setting_fails_before_resource_initialization(monkeypatch, setting):
+    from rag import core
+
+    monkeypatch.setattr(core, 'open_or_build', lambda *a, **k: pytest.fail('unsupported setting reached storage'))
+    with pytest.raises(ValueError, match='LLM reranking is not implemented'):
+        core.RAGPipeline({'reranker_type': setting})
+
+
 @pytest.mark.parametrize('scores', [[], [0.9], [0.1, 0.2, 0.3, 0.4],
                                    [0.1, float('nan'), 0.9],
                                    [0.1, float('inf'), 0.9],
