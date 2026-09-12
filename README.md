@@ -468,12 +468,15 @@ failure and legacy-index migration checks; this does not certify OCR model quali
   concurrent searches can still increase memory use and latency.
 - Realistic retrieval-quality evaluation of the current hybrid/API path, including
   larger private corpora; the new HTML reader currently has fixture-level coverage.
-- The 6ed4a1d source distribution and wheel built offline and installed into a
+- The 4fdaf1a source distribution and wheel built offline and installed into a
   fresh Linux/Python 3.13 environment without PyTorch. Installed CLI retrieval,
   separate-process reopen and MCP stdio retrieval passed with correct citations
   and Python socket connections blocked. All36 runtime Python files byte-match
-  the tested wheel. Other platforms/Python versions,
-  optional model backends and GPU throughput remain unverified. Optional
+  the tested wheel.
+  Nine copied storage/API integration tests also pass outside the checkout on
+  LanceDB0.38.0, including streamed vector release and late-failure preservation.
+  Other platforms/Python versions, optional model backends and GPU throughput
+  remain unverified. Optional
   DOCX/PPTX/XLSX/CSV and image-OCR fixture tests subsequently passed on this host
   with socket connections blocked; complex layouts, scanned PDFs and clean
   installation of these optional dependencies remain unverified.
