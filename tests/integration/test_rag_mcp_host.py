@@ -8,10 +8,26 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from server import _TOOL
 
 
-@pytest.mark.parametrize('params', [['invalid'], [], 'invalid', 1, 0, False])
+@pytest.mark.parametrize('params', [
+    ['invalid'], [], 'invalid', 1, 0, False,
+    {'name': []}, {'name': {}},
+    {'name': 'query_knowledge_base', 'arguments': []},
+    {'name': 'query_knowledge_base', 'arguments': False},
+    {'name': 'query_knowledge_base', 'arguments': [['query', 'unexpected']]},
+    {'name': 'set_rag_settings', 'arguments': [['top', 99]]},
+    {'name': 'get_rag_settings', 'arguments': []},
+    {'name': 'query_knowledge_base', 'arguments': None},
+])
 def test_malformed_tool_params_do_not_terminate_server(monkeypatch, capsys, params):
     import json
     import server
+
+    def unexpected_dispatch(*args, **kwargs):
+        pytest.fail('Malformed request reached a tool handler')
+
+    monkeypatch.setattr(server, 'query_knowledge_base', unexpected_dispatch)
+    monkeypatch.setattr(server, '_apply_settings', unexpected_dispatch)
+    monkeypatch.setattr(server, '_settings_report', unexpected_dispatch)
 
     requests = [
         {'jsonrpc': '2.0', 'id': 1, 'method': 'initialize'},

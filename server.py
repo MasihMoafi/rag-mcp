@@ -415,10 +415,13 @@ def _handle_request(message: dict[str, Any]) -> None:
     if method == "tools/call":
         params = message.get("params") or {}
         name = params.get("name")
+        arguments = params.get("arguments", {})
+        if not isinstance(name, str) or not isinstance(arguments, dict):
+            _error(request_id, -32602, "Invalid params: expected a tool name string and arguments object")
+            return
         if name not in {tool["name"] for tool in _TOOLS}:
             _error(request_id, -32601, "Unknown tool")
             return
-        arguments = params.get("arguments") or {}
         try:
             if name == _SETTINGS_GET_TOOL["name"]:
                 output = json.dumps(_settings_report())
