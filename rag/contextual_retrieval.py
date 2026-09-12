@@ -28,7 +28,7 @@ def select_document_context(
     selected_indices = list(range(min(start_chunks, len(chunks))))
     selected_indices.extend(range(max(0, chunk_index - previous_chunks), chunk_index))
 
-    unique_indices = list(dict.fromkeys(selected_indices))
+    unique_indices = dict.fromkeys(selected_indices)
     return "\n\n".join(chunks[index] for index in unique_indices if chunks[index].strip())
 
 

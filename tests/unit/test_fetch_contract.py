@@ -60,7 +60,9 @@ def test_recursive_filters_do_not_leak_into_filename_search(monkeypatch, tmp_pat
 
 
 @pytest.mark.parametrize('as_list', [False, True])
-def test_scoped_pipeline_cache_and_manifest(monkeypatch, tmp_path, as_list):
+@pytest.mark.parametrize('setting', [None, 'contextual_model', 'contextual_max_tokens',
+    'contextual_timeout', 'contextual_source_max_chars', 'contextual_start_chunks', 'contextual_prev_chunks'])
+def test_scoped_pipeline_cache_and_manifest(monkeypatch, tmp_path, as_list, setting):
     source = tmp_path / 'source.md'
     source.write_text('Cedar', encoding='utf-8')
     root = tmp_path / 'indexes'
@@ -93,3 +95,31 @@ def test_scoped_pipeline_cache_and_manifest(monkeypatch, tmp_path, as_list):
     assert refreshed is not reopened
     assert refreshed.config['force_reindex'] is True
     assert len(instances) == 3
+    if setting:
+        retrieval[setting] = 'changed' if setting == 'contextual_model' else retrieval[setting] + 1
+        changed = fetch.get_rag_pipeline_v2(scope)
+        assert changed is not refreshed
+        assert changed.config[setting] == retrieval[setting]
+        assert changed.config['force_reindex'] is (setting != 'contextual_timeout')
+        assert fetch.get_rag_pipeline_v2(scope) is changed
+
+
+def test_directory_stamp_is_sorted_independent_of_enumeration(monkeypatch, tmp_path):
+    source = tmp_path / 'sources'
+    source.mkdir()
+    paths = [source / 'b.md', source / 'a.md']
+    for path in paths:
+        path.write_text(path.name)
+    monkeypatch.setenv('RAG_MCP_DATA_DIR', str(tmp_path / 'indexes'))
+    monkeypatch.setenv('RAG_MCP_CONFIG', str(tmp_path / 'config.json'))
+    monkeypatch.setenv('RAG_MCP_EMBED_PROVIDER', 'none')
+    monkeypatch.setenv('RAG_MCP_CONTEXTUAL_RETRIEVAL', 'off')
+    monkeypatch.setattr(fetch, '_rag_system_v2_instances', {})
+    monkeypatch.setattr(fetch, 'RAGPipelineV2', lambda config: SimpleNamespace(config=config))
+    monkeypatch.setattr(Path, 'rglob', lambda self, pattern: iter(paths))
+    first = fetch.get_rag_pipeline_v2(str(source))
+    expected = [[str(path), path.stat().st_size, path.stat().st_mtime_ns, path.stat().st_ctime_ns]
+                for path in sorted(paths)]
+    assert first.config['source_stamp']['sources'] == expected
+    paths.reverse()
+    assert fetch.get_rag_pipeline_v2(str(source)) is first

@@ -20,7 +20,6 @@ from utils.proxy import strip_socks as _strip_socks
 _strip_socks()
 
 import lancedb
-import pyarrow as pa
 
 
 class LanceDBBackend:
@@ -126,9 +125,6 @@ class LanceDBBackend:
                 all_records.append(record)
 
         # Overwrite or create table
-        metric_map = {"cosine": "cosine", "euclidean": "l2", "dot": "dot"}
-        metric = metric_map.get(self.distance, "cosine")
-
         self.table = self.db.create_table(
             self.table_name,
             data=all_records,

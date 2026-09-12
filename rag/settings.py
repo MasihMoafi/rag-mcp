@@ -33,13 +33,7 @@ DEFAULTS = {
     "ollama_url": "http://localhost:11434",
 }
 
-ENV_KEYS = {
-    "embed_provider": "RAG_MCP_EMBED_PROVIDER",
-    "embed_model": "RAG_MCP_EMBED_MODEL",
-    "embed_base_url": "RAG_MCP_EMBED_BASE_URL",
-    "embed_api_key": "RAG_MCP_EMBED_API_KEY",
-    "ollama_url": "RAG_MCP_OLLAMA_URL",
-}
+ENV_KEYS = {key: f"RAG_MCP_{key.upper()}" for key in DEFAULTS}
 
 # Retrieval preferences saved next to the embedding choice; RAG_MCP_* overrides per process.
 CONTEXTUAL_DEFAULTS = {
@@ -51,15 +45,7 @@ CONTEXTUAL_DEFAULTS = {
     "contextual_start_chunks": "2",
     "contextual_prev_chunks": "2",
 }
-CONTEXTUAL_ENV = {
-    "contextual_retrieval": "RAG_MCP_CONTEXTUAL_RETRIEVAL",
-    "contextual_model": "RAG_MCP_CONTEXTUAL_MODEL",
-    "contextual_max_tokens": "RAG_MCP_CONTEXTUAL_MAX_TOKENS",
-    "contextual_timeout": "RAG_MCP_CONTEXTUAL_TIMEOUT",
-    "contextual_source_max_chars": "RAG_MCP_CONTEXTUAL_SOURCE_MAX_CHARS",
-    "contextual_start_chunks": "RAG_MCP_CONTEXTUAL_START_CHUNKS",
-    "contextual_prev_chunks": "RAG_MCP_CONTEXTUAL_PREV_CHUNKS",
-}
+CONTEXTUAL_ENV = {key: f"RAG_MCP_{key.upper()}" for key in CONTEXTUAL_DEFAULTS}
 RETRIEVAL_DEFAULTS = {
     "top_k": "5",
     "reranker_type": "auto",
@@ -109,36 +95,29 @@ def save_settings(settings: Mapping[str, Any], environ: Mapping[str, str] | None
     return path
 
 
-def embedding_config(environ: Mapping[str, str] | None = None) -> dict[str, str]:
-    """Defaults, then the saved file, then RAG_MCP_* environment overrides."""
+def _merged_config(defaults, env_keys, value_types, environ):
     environ = os.environ if environ is None else environ
-    merged = dict(DEFAULTS)
+    merged = dict(defaults)
     saved = load_settings(environ)
     for key in merged:
         value = saved.get(key)
-        if isinstance(value, str) and value.strip():
-            merged[key] = value.strip()
-    for key, name in ENV_KEYS.items():
+        if isinstance(value, value_types) and str(value).strip():
+            merged[key] = str(value).strip()
+    for key, name in env_keys.items():
         value = environ.get(name, "").strip()
         if value:
             merged[key] = value
     return merged
+
+
+def embedding_config(environ: Mapping[str, str] | None = None) -> dict[str, str]:
+    """Defaults, then the saved file, then RAG_MCP_* environment overrides."""
+    return _merged_config(DEFAULTS, ENV_KEYS, str, environ)
 
 
 def retrieval_config(environ: Mapping[str, str] | None = None) -> dict[str, str]:
     """top_k / reranker: defaults, then the saved file, then RAG_MCP_* overrides."""
-    environ = os.environ if environ is None else environ
-    merged = dict(RETRIEVAL_DEFAULTS)
-    saved = load_settings(environ)
-    for key in merged:
-        value = saved.get(key)
-        if isinstance(value, (str, int)) and str(value).strip():
-            merged[key] = str(value).strip()
-    for key, name in RETRIEVAL_ENV.items():
-        value = environ.get(name, "").strip()
-        if value:
-            merged[key] = value
-    return merged
+    return _merged_config(RETRIEVAL_DEFAULTS, RETRIEVAL_ENV, (str, int), environ)
 
 
 def update_settings(changes: Mapping[str, str], environ: Mapping[str, str] | None = None) -> Path:
