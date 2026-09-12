@@ -1,6 +1,16 @@
 {
   "purpose": "Five non-random grading calibration cases, not a retrieval benchmark score.",
   "reviewer": "assistant; not independently reviewed",
+  "caption_dilution_diagnostic": {
+    "report": "/tmp/rag-caption-diagnostic.json",
+    "query_index": 26,
+    "method": "Same cached MiniLM model and question; compare original chunk73, its existing caption-only suffix, and complete contiguous Figure4 caption extracted from source p14. No new retrieval or embeddings.",
+    "scores": {"original": -7.67231, "existing_caption_suffix": -2.18144, "complete_caption": -1.46897},
+    "original_corpus_fifth_score": -6.72697,
+    "conclusion": "Removing preceding repeated diagram labels substantially improves this caption's relevance score, even without adding missing caption text. Both caption variants exceed the unchanged original corpus fifth score. This supports testing caption-aware segmentation, not deleting diagram text or claiming an integrated retrieval improvement.",
+    "alternate_model_preflight": "Qwen3-Reranker-0.6B snapshot has tokenizer/config files but no model weights; no Qwen inference or download attempted.",
+    "api_spend_usd": 0
+  },
   "qwen_query_instruction_ablation": {
     "report": "/tmp/rag-instruct-query-eval.jsonl",
     "guidance": "https://huggingface.co/Qwen/Qwen3-Embedding-8B",
