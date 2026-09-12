@@ -23,6 +23,10 @@ type: local semantic-search MCP server for coding agents and document workflows
 
 ## Repository Layout
 
+The command-line interface, MCP server, and retrieval engine are one project in this
+checkout. Installing `ragmcp` provides the `rag` command; there is no separate
+`rag-cli` source directory to launch.
+
 ```text
 rag-mcp/
 ├── rag/                                # Core Hybrid RAG Pipeline & Storage Backends
@@ -32,7 +36,7 @@ rag-mcp/
 │   ├── fetch.py                        # Document ingestion, PDF, OCR & multiformat parser
 │   └── notebook_chunker.py             # Jupyter Notebook cell & code-block specialized chunker
 │
-├── tests/                              # Pytest Automated Test Suite (18 passed)
+├── tests/                              # Pytest automated test suite
 │   ├── unit/                           # Chunking logic, breadcrumb generation & GPU guardrail unit tests
 │   ├── integration/                    # LanceDB CRUD, MCP tool contracts, OCR & file scope tests
 │   └── benchmarks/                     # GPU empirical throughput sweeps & OOM ladder benchmarks
@@ -94,7 +98,7 @@ Evaluated across **5 merged heterogeneous domains (6,314 chunks in a single inde
 
 ## Quick start
 
-Exact-word search (BM25) is always on. Meaning-based search needs an embedding model, and `rag setup` asks you to pick one: a small local model downloaded once and run on the CPU, Ollama, your own API key (OpenAI, Gemini, OpenRouter or any OpenAI-compatible endpoint), or exact words only for now. The default install is light: no PyTorch.
+Exact-word search (BM25) is always on. `rag setup` first asks where retrieval embeddings should run, then shows only the models that source reports: Ollama models already installed here, a supported local CPU catalog, OpenRouter/OpenAI/Google Gemini catalogs, another compatible endpoint, a local model, or exact words only. The default install is light: no PyTorch. This choice controls retrieval; Studio or the MCP host app chooses the answer LLM.
 
 Prerequisite for every path: [`uv`](https://docs.astral.sh/uv/getting-started/installation/), the Python package runner. The npm package is a thin launcher that calls it. The same engine powers the hosted [RAG Studio](https://rag.masihmoafi.com) through `rag studio`.
 
@@ -112,14 +116,18 @@ Install permanently and use plain `rag`:
 
 ```bash
 uv tool install ragmcp        # or: pipx install ragmcp · npm install -g ragmcp
-rag                           # no arguments: a numbered menu of everything below
-rag setup                     # detects Ollama / local runtimes / API keys, recommends, then offers to connect a coding agent
+rag                           # interactive menu: ↑/↓ to choose, Enter to select
+rag setup                     # choose a provider first, then one of its real embedding models
 rag setup --auto              # take the recommendation without questions
 rag doctor
 rag query "What changed?" --path /absolute/path/to/document-or-folder --top3
-rag connect codex             # or: rag connect claude  (registers the MCP server)
+rag connect codex             # or: claude, copilot, gemini or agy (registers the MCP server)
 rag studio                    # pair the hosted Studio; --studio-url http://localhost:3000 for a local checkout
 ```
+
+Run `rag` from any directory after installing the tool. Use ↑/↓ and Enter to select providers, models, settings, apps, and files or folders. Escape goes back; typing is reserved for the final “enter a path/model ID” option. Completed actions return to the main menu. Piped input retains numbered choices for scripts; model-list positions follow discovery, so use explicit command flags for automation.
+
+The provider-first picker lists only sources detected on the machine or explicitly supported by the CLI. Selecting Ollama opens the embedding models reported by its `/api/show` capabilities; selecting an API provider loads that provider's live embedding catalog. “Local CPU” opens FastEmbed's supported-model catalog and labels download sizes. Custom server URLs and model identifiers are requested only in their dedicated final-entry flows, with the required format shown in the question.
 
 `--top N` (or `--top3`, `--top-5`) sets how many passages a query returns. `rag connect claude --scope project` writes `.mcp.json` in the current folder instead of the user config. Registration always uses a command that outlives the current process: `rag mcp` when installed, or `uvx --from ragmcp==<version> rag mcp` when launched through npx/uvx.
 
@@ -136,9 +144,9 @@ The same three settings are in the `rag` menu ("Change settings"), and `rag conn
 
 `rag setup --provider <none|fastembed|ollama|openai_compatible|sentencetransformer> [--model M] [--base-url URL] [--api-key KEY] [--ollama-url URL]` sets the same choice without questions. The saved choice lives in `~/.config/rag/config.json` (owner-readable only); `RAG_MCP_EMBED_*` environment variables override it per process.
 
-Extras: `ragmcp[full]` adds PyTorch, sentence-transformers and the cross-encoder reranker (GPU); `ragmcp[office]` parses DOCX/PPTX/XLSX/CSV; `ragmcp[ocr]` reads images and scanned PDFs; `ragmcp[qdrant]` adds the Qdrant backend. With npm: `RAGMCP_EXTRAS=full npx ragmcp ...`.
+Extras: `ragmcp[full]` adds PyTorch, sentence-transformers and the cross-encoder reranker (GPU); `ragmcp[office]` parses DOCX/PPTX/XLSX/CSV; `ragmcp[ocr]` reads images and scanned PDFs; `ragmcp[qdrant]` adds the Qdrant backend; `ragmcp[anthropic]` enables contextual retrieval. With npm: `RAGMCP_EXTRAS=full npx ragmcp ...`.
 
-`rag studio` starts an authenticated loopback companion and opens the hosted Studio. It reuses the local Codex login for GPT-5.6 Luna without copying Codex credentials into the browser, and serves embeddings from your chosen model to the Studio. The Studio keeps its uploaded sources in the browser; `rag query` exercises this repository's Python retrieval engine directly.
+`rag studio` starts an authenticated loopback companion and opens the hosted Studio. Keep this terminal open while the browser uses local documents and embeddings. Generation provider/model selection belongs in Studio; an MCP host similarly owns its chat model. `rag query` exercises this repository's Python retrieval engine directly.
 
 ### Before it is on npm and PyPI: test from this checkout
 
@@ -273,8 +281,8 @@ Coding agents commonly retrieve context by either opening files one by one or lo
 <img src="assets/architecture.svg" alt="rag-mcp technical retrieval pipeline architecture" width="100%">
 
 The retrieval pipeline operates across two decoupled stages:
-1. **Scope Ingestion & Storage**: Target files matching the allowlist (`.rs`, `.py`, `.ts`, `.md`, `.ipynb`, `.pdf`) are processed through structure-aware AST chunking (`chunk_document`), preserving markdown heading hierarchies, code symbol scopes, and notebook cells. Chunks are simultaneously indexed into LanceDB's dense vector table (`all-MiniLM-L6-v2`) and embedded Tantivy inverted full-text search (FTS) index.
-2. **Dual Retrieval & Precision Funnel**: Each `query_knowledge_base` invocation executes parallel dense vector cosine search and lexical Tantivy BM25 queries ($top\_k=20$). Candidates are unified via Reciprocal Rank Fusion ($\text{RRF}, k=60$), then passed through a neural Cross-Encoder (`cross-encoder/ms-marco-MiniLM-L-6-v2`) for full-attention relevance re-scoring before delivering ranked source citations.
+1. **Scope Ingestion & Storage**: Target files matching the allowlist (`.rs`, `.py`, `.ts`, `.md`, `.ipynb`, `.pdf`) are processed through structure-aware AST chunking (`chunk_document`), preserving markdown heading hierarchies, code symbol scopes, and notebook cells. Chunks are always indexed for exact-word BM25 search; when `rag setup` has selected an embedding model, the same chunks also go into a dense vector table.
+2. **Retrieval & Precision Funnel**: Each `query_knowledge_base` invocation runs BM25 and, when configured, dense vector search. Candidates are unified via Reciprocal Rank Fusion (`RRF`, `k=60`), then optionally reranked according to the saved retrieval setting before ranked source citations are returned.
 
 ## How it works
 
@@ -290,11 +298,11 @@ rag-mcp/
 Technical boundaries:
 
 - one MCP tool: `query_knowledge_base(query, doc_path?)`;
-- default embeddings: `all-MiniLM-L6-v2` (~80MB, fast — overridable, see Configuration);
-- reranking runs by default: `cross-encoder/ms-marco-MiniLM-L-6-v2` (~80MB, fast — overridable, or disable it entirely);
-- local embedded/on-disk Qdrant;
+- default embeddings: none until `rag setup` (BM25 remains available immediately);
+- reranking: `auto` (uses a local cross-encoder when the full extra is installed, otherwise off; overridable);
+- local embedded/on-disk LanceDB by default, with Qdrant as an optional backend;
 - `doc_path` can scope each call to a file or directory;
-- per-path indexes are persisted under `rag/rag_db_v2/`;
+- per-path indexes are persisted under the user data directory (`~/.local/share/rag/index`, or `RAG_MCP_DATA_DIR`);
 - common large/build directories such as `.git`, `node_modules`, `.venv`, `dist`, `build`, and `target` are rejected;
 - configurable depth/token limits fail explicitly instead of scanning an unbounded tree.
 
@@ -305,12 +313,19 @@ default shown:
 
 | Variable | Default | What it controls |
 | --- | --- | --- |
-| `RAG_MCP_EMBED_PROVIDER` | `sentencetransformer` | `sentencetransformer` (local), `ollama` (local server), or `openai_compatible` (remote — see below) |
-| `RAG_MCP_EMBED_MODEL` | `all-MiniLM-L6-v2` | embedding model name, meaning depends on provider |
+| `RAG_MCP_EMBED_PROVIDER` | `none` | `sentencetransformer` (local), `fastembed` (local CPU), `ollama` (local server), or `openai_compatible` (remote — see below) |
+| `RAG_MCP_EMBED_MODEL` | unset | embedding model name, meaning depends on provider |
 | `RAG_MCP_EMBED_API_KEY` | unset | API key, only used by `openai_compatible` |
 | `RAG_MCP_EMBED_BASE_URL` | unset (official OpenAI endpoint) | override endpoint, only used by `openai_compatible` |
-| `RAG_MCP_RERANKER_TYPE` | `cross-encoder` | `cross-encoder` or `disabled` |
-| `RAG_MCP_RERANKER_MODEL` | `cross-encoder/ms-marco-MiniLM-L-6-v2` | reranker model, used when type is `cross-encoder` |
+| `RAG_MCP_RERANKER_TYPE` | `auto` | `auto`, `fastembed`, or `off` |
+| `RAG_MCP_RERANKER_MODEL` | unset | optional model override for the selected reranker |
+| `RAG_MCP_CONTEXTUAL_RETRIEVAL` | `off` | `on` or `off`; enrich chunks with document context before indexing |
+| `RAG_MCP_CONTEXTUAL_MODEL` | `claude-haiku-4-5` | Anthropic model used for contextualization |
+| `RAG_MCP_CONTEXTUAL_MAX_TOKENS` | `128` | maximum generated context per chunk |
+| `RAG_MCP_CONTEXTUAL_TIMEOUT` | `30` | Anthropic request timeout in seconds |
+| `RAG_MCP_CONTEXTUAL_SOURCE_MAX_CHARS` | `12000` | use bounded chunk context above this source size |
+| `RAG_MCP_CONTEXTUAL_START_CHUNKS` | `2` | initial chunks included for large sources |
+| `RAG_MCP_CONTEXTUAL_PREV_CHUNKS` | `2` | preceding chunks included for large sources |
 | `RAG_MCP_TOP_K` | `5` | candidates pulled from vector search before fusion |
 | `RAG_MCP_RERANK_TOP_K` | `5` | results kept after reranking |
 | `RAG_MCP_CHUNK_SIZE` | `700` | characters per chunk before overlap |
@@ -319,7 +334,12 @@ default shown:
 | `RAG_MCP_MAX_DEPTH` | `20` | directory-scan depth limit |
 | `RAG_MCP_MAX_TOKENS` | `2000000` | directory-scan size limit |
 
-The shipped defaults use the lightweight, fast pair (`all-MiniLM-L6-v2` + `ms-marco-MiniLM-L-6-v2`, ~80MB each) for instant zero-dependency local operation out of the box.
+Contextual retrieval is off by default. Enable it with `rag config contextual on` or
+`RAG_MCP_CONTEXTUAL_RETRIEVAL=on`; install `ragmcp[anthropic]` and set
+`ANTHROPIC_API_KEY` before indexing. Turning it off changes the index stamp and rebuilds
+an uncontextualized index.
+
+The shipped defaults use BM25 alone until a provider and embedding model are selected, so first use never downloads a model or sends text anywhere unexpectedly.
 
 To run the higher-capacity pipeline evaluated in the benchmark suite above, switch to Ollama Qwen embeddings:
 

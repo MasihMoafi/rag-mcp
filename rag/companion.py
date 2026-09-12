@@ -42,6 +42,7 @@ def _valid_embed_payload(value: Any) -> bool:
     texts = value.get("texts") if isinstance(value, dict) else None
     return (
         isinstance(texts, list)
+        and value.get("kind", "passage") in ("passage", "query")
         and 0 < len(texts) <= MAX_EMBED_TEXTS
         and all(isinstance(text, str) and 0 < len(text) <= 8_000 for text in texts)
     )
@@ -158,6 +159,13 @@ def create_companion_server(
         return loaded["embedder"]
 
     class Handler(BaseHTTPRequestHandler):
+        def handle(self) -> None:
+            try:
+                super().handle()
+            except (BrokenPipeError, ConnectionResetError):
+                # Closing or navigating the browser can cancel an in-flight response.
+                return
+
         def log_message(self, _format: str, *_args: object) -> None:
             return
 
@@ -203,7 +211,7 @@ def create_companion_server(
                 self._send_json(403, {"error": "Pairing rejected."})
                 return
             ready = codex_ready()
-            self._send_json(200 if ready else 503, {"ready": ready, "model": MODEL, "embedding": embedding_status()})
+            self._send_json(200, {"ready": ready, "model": MODEL, "embedding": embedding_status()})
 
         def _embed(self, payload: Any) -> None:
             if not _valid_embed_payload(payload):
@@ -218,7 +226,11 @@ def create_companion_server(
                 self._send_json(409, {"error": BM25_ONLY_NOTICE})
                 return
             try:
-                vectors = model.embed_documents(payload["texts"])
+                vectors = (
+                    [model.embed_query(text) for text in payload["texts"]]
+                    if payload.get("kind") == "query"
+                    else model.embed_documents(payload["texts"])
+                )
             except Exception:
                 self._send_json(502, {"error": "Embedding failed."})
                 return

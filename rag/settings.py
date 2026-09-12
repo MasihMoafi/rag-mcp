@@ -15,52 +15,15 @@ from pathlib import Path
 from typing import Any, TextIO
 
 # Every choice the interactive chooser offers, in display order.
-EMBEDDING_CHOICES: tuple[dict[str, str], ...] = (
-    {
-        "provider": "fastembed",
-        "model": "BAAI/bge-small-en-v1.5",
-        "label": "Small local model (English)",
-        "detail": "Downloads about 70 MB once, runs on the CPU, no account.",
-    },
-    {
-        "provider": "fastembed",
-        "model": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
-        "label": "Small local multilingual model",
-        "detail": "English, Persian and about 50 other languages. About 220 MB.",
-    },
-    {
-        "provider": "ollama",
-        "model": "nomic-embed-text",
-        "label": "Ollama on this machine",
-        "detail": "Uses an embedding model you already pulled into Ollama.",
-    },
-    {
-        "provider": "openai_compatible",
-        "model": "text-embedding-3-small",
-        "label": "API key",
-        "detail": "OpenAI, Gemini, OpenRouter, Voyage or any OpenAI-compatible endpoint. Text leaves this machine.",
-    },
-    {
-        "provider": "sentencetransformer",
-        "model": "all-MiniLM-L6-v2",
-        "label": "Full local install (sentence-transformers, GPU)",
-        "detail": "Needs the [full] extra with PyTorch installed.",
-    },
-    {
-        "provider": "none",
-        "model": "",
-        "label": "Exact words only (BM25)",
-        "detail": "No meaning-based search until you pick a model later.",
-    },
-)
-
-PROVIDERS = tuple(dict.fromkeys(choice["provider"] for choice in EMBEDDING_CHOICES))
-
-API_ENDPOINTS = {
-    "OpenAI": "https://api.openai.com/v1",
-    "Gemini": "https://generativelanguage.googleapis.com/v1beta/openai/",
-    "OpenRouter": "https://openrouter.ai/api/v1",
+# Defaults for explicit command-line provider flags; interactive choices use discovery.
+PROVIDER_DEFAULT_MODELS = {
+    "fastembed": "BAAI/bge-small-en-v1.5",
+    "ollama": "nomic-embed-text",
+    "openai_compatible": "text-embedding-3-small",
+    "sentencetransformer": "all-MiniLM-L6-v2",
+    "none": "",
 }
+PROVIDERS = tuple(PROVIDER_DEFAULT_MODELS)
 
 DEFAULTS = {
     "embed_provider": "none",
@@ -79,11 +42,35 @@ ENV_KEYS = {
 }
 
 # Retrieval preferences saved next to the embedding choice; RAG_MCP_* overrides per process.
-RETRIEVAL_DEFAULTS = {"top_k": "5", "reranker_type": "auto", "reranker_model": ""}
+CONTEXTUAL_DEFAULTS = {
+    "contextual_retrieval": "off",
+    "contextual_model": "claude-haiku-4-5",
+    "contextual_max_tokens": "128",
+    "contextual_timeout": "30",
+    "contextual_source_max_chars": "12000",
+    "contextual_start_chunks": "2",
+    "contextual_prev_chunks": "2",
+}
+CONTEXTUAL_ENV = {
+    "contextual_retrieval": "RAG_MCP_CONTEXTUAL_RETRIEVAL",
+    "contextual_model": "RAG_MCP_CONTEXTUAL_MODEL",
+    "contextual_max_tokens": "RAG_MCP_CONTEXTUAL_MAX_TOKENS",
+    "contextual_timeout": "RAG_MCP_CONTEXTUAL_TIMEOUT",
+    "contextual_source_max_chars": "RAG_MCP_CONTEXTUAL_SOURCE_MAX_CHARS",
+    "contextual_start_chunks": "RAG_MCP_CONTEXTUAL_START_CHUNKS",
+    "contextual_prev_chunks": "RAG_MCP_CONTEXTUAL_PREV_CHUNKS",
+}
+RETRIEVAL_DEFAULTS = {
+    "top_k": "5",
+    "reranker_type": "auto",
+    "reranker_model": "",
+    **CONTEXTUAL_DEFAULTS,
+}
 RETRIEVAL_ENV = {
     "top_k": "RAG_MCP_RERANK_TOP_K",
     "reranker_type": "RAG_MCP_RERANKER_TYPE",
     "reranker_model": "RAG_MCP_RERANKER_MODEL",
+    **CONTEXTUAL_ENV,
 }
 RERANKER_CHOICES = ("off", "auto", "fastembed")
 FASTEMBED_RERANKER = "Xenova/ms-marco-MiniLM-L-6-v2"
@@ -173,6 +160,21 @@ def describe_reranker(config: Mapping[str, str]) -> str:
     return f"{kind} · {model or ST_RERANKER}"
 
 
+def contextual_retrieval_enabled(config: Mapping[str, str]) -> bool:
+    return str(config.get("contextual_retrieval", "off")).strip().lower() in {
+        "on",
+        "true",
+        "1",
+        "enabled",
+    }
+
+
+def describe_contextual_retrieval(config: Mapping[str, str]) -> str:
+    if not contextual_retrieval_enabled(config):
+        return "off"
+    return f"on · {config.get('contextual_model') or CONTEXTUAL_DEFAULTS['contextual_model']}"
+
+
 def describe_settings(environ: Mapping[str, str] | None = None) -> list[str]:
     embedding = embedding_config(environ)
     retrieval = retrieval_config(environ)
@@ -180,6 +182,7 @@ def describe_settings(environ: Mapping[str, str] | None = None) -> list[str]:
         f"Embedding: {describe_embedding(embedding)}",
         f"Passages per query (top): {retrieval['top_k']}",
         f"Reranker: {describe_reranker(retrieval)}",
+        f"Contextual retrieval: {describe_contextual_retrieval(retrieval)}",
         f"Config file: {config_path(environ)}",
     ]
 
@@ -198,85 +201,25 @@ def describe_embedding(config: Mapping[str, str]) -> str:
         "openai_compatible": "API",
         "sentencetransformer": "sentence-transformers",
     }
-    return f"{names.get(provider, provider)} · {config.get('embed_model') or 'default model'}"
+    model = config.get("embed_model") or "default model"
+    parts = Path(model).parts
+    if provider == "sentencetransformer" and len(parts) >= 3 and parts[-2] == "snapshots" and parts[-3].startswith("models--"):
+        model = parts[-3][len("models--"):].replace("--", "/")
+    return f"{names.get(provider, provider)} · {model}"
 
 
 def default_model(provider: str) -> str:
-    for choice in EMBEDDING_CHOICES:
-        if choice["provider"] == provider:
-            return choice["model"]
-    return ""
+    return PROVIDER_DEFAULT_MODELS.get(provider, "")
 
 
-def _ask(stdin: TextIO, stdout: TextIO, prompt: str, default: str = "") -> str:
-    suffix = f" [{default}]" if default else ""
-    stdout.write(f"{prompt}{suffix}: ")
-    stdout.flush()
-    line = stdin.readline()
-    if not line:
-        return default
-    return line.strip() or default
+def run_setup(*, stdin: TextIO, stdout: TextIO, stderr: TextIO, environ: Mapping[str, str] | None = None, verify: Callable[[Mapping[str, str]], int] | None = None) -> int:
+    from rag.setup_ui import run
 
-
-def run_setup(
-    *,
-    stdin: TextIO,
-    stdout: TextIO,
-    stderr: TextIO,
-    environ: Mapping[str, str] | None = None,
-    verify: Callable[[Mapping[str, str]], int] | None = None,
-) -> int:
-    """Interactive chooser. Saves only after the choice embeds a test sentence."""
-    from rag import detect
-
-    detection = detect.detect_all(environ)
-    recommended = detect.recommend(detection)
-    stdout.write(
-        "How should rag understand meaning in your documents?\n"
-        "Exact-word search (BM25) is always on; this adds meaning-based search.\n\n"
-    )
-    for line in detect.describe(detection):
-        stdout.write(f"  Detected: {line}\n")
-    if detect.describe(detection):
-        stdout.write("\n")
-    default_index = next(
-        (i for i, c in enumerate(EMBEDDING_CHOICES, 1) if c["provider"] == recommended["embed_provider"]), 1
-    )
-    for index, choice in enumerate(EMBEDDING_CHOICES, 1):
-        tag = "  (recommended)" if index == default_index else ""
-        stdout.write(f"  {index}) {choice['label']}{tag}\n     {choice['detail']}\n")
-    stdout.write("\n")
-    answer = _ask(stdin, stdout, "Choice", str(default_index))
     try:
-        choice = EMBEDDING_CHOICES[int(answer) - 1]
-    except (ValueError, IndexError):
-        stderr.write(f"Not a listed choice: {answer}\n")
+        return run(stdin=stdin, stdout=stdout, stderr=stderr, environ=environ, verify=verify)
+    except ValueError as error:
+        stderr.write(f"{error}\n")
         return 2
-
-    config = dict(DEFAULTS)
-    config["embed_provider"] = choice["provider"]
-    prefilled = recommended if recommended["embed_provider"] == choice["provider"] else {}
-    if choice["provider"] == "none":
-        pass
-    elif choice["provider"] == "ollama":
-        config["embed_model"] = _ask(stdin, stdout, "Ollama embedding model", prefilled.get("embed_model") or choice["model"])
-        config["ollama_url"] = _ask(stdin, stdout, "Ollama URL", DEFAULTS["ollama_url"])
-    elif choice["provider"] == "openai_compatible":
-        stdout.write("Known endpoints: " + " · ".join(f"{name} {url}" for name, url in API_ENDPOINTS.items()) + "\n")
-        config["embed_base_url"] = _ask(stdin, stdout, "Endpoint URL", prefilled.get("embed_base_url") or API_ENDPOINTS["OpenAI"])
-        config["embed_model"] = _ask(stdin, stdout, "Embedding model", prefilled.get("embed_model") or choice["model"])
-        if prefilled:
-            stdout.write("Using the API key from your environment variable.\n")
-            config["embed_api_key"] = prefilled.get("embed_api_key", "")
-        else:
-            config["embed_api_key"] = _ask(stdin, stdout, "API key (saved to the config file, readable by you only)")
-            if not config["embed_api_key"]:
-                stderr.write("An API key is required for this option.\n")
-                return 2
-    else:
-        config["embed_model"] = _ask(stdin, stdout, "Model", choice["model"])
-
-    return finish_setup(config, stdout=stdout, stderr=stderr, environ=environ, verify=verify)
 
 
 def auto_setup(

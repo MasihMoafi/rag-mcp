@@ -30,6 +30,7 @@ dependencies = [
     "requests>=2.31",
     "fastembed>=0.4",
     "openai>=1.0",
+    "questionary>=2.1,<3",
 ]
 
 [project.optional-dependencies]
@@ -41,7 +42,9 @@ office = ["unstructured[docx,pptx,xlsx,csv]>=0.18.32"]
 ocr = ["pytesseract>=0.3.13", "pdf2image>=1.17.0", "pillow>=10", "rapidocr-onnxruntime>=1.4.4"]
 # Alternative vector store.
 qdrant = ["qdrant-client>=1.7.0"]
-all = ["ragmcp[full,office,ocr,qdrant]"]
+# Optional ingestion-time contextual retrieval through Anthropic's Messages API.
+anthropic = ["anthropic>=0.40.0"]
+all = ["ragmcp[full,office,ocr,qdrant,anthropic]"]
 
 [project.scripts]
 rag = "rag.cli:main"

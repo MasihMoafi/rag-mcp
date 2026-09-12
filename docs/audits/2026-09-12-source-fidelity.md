@@ -3,6 +3,7 @@
 ## Findings and changes
 
 - Reproduced five failures before patching: non-contiguous text after whitespace normalization, headings ignored after a Markdown preamble, partial words from chunking/overlap, and missing persisted file/citation fields. A separate invalid-size test exposed a non-progressing loop (bounded test command timed out).
+- Reproduced a source-cache identity collision when distinct paths shared the same basename. Canonical source path plus chunk ordinal now provides stable IDs for an unchanged source path and chunking configuration.
 - Chunking now uses contiguous source slices with paragraph/sentence/word boundaries where possible. Overlap does not manufacture text or require partial short paragraphs. Unbroken tokens larger than the character budget still require hard cuts. Chunk size defaults remain unchanged.
 - Markdown heading detection works after a preamble. Repeated passages advance the location cursor.
 - Ingestion emits file path, readable location, line range and starting PDF page; LanceDB preserves them. Page numbers refer to the start of a chunk, not necessarily every page it spans.
@@ -21,8 +22,6 @@ Result: **87 passed**, 33 existing LanceDB deprecation warnings. Compile and dif
 Book smoke check: `/home/masih/Desktop/books/rag/2. The Base RAG Stack _ Hands-On RAG for Production.md`, isolated temporary BM25-only index, contextualization and reranking disabled. All 143 chunks were exact source slices; five returned results had real source line ranges. The first result began `Recursive chunking` at L484, rather than a sliced word. This is source-fidelity evidence, not a relevance benchmark. Temporary indexes were cleaned up; the user's configured model and active index were not modified.
 
 ## Scope and remaining limits
-
-private downstream's downstream record loader supplies canonical record IDs, citations, article metadata and filters; its article-oriented evidence boundary is different from generic file chunking. No changes were made to either private downstream checkout or Studio. Existing user edits were retained.
 
 No paid/model-based quality evaluation was run, and earlier benchmark scores have not been re-established with the changed chunks. No table reconstruction, adaptive model selection, or general core refactor was attempted. The running MCP process must restart to load the repair; its next selected-scope query rebuilds a stale index (potential embedding cost with an API model). A separately installed package will need the updated code too.
 

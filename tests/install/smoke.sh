@@ -62,10 +62,10 @@ check "mock received the configured key and model" $(grep -q '"authorization": "
 out=$(rag query "What is the launch codename?" --path "$FACTS" 2>/tmp/query-api.err); rc=$?
 check "API-embedded query finds Cedar Lantern without a notice" $([ $rc -eq 0 ] && echo "$out" | grep -q "Cedar Lantern" && ! echo "$out" | grep -q '"notice"'; echo $?) "$out $(tail -3 /tmp/query-api.err)"
 
-# 5b. Interactive chooser through piped answers: option 4 (API), then endpoint, model, key.
+# 5b. With no installed models: API, custom endpoint, key, catalog selection.
 reset_config
-printf '4\nhttp://127.0.0.1:%s/v1\nmock-embed-interactive\nsk-interactive\n' "$MOCK_PORT" | rag setup >/tmp/setup-interactive.log 2>&1
-check "interactive setup lists six choices" $(grep -q "6) Exact words only" /tmp/setup-interactive.log; echo $?) "$(head -20 /tmp/setup-interactive.log)"
+printf '1\n4\nhttp://127.0.0.1:%s/v1\nsk-interactive\n1\n' "$MOCK_PORT" | rag setup >/tmp/setup-interactive.log 2>&1
+check "interactive setup lists model sources" $(grep -q "Choose an API model" /tmp/setup-interactive.log; echo $?) "$(head -20 /tmp/setup-interactive.log)"
 check "interactive setup saved the API choice" $(python3 -c "import json,sys; c=json.load(open('$RAG_MCP_CONFIG')); sys.exit(0 if c['embed_provider']=='openai_compatible' and c['embed_model']=='mock-embed-interactive' and c['embed_api_key']=='sk-interactive' and c['embed_base_url'].endswith(':$MOCK_PORT/v1') else 1)"; echo $?) "$(cat "$RAG_MCP_CONFIG" 2>/dev/null)"
 
 # 5c. Ollama provider with a custom URL.

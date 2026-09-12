@@ -21,6 +21,9 @@ class FakeEmbedder:
     def embed_documents(self, texts):
         return [[float(len(text)), 1.0] for text in texts]
 
+    def embed_query(self, text):
+        return [float(len(text)), 2.0]
+
 
 def test_companion_rejects_unpaired_requests_and_streams_grounded_answers(monkeypatch, tmp_path):
     monkeypatch.setenv("RAG_MCP_CONFIG", str(tmp_path / "config.json"))
@@ -92,11 +95,14 @@ def test_companion_embeds_with_the_configured_model():
         built.append(True)
         return FakeEmbedder()
 
-    server = create_companion_server(token="secret", codex_ready=lambda: True, embedder_factory=factory)
+    server = create_companion_server(token="secret", codex_ready=lambda: False, embedder_factory=factory)
     thread = Thread(target=server.serve_forever, daemon=True)
     thread.start()
     base = f"http://127.0.0.1:{server.server_port}"
     try:
+        with request(f"{base}/health") as response:
+            assert response.status == 200
+            assert json.load(response)["ready"] is False
         with request(f"{base}/embed", body={"texts": ["ab", "abcd"]}) as response:
             assert json.load(response) == {
                 "vectors": [[2.0, 1.0], [4.0, 1.0]],
@@ -107,7 +113,10 @@ def test_companion_embeds_with_the_configured_model():
             assert json.load(response)["dimensions"] == 2
         assert built == [True], "the embedder is built once and reused"
 
-        for bad in ({"texts": []}, {"texts": "not a list"}, {"texts": ["", "ok"]}, {}):
+        with request(f"{base}/embed", body={"texts": ["ab"], "kind": "query"}) as response:
+            assert json.load(response)["vectors"] == [[2.0, 2.0]]
+
+        for bad in ({"texts": []}, {"texts": "not a list"}, {"texts": ["", "ok"]}, {"texts": ["ok"], "kind": "invalid"}, {}):
             try:
                 request(f"{base}/embed", body=bad)
             except HTTPError as error:

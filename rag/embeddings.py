@@ -17,9 +17,10 @@ FULL_EXTRA_HINT = (
 )
 
 
-def _fastembed_cache_dir() -> str:
-    return os.environ.get("FASTEMBED_CACHE_PATH") or os.path.join(
-        os.environ.get("XDG_CACHE_HOME") or os.path.join(str(Path.home()), ".cache"), "fastembed"
+def _fastembed_cache_dir(environ: Mapping[str, str] | None = None) -> str:
+    environ = os.environ if environ is None else environ
+    return environ.get("FASTEMBED_CACHE_PATH") or os.path.join(
+        environ.get("XDG_CACHE_HOME") or os.path.join(str(Path.home()), ".cache"), "fastembed"
     )
 
 

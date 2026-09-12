@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import os
 import re
@@ -8,12 +9,28 @@ import secrets
 import shutil
 import subprocess
 import sys
+import tempfile
 import webbrowser
 from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
-from typing import TextIO
+from typing import Any, TextIO
 
 from rag import settings as user_settings
+from rag.cli_agents import (
+    AGENT_LABELS,
+    available_agents as _available_agents,
+    connect_agent as _connect_agent,
+    connect_agy as _connect_agy,
+    connect_claude as _connect_claude,
+    connect_codex as _connect_codex,
+    connect_copilot as _connect_copilot,
+    connect_gemini as _connect_gemini,
+    install_slash_commands as _install_slash_commands,
+    offer_agent_connection as _offer_agent_connection,
+    server_command as _server_command,
+    show_generic_mcp_config as _show_generic_mcp_config,
+)
+from rag.cli_menu import MENU, menu as _menu
 
 
 def _codex_status(environ: Mapping[str, str]) -> dict[str, object]:
@@ -72,170 +89,6 @@ def _normalize_argv(argv: Sequence[str]) -> list[str]:
     return normalized
 
 
-def _server_command(environ: Mapping[str, str]) -> list[str]:
-    """How a coding agent should start the MCP server so it keeps working after this process exits."""
-    spec = environ.get("RAGMCP_UVX_FROM", "").strip()
-    if spec:  # launched through the npm launcher or uvx: re-run the same package spec
-        return ["uvx", "--from", spec, "rag", "mcp"]
-    if "/environments-v2/" in sys.executable or "/.cache/uv/" in sys.executable:
-        from importlib.metadata import version
-
-        return ["uvx", "--from", f"ragmcp=={version('ragmcp')}", "rag", "mcp"]
-    installed = shutil.which("rag", path=environ.get("PATH"))
-    if installed and ".venv" not in installed:  # uv tool install / pipx / npm -g
-        return [installed, "mcp"]
-    import server
-
-    return [sys.executable, str(Path(server.__file__).resolve())]
-
-
-def _connect_codex(environ: Mapping[str, str], stdout: TextIO, stderr: TextIO) -> int:
-    executable = shutil.which("codex", path=environ.get("PATH"))
-    if executable is None:
-        print("Codex is not installed or is not on PATH.", file=stderr)
-        return 1
-    command = _server_command(environ)
-    current = subprocess.run(
-        [executable, "mcp", "get", "rag", "--json"],
-        capture_output=True,
-        check=False,
-        text=True,
-        env=dict(environ),
-    )
-    if current.returncode == 0:
-        try:
-            transport = json.loads(current.stdout)["transport"]
-        except (json.JSONDecodeError, KeyError, TypeError):
-            transport = {}
-        if (
-            transport.get("command") == command[0]
-            and transport.get("args") == command[1:]
-        ):
-            print("Codex is already connected to this RAG server.", file=stdout)
-            return 0
-        subprocess.run(
-            [executable, "mcp", "remove", "rag"],
-            capture_output=True,
-            check=False,
-            text=True,
-            env=dict(environ),
-        )
-    added = subprocess.run(
-        [executable, "mcp", "add", "rag", "--", *command],
-        capture_output=True,
-        check=False,
-        text=True,
-        env=dict(environ),
-    )
-    if added.returncode != 0:
-        print((added.stderr or added.stdout).strip(), file=stderr)
-        return added.returncode
-    print("Connected Codex to the local RAG server.", file=stdout)
-    _install_slash_commands(stdout, "codex", environ)
-    return 0
-
-
-def _connect_claude(environ: Mapping[str, str], stdout: TextIO, stderr: TextIO, scope: str = "user") -> int:
-    executable = shutil.which("claude", path=environ.get("PATH"))
-    command = ["claude", "mcp", "add", "rag", "-s", scope, "--", *_server_command(environ)]
-    if executable is None:
-        print("Claude Code is not installed or is not on PATH. Register manually with:", file=stderr)
-        print("  " + " ".join(command), file=stderr)
-        return 1
-    subprocess.run([executable, "mcp", "remove", "rag", "-s", scope], capture_output=True, check=False, text=True, env=dict(environ))
-    added = subprocess.run([executable, *command[1:]], capture_output=True, check=False, text=True, env=dict(environ))
-    if added.returncode != 0:
-        print((added.stderr or added.stdout).strip(), file=stderr)
-        return added.returncode
-    where = "all your projects" if scope == "user" else "this project (.mcp.json)"
-    print(f"Connected Claude Code to the local RAG server for {where}: {' '.join(_server_command(environ))}", file=stdout)
-    _install_slash_commands(stdout, "claude", environ)
-    return 0
-
-
-def _offer_agent_connection(stdin: TextIO, stdout: TextIO, stderr: TextIO, environ: Mapping[str, str]) -> None:
-    """After an interactive setup: hook the MCP server to a coding agent in one step."""
-    if not getattr(stdin, "isatty", lambda: False)():
-        return
-    stdout.write("Connect the MCP server to a coding agent now? [codex/claude/skip] [skip]: ")
-    stdout.flush()
-    answer = (stdin.readline() or "").strip().lower()
-    if answer == "codex":
-        _connect_codex(environ, stdout, stderr)
-    elif answer == "claude":
-        _connect_claude(environ, stdout, stderr)
-
-
-MENU = (
-    ("Set up meaning-based search (choose an embedding model)", ["setup"]),
-    ("Search a file or folder", None),
-    ("Connect a coding agent (Claude Code or Codex)", None),
-    ("Change settings (passages per query, reranker, embedding model)", None),
-    ("Open the Studio paired with this machine", ["studio"]),
-    ("Check this machine (doctor)", ["doctor"]),
-    ("Quit", None),
-)
-
-
-def _menu(*, stdin: TextIO, stdout: TextIO, stderr: TextIO, environ: Mapping[str, str], **passthrough: object) -> int:
-    """`rag` with no arguments in a terminal: a numbered menu instead of usage text."""
-    from rag.settings import _ask
-
-    stdout.write("rag · local search for your documents and code\n\n")
-    for index, (label, _) in enumerate(MENU, 1):
-        stdout.write(f"  {index}) {label}\n")
-    stdout.write("\n")
-    answer = _ask(stdin, stdout, "Choice", "1")
-    try:
-        label, command = MENU[int(answer) - 1]
-    except (ValueError, IndexError):
-        stderr.write(f"Not a listed choice: {answer}\n")
-        return 2
-    if label == "Quit":
-        return 0
-    if label.startswith("Search"):
-        path = _ask(stdin, stdout, "File or folder to search", ".")
-        question = _ask(stdin, stdout, "Question")
-        if not question:
-            stderr.write("A question is required.\n")
-            return 2
-        top = _ask(stdin, stdout, "How many passages", "5")
-        command = ["query", question, "--path", path, "--top", top]
-    elif label.startswith("Change settings"):
-        for line in user_settings.describe_settings(environ)[:3]:
-            stdout.write(f"  {line}\n")
-        setting = _ask(stdin, stdout, "Change which [top/reranker/embedding]", "top")
-        if setting not in {"top", "reranker", "embedding"}:
-            stderr.write(f"Not a listed setting: {setting}\n")
-            return 2
-        prompts = {"top": "Passages per query", "reranker": "Reranker [off/auto/fastembed/model]", "embedding": "Embedding model"}
-        value = _ask(stdin, stdout, prompts[setting])
-        command = ["config", setting, value]
-    elif label.startswith("Connect"):
-        agent = _ask(stdin, stdout, "Agent [claude/codex]", "claude").lower()
-        if agent not in {"claude", "codex"}:
-            stderr.write(f"Not a listed agent: {agent}\n")
-            return 2
-        command = ["connect", agent]
-    return main(command, stdin=stdin, stdout=stdout, stderr=stderr, environ=environ, **passthrough)  # type: ignore[arg-type]
-
-
-SLASH_COMMAND = """\
----
-description: Change or inspect the local rag search setup in plain words (top N, reranker, embedding model)
----
-The user wants to change or inspect their local rag search setup: $ARGUMENTS
-
-Use the `rag` command line tool through the shell (if `rag` is not on PATH, use `uvx ragmcp` with the same arguments). Map the request to exactly one of these and run it:
-- `rag config show`
-- `rag config top <N>`                       (also for "top5", "top 5", "return 5 passages")
-- `rag config reranker off|auto|fastembed|<model>`
-- `rag config embedding <model> [--provider fastembed|ollama|openai_compatible|sentencetransformer]`
-- `rag setup --auto`                          (start over with what this machine already has)
-- `rag doctor`                                (what is installed and running)
-Never ask for or paste API keys in this chat; for keys, tell the user to run `rag setup` in a terminal.
-Finish by running `rag config show` and report its lines to the user, nothing more.
-"""
 
 
 def _resolve_embedding_choice(model: str, provider: str | None, environ: Mapping[str, str]) -> dict[str, str]:
@@ -304,6 +157,12 @@ def _config_command(args: argparse.Namespace, *, stdout: TextIO, stderr: TextIO,
             user_settings.update_settings({"reranker_type": "fastembed", "reranker_model": model}, environ)
         else:
             user_settings.update_settings({"reranker_type": "cross-encoder", "reranker_model": value}, environ)
+    elif setting == "contextual":
+        mode = value.lower()
+        if mode not in {"on", "off"}:
+            print("Give on or off for contextual retrieval.", file=stderr)
+            return 2
+        user_settings.update_settings({"contextual_retrieval": mode}, environ)
     elif setting == "embedding":
         if not value:
             print("Give a model name, e.g. `rag config embedding qwen3-embedding:0.6b`.", file=stderr)
@@ -321,26 +180,14 @@ def _config_command(args: argparse.Namespace, *, stdout: TextIO, stderr: TextIO,
     return 0
 
 
-def _install_slash_commands(stdout: TextIO, agent: str, environ: Mapping[str, str]) -> None:
-    """Give the coding agent a /rag command that drives `rag config` from plain words."""
-    home = Path(environ.get("HOME") or Path.home())
-    targets = {"claude": home / ".claude" / "commands" / "rag.md", "codex": home / ".codex" / "prompts" / "rag.md"}
-    target = targets[agent]
-    target.parent.mkdir(parents=True, exist_ok=True)
-    body = SLASH_COMMAND if agent == "claude" else SLASH_COMMAND.split("---\n", 2)[-1]
-    target.write_text(body, encoding="utf-8")
-    hint = "/rag <what you want>" if agent == "claude" else "/prompts:rag <what you want>"
-    print(f"Installed the {hint} command ({target}).", file=stdout)
-
-
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="rag",
-        description="Local hybrid search: exact words (BM25) always on, plus the embedding model you choose.",
+        description="Local hybrid search: exact words (BM25) always on, plus the embedding source you choose. Studio or an MCP app supplies answers.",
     )
     commands = parser.add_subparsers(dest="command", required=True)
 
-    setup = commands.add_parser("setup", help="Choose how meaning-based search should work")
+    setup = commands.add_parser("setup", help="Choose where retrieval embeddings run, then choose a model")
     setup.add_argument("--provider", choices=user_settings.PROVIDERS, help="Skip the questions and set the provider directly")
     setup.add_argument("--model", default="", help="Embedding model name for the provider")
     setup.add_argument("--base-url", default="", dest="base_url", help="OpenAI-compatible endpoint URL")
@@ -348,26 +195,41 @@ def _parser() -> argparse.ArgumentParser:
     setup.add_argument("--ollama-url", default="", dest="ollama_url", help="Ollama URL (default http://localhost:11434)")
     setup.add_argument("--no-verify", action="store_true", dest="no_verify", help="Save without embedding a test sentence")
     setup.add_argument("--auto", action="store_true", help="Pick the best option this machine already has, no questions")
+    commands.add_parser("menu", help="open the interactive human terminal UI")
 
-    config = commands.add_parser("config", help="Show or change settings: top N, reranker, embedding model")
-    config.add_argument("setting", nargs="?", choices=["show", "top", "reranker", "embedding"], default="show")
+    config = commands.add_parser("config", help="Show or change settings: top N, reranker, contextual retrieval, embedding model")
+    config.add_argument("setting", nargs="?", choices=["show", "top", "reranker", "contextual", "embedding"], default="show")
     config.add_argument("value", nargs="?", default="")
     config.add_argument("--provider", choices=user_settings.PROVIDERS, help="Where the embedding model runs (guessed when omitted)")
     config.add_argument("--no-verify", action="store_true", dest="no_verify")
 
-    doctor = commands.add_parser("doctor", help="Check the local RAG, embedding and Codex setup")
+    doctor = commands.add_parser("doctor", help="Check local RAG, embedding and MCP-app setup")
     doctor.add_argument("--json", action="store_true", dest="as_json")
 
     query = commands.add_parser("query", help="Query a local file or folder")
     query.add_argument("question")
     query.add_argument("--path", required=True)
     query.add_argument("--top", type=int, default=None, metavar="N", help="How many passages to return (also --top5, --top-3); default from `rag config top`")
-    connect = commands.add_parser("connect", help="Register the MCP server with a coding agent")
-    connect.add_argument("agent", choices=["codex", "claude"])
-    connect.add_argument("--scope", choices=["user", "project"], default="user", help="Claude Code scope: user (all projects) or project (.mcp.json here)")
-    commands.add_parser("connect-codex", help="Same as `rag connect codex`")
+    query.add_argument(
+        "--format",
+        dest="output_format",
+        choices=("auto", "text", "json"),
+        default="auto",
+        help="output format (default: auto-detect terminal)",
+    )
+    connect = commands.add_parser("connect", help="Register the MCP server with an installed MCP app")
+    connect.add_argument("agent", choices=["codex", "claude", "copilot", "gemini", "agy"])
+    connect.add_argument("--scope", choices=["user", "project"], default="user", help="Configuration scope where the app supports it")
+    connect.add_argument(
+        "--install-prompt",
+        action="store_true",
+        help="also install the optional slash prompt for supported agents",
+    )
+    connect_codex = commands.add_parser("connect-codex", help="Same as `rag connect codex`")
+    connect_codex.add_argument("--install-prompt", action="store_true")
     serve = commands.add_parser("serve", help="Run the local Studio companion")
     serve.add_argument("--port", type=int, default=47831)
+    serve.add_argument("--studio-url", default="https://rag.masihmoafi.com", dest="studio_url")
     studio = commands.add_parser("studio", help="Open Studio with the local companion")
     studio.add_argument("--port", type=int, default=47831)
     studio.add_argument("--no-open", action="store_true")
@@ -376,7 +238,7 @@ def _parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main(
+def _main(
     argv: Sequence[str] | None = None,
     *,
     stdin: TextIO | None = None,
@@ -395,12 +257,13 @@ def main(
     environ = environ or os.environ
     raw = list(argv) if argv is not None else sys.argv[1:]
     if not raw:
-        if getattr(stdin, "isatty", lambda: False)():
-            return _menu(stdin=stdin, stdout=stdout, stderr=stderr, environ=environ, embedding_probe=embedding_probe,
-                         token_factory=token_factory, server_factory=server_factory, open_url=open_url)
         _parser().print_help(stdout)
         return 0
     args = _parser().parse_args(_normalize_argv(raw))
+
+    if args.command == "menu":
+        return _menu(stdin=stdin, stdout=stdout, stderr=stderr, environ=environ, embedding_probe=embedding_probe,
+                     token_factory=token_factory, server_factory=server_factory, open_url=open_url)
 
     if args.command == "setup":
         verify = None if args.no_verify else (embedding_probe or _probe_embedding)
@@ -408,8 +271,6 @@ def main(
             return user_settings.auto_setup(stdout=stdout, stderr=stderr, environ=environ, verify=verify)
         if args.provider is None:
             code = user_settings.run_setup(stdin=stdin, stdout=stdout, stderr=stderr, environ=environ, verify=verify)
-            if code == 0:
-                _offer_agent_connection(stdin, stdout, stderr, environ)
             return code
         if args.provider == "openai_compatible" and not args.api_key:
             print("--api-key is required for openai_compatible.", file=stderr)
@@ -440,6 +301,7 @@ def main(
             "detected": detection,
             "python": {"available": True, "version": sys.version.split()[0]},
             "codex": _codex_status(environ),
+            "mcp_apps": {key: bool(shutil.which(executable, path=environ.get("PATH"))) for key, _, executable in AGENT_LABELS},
             "embedding": {
                 "provider": embedding["embed_provider"],
                 "model": embedding["embed_model"],
@@ -460,14 +322,25 @@ def main(
             )
             for line in detect.describe(detection):
                 print(f"Detected: {line}", file=stdout)
+            apps = [label for key, label, _ in AGENT_LABELS if report["mcp_apps"][key]]
+            if apps:
+                print("MCP apps available: " + ", ".join(apps), file=stdout)
             if not report["embedding"]["configured"]:
                 print("Run `rag setup` (or `rag setup --auto`) to add meaning-based search.", file=stdout)
-        return 0 if report["codex"]["authenticated"] else 1
+        # MCP hosts are optional integrations, not prerequisites for local RAG.
+        return 0
 
-    if args.command == "connect-codex" or (args.command == "connect" and args.agent == "codex"):
-        return _connect_codex(environ, stdout, stderr)
+    if args.command == "connect-codex":
+        return _connect_codex(environ, stdout, stderr, install_prompt=args.install_prompt)
     if args.command == "connect":
-        return _connect_claude(environ, stdout, stderr, scope=args.scope)
+        return _connect_agent(
+            args.agent,
+            environ,
+            stdout,
+            stderr,
+            scope=args.scope,
+            install_prompt=args.install_prompt,
+        )
 
     if args.command in {"serve", "studio"}:
         if server_factory is None:
@@ -481,9 +354,18 @@ def main(
             print(f"Could not start the local companion: {error}", file=stderr)
             return 1
         url = f"{args.studio_url.rstrip('/')}/studio#local={token}"
+        if server.server_port != 47831:
+            url += f"&port={server.server_port}"
+        print("Starting the local companion for Studio.", file=stdout)
+        print("Keep this terminal open while Studio uses your local documents and models.", file=stdout)
         print(f"Local companion: http://127.0.0.1:{server.server_port}", file=stdout)
         print(f"Embedding: {user_settings.describe_embedding(user_settings.embedding_config(environ))}", file=stdout)
-        print(f"Studio: {url}", file=stdout)
+        if args.command == "studio":
+            print(f"Opening the live Studio in your browser: {url}", file=stdout)
+            print("Press Ctrl-C in this terminal to stop the companion.", file=stdout)
+        else:
+            print(f"Studio pairing URL: {url}", file=stdout)
+            print("Open that URL in a browser. Press Ctrl-C here to stop the companion.", file=stdout)
         if args.command == "studio" and not args.no_open:
             open_url(url)
         try:
@@ -514,14 +396,74 @@ def main(
         from server import query_knowledge_base
 
         query_fn = query_knowledge_base
-    if args.top is not None:
-        # The pipeline reads these when it starts: N final passages, at least N candidates per method.
-        os.environ["RAG_MCP_RERANK_TOP_K"] = str(max(1, args.top))
-        os.environ["RAG_MCP_TOP_K"] = str(max(args.top, int(os.environ.get("RAG_MCP_TOP_K") or 5)))
-    print(query_fn(args.question, str(path)), file=stdout)
+    from rag.prompts import interactive
+
+    human_output = args.output_format == "text" or (
+        args.output_format == "auto" and interactive(stdin, stdout)
+    )
+    previous = {name: os.environ.get(name) for name in ("RAG_MCP_RERANK_TOP_K", "RAG_MCP_TOP_K")}
+    try:
+        if args.top is not None:
+            os.environ["RAG_MCP_RERANK_TOP_K"] = str(max(1, args.top))
+            os.environ["RAG_MCP_TOP_K"] = str(max(args.top, int(os.environ.get("RAG_MCP_TOP_K") or 5)))
+        if human_output:
+            print(f"Searching {path.name}…", file=stdout, flush=True)
+            # Native database diagnostics also write directly to fd 2.
+            with tempfile.TemporaryFile(mode="w+") as diagnostics:
+                original_stderr = os.dup(2)
+                try:
+                    os.dup2(diagnostics.fileno(), 2)
+                    with contextlib.redirect_stderr(diagnostics):
+                        result = query_fn(args.question, str(path))
+                finally:
+                    os.dup2(original_stderr, 2)
+                    os.close(original_stderr)
+        else:
+            result = query_fn(args.question, str(path))
+    finally:
+        for name, value in previous.items():
+            if value is None:
+                os.environ.pop(name, None)
+            else:
+                os.environ[name] = value
+    try:
+        payload = json.loads(result)
+    except (ValueError, TypeError):
+        payload = None
+    display = result
+    if human_output and isinstance(payload, dict):
+        display = payload.get("error") or payload.get("result", result)
+        if isinstance(display, list):
+            passages = []
+            for index, passage in enumerate(display, 1):
+                if isinstance(passage, dict):
+                    source = passage.get("source") or passage.get("file_path") or path.name
+                    heading = f" · {passage['heading']}" if passage.get("heading") else ""
+                    passages.append(f"\n{index}. {source}{heading}\n{passage.get('content', '')}")
+                else:
+                    passages.append(str(passage))
+            display = "\n".join(passages) or "No matching passages found."
+    print(display, file=stdout)
+    if isinstance(payload, dict) and "error" in payload:
+        return 1
     if not user_settings.has_embedding(user_settings.embedding_config(environ)):
         print(user_settings.BM25_ONLY_NOTICE, file=stderr)
     return 0
+
+
+def main(argv: Sequence[str] | None = None, **kwargs: Any) -> int:
+    from rag.prompts import Cancelled
+
+    try:
+        return _main(argv, **kwargs)
+    except Cancelled:
+        return 130
+    except (KeyboardInterrupt, EOFError):
+        print("\nCancelled.", file=kwargs.get("stdout") or sys.stdout)
+        return 130
+    except ValueError as error:
+        print(str(error), file=kwargs.get("stderr") or sys.stderr)
+        return 2
 
 
 if __name__ == "__main__":

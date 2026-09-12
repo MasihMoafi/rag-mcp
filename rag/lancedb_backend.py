@@ -110,7 +110,7 @@ class LanceDBBackend:
 
             for j, (doc, vector) in enumerate(zip(batch, vectors)):
                 record = {
-                    "id": str(i + j),
+                    "id": str(doc.get("id", i + j)),
                     "content": doc.get("content", ""),
                     "file_path": str(doc.get("file_path", "")),
                     "source": str(doc.get("source", doc.get("file_path", ""))),
