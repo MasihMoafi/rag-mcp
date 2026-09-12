@@ -432,6 +432,10 @@ failure and legacy-index migration checks; this does not certify OCR model quali
   this is not a hard memory cap. Cached-pipeline callers must reacquire after
   retirement; the query wrapper retries one pre-search retirement automatically.
   On-disk generations are retained; bounded disk retention is unfinished.
+  Retiring a loaded reranker collects unreachable Python cycles after releasing
+  pipeline references. A real MiniLM/CUDA check reduced live allocation from about
+  100 MB to 9 MB on close; allocator-reserved memory remained available for reuse.
+  Collection is process-wide and can add retirement latency; it is not run per query.
 - Qwen reranking uses the selected compute device, requests only final-token logits,
   and disables unused attention caching. Tiny real-Qwen CPU tests preserve scores;
   pretrained-model memory/throughput and Apple hardware remain unverified. Inputs

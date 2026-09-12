@@ -2,6 +2,7 @@
 
 import sys
 import os
+import gc
 try:
     import torch
 except ImportError:  # light install without PyTorch: CPU only, no sentence-transformers
@@ -170,9 +171,14 @@ class RAGPipeline:
                 contextualizer = getattr(self, '_owned_contextualizer', None)
                 if contextualizer is not None:
                     contextualizer.close()
+        retired_model = any(getattr(self, name, None) is not None
+                            for name in ('reranker', 'reranker_model'))
         for name in ('reranker', 'reranker_model', 'reranker_tokenizer',
                      'embedding_fn', 'vector_db', 'bm25_index'):
             setattr(self, name, None)
+        if retired_model:
+            # Model wrappers can own cycles that keep GPU tensors alive after close.
+            gc.collect()
 
     def _search(self, query: str) -> list[dict] | str:
         """Return ranked passages from the configured local retrieval pipeline."""
