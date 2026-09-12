@@ -108,6 +108,16 @@ def test_legacy_partial_index_is_revalidated_before_reuse(tmp_path, local_search
         local_search(corpus)
     assert pointer.read_bytes() == previous_pointer
     assert manifest.read_bytes() == previous_manifest
+    bad.write_text('Meeting: Monday.')
+    repaired = local_search(corpus)
+    assert {item['content'] for item in repaired} == {'Meeting: Friday.', 'Meeting: Monday.'}
+    assert pointer.read_bytes() != previous_pointer
+    migrated_pointer = pointer.read_bytes()
+    fetch.reset_pipelines()
+    with monkeypatch.context() as patch:
+        patch.setattr(RAGPipeline, '_index_documents', lambda self: pytest.fail('Reindexed migrated corpus'))
+        assert {item['content'] for item in local_search(corpus)} == {'Meeting: Friday.', 'Meeting: Monday.'}
+    assert pointer.read_bytes() == migrated_pointer
 
 
 @pytest.mark.parametrize('extension', ['txt', 'json', 'ipynb'])
