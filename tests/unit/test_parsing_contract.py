@@ -80,6 +80,18 @@ def test_pdf_normalization_and_page_separators(pipeline, tmp_path):
     assert pipeline._extract_content(str(path)) == "First page second line\fNext page"
 
 
+def test_pdf_ligatures_expand_without_changing_mathematical_symbols(monkeypatch):
+    from rag.parsers import pdf
+    from types import SimpleNamespace
+    class Document:
+        def __iter__(self):
+            return iter([SimpleNamespace(get_text=lambda: 'ﬁrst eﬀicient ﬂow ﬃ ﬄ ﬅ ﬆ x² √dk')])
+        def close(self):
+            pass
+    monkeypatch.setattr(pdf.fitz, 'open', lambda _: Document())
+    assert pdf.extract_pdf_text('ligatures.pdf') == 'first efficient flow ffi ffl st st x² √dk'
+
+
 @pytest.mark.parametrize("text,expected_calls", [("text", 0), ("", 1), (" \n", 1)])
 def test_pdf_dispatch_preserves_overrides_and_fallback(pipeline, text, expected_calls):
     pipeline._extract_text_from_pdf = Mock(return_value=text)
