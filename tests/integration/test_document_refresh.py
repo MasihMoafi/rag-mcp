@@ -138,5 +138,8 @@ def test_invalid_metadata_rebuilds_from_sources(tmp_path, local_search, corrupti
     metadata.write_text(corruption)
     fetch.reset_pipelines()
     assert local_search(document)[0]['content'] == 'Meeting: Friday.'
-    restored = json.loads(metadata.read_text())
+    from pathlib import Path
+    active = fetch.get_rag_pipeline_v2(str(document))
+    restored = json.loads((Path(active.config['persist_dir']) / 'docs.json').read_text())
     assert isinstance(restored, list) and restored[0]['content'] == 'Meeting: Friday.'
+    assert metadata.read_text() == corruption

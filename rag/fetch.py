@@ -3,15 +3,13 @@
 import os
 import hashlib
 import json
-import tempfile
-import shutil
-from utils.persistence import write_json_atomic
 from pathlib import Path
 from typing import Dict, Optional
 from .core import RAGPipelineV2
 from .discovery import resolve_path, find_all_indexable_files, find_relevant_files
 from .formats import INDEXABLE_EXTENSIONS as _INDEXABLE_EXTENSIONS
 from .settings import contextual_retrieval_enabled, embedding_config, retrieval_config
+from .index_lifecycle import active_directory, open_or_build
 
 def _env_str(name: str, default: str) -> str:
     value = os.environ.get(name, "").strip()
@@ -120,18 +118,8 @@ def get_rag_pipeline_v2(doc_path: Optional[str | list[str]] = None):
             config["persist_dir"] = os.path.join(current_dir, config["persist_dir"])
             config["document_paths"] = [os.path.join(current_dir, path) for path in config["document_paths"]]
         scope_root = Path(config['persist_dir'])
-        active_file = scope_root / 'active-index.json'
-        try:
-            generation = json.loads(active_file.read_text())
-        except FileNotFoundError:
-            generation = None  # Existing indexes predate generation publication.
-        if generation is not None:
-            if not isinstance(generation, str) or not generation.startswith('generation-') or Path(generation).name != generation:
-                raise ValueError('Invalid active index generation')
-            active_dir = scope_root / generation
-            if not active_dir.is_dir() or active_dir.is_symlink():
-                raise ValueError('Active index generation is missing or invalid')
-            config['persist_dir'] = str(active_dir)
+        config['index_scope'] = str(scope_root)
+        config['persist_dir'] = str(active_directory(scope_root))
         
         sources = []
         for document_path in config["document_paths"]:
@@ -186,23 +174,8 @@ def get_rag_pipeline_v2(doc_path: Optional[str | list[str]] = None):
 
         sys.stderr.write("[RAG] About to create RAGPipelineV2...\n")
         sys.stderr.flush()
-        if config['force_reindex']:
-            scope_root.mkdir(parents=True, exist_ok=True)
-            pending_dir = Path(tempfile.mkdtemp(prefix='generation-', dir=scope_root))
-            config['persist_dir'] = str(pending_dir)
-            instance = None
-            try:
-                instance = RAGPipelineV2(config=config)
-                write_json_atomic(pending_dir / 'source-manifest.json', stamp)
-                # Publish only after storage, document metadata and manifest succeed.
-                write_json_atomic(active_file, pending_dir.name)
-            except Exception:
-                if instance is not None and config['backend'] == 'qdrant':
-                    instance.vector_db.client.close()
-                shutil.rmtree(pending_dir)
-                raise
-        else:
-            instance = RAGPipelineV2(config=config)
+        instance = open_or_build(config, lambda build_config: RAGPipelineV2(
+            config={**build_config, '_staged_index': True}))
         _rag_system_v2_instances[key] = instance
         sys.stderr.write("[RAG] V2 initialization complete\n")
         sys.stderr.flush()
