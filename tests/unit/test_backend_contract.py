@@ -25,6 +25,24 @@ def test_embedding_method_precedes_callable(backend):
     assert calls == [['a', 'b']]
 
 
+@pytest.mark.parametrize('vector_count', [0, 1, 3])
+def test_incomplete_or_extra_vectors_never_write_a_batch(backend, vector_count):
+    backend.table_name = backend.collection_name = 'test'
+    backend.embedding_fn = SimpleNamespace(embed_documents=lambda texts: [[1.0]] * vector_count)
+    def unexpected_write(*args, **kwargs):
+        pytest.fail('Mismatched embeddings reached storage')
+    backend.db = SimpleNamespace(create_table=unexpected_write)
+    backend.client = SimpleNamespace(upsert=unexpected_write)
+    with pytest.raises(ValueError, match='Embedding count'):
+        backend.add_documents_batch([{'content': 'first'}, {'content': 'second'}])
+
+
+@pytest.mark.parametrize('batch_size', [0, -1])
+def test_invalid_batch_size_is_rejected_before_embedding(backend, batch_size):
+    with pytest.raises(ValueError, match='batch_size'):
+        backend.add_documents_batch([{'content': 'first'}], batch_size=batch_size)
+
+
 def test_callable_batch_follows_method_failure(backend, capsys):
     calls = []
     class Embedder:

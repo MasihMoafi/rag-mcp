@@ -92,6 +92,8 @@ class LanceDBBackend:
 
     def add_documents_batch(self, documents: List[Dict[str, Any]], batch_size: int = 512):
         """Add documents to LanceDB in optimal GPU batches ($B=512$) and build Tantivy FTS index."""
+        if batch_size <= 0:
+            raise ValueError("batch_size must be positive.")
         if not documents:
             return
 
@@ -106,6 +108,8 @@ class LanceDBBackend:
             contents = [doc.get("content", "") for doc in batch]
             # Without an embedding model the table has no vector column; FTS still works.
             vectors = self._batch_embed(contents) if self.embedding_fn is not None else [None] * len(batch)
+            if len(vectors) != len(batch):
+                raise ValueError(f"Embedding count {len(vectors)} does not match document count {len(batch)}.")
 
             for j, (doc, vector) in enumerate(zip(batch, vectors)):
                 record = {

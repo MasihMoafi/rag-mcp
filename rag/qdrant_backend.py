@@ -79,6 +79,8 @@ class QdrantVectorDB:
 
         Large batch size (500) for maximum embedding throughput.
         """
+        if batch_size <= 0:
+            raise ValueError("batch_size must be positive.")
         total = len(documents)
         sys.stderr.write(f"[Qdrant] Batch indexing {total} documents..." + "\n")
 
@@ -90,6 +92,8 @@ class QdrantVectorDB:
 
             # Batch embed (FAST)
             vectors = self._batch_embed(contents)
+            if len(vectors) != len(batch):
+                raise ValueError(f"Embedding count {len(vectors)} does not match document count {len(batch)}.")
 
             # Prepare points for Qdrant
             points = []
