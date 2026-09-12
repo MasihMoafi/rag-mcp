@@ -9,19 +9,15 @@ def extract_notebook_text(notebook_path: str) -> str:
     """Extract text from Jupyter notebook (.ipynb). Cells are joined with a
     form-feed marker, same as PDF pages, so a chunk's originating cell can
     be recovered later instead of collapsing into one undifferentiated blob."""
-    try:
-        from ..notebook_chunker import extract_cells_from_notebook
-        cells = extract_cells_from_notebook(notebook_path)
-        parts = []
-        previous_index = 0
-        for cell in cells:
-            index = cell['cell_index']
-            parts.append("\f" * (index - previous_index) + cell['content'])
-            previous_index = index
-        return "".join(parts)
-    except Exception as e:
-        print(f"Error extracting text from {notebook_path}: {e}")
-        return ""
+    from ..notebook_chunker import extract_cells_from_notebook
+    cells = extract_cells_from_notebook(notebook_path)
+    parts = []
+    previous_index = 0
+    for cell in cells:
+        index = cell['cell_index']
+        parts.append("\f" * (index - previous_index) + cell['content'])
+        previous_index = index
+    return "".join(parts)
 
 
 def extract_cells_from_notebook(notebook_path: str) -> List[Dict[str, Any]]:
@@ -34,12 +30,8 @@ def extract_cells_from_notebook(notebook_path: str) -> List[Dict[str, Any]]:
     Returns:
         List of dicts with keys: content, source, cell_type, cell_id, exercise_number, chunk_id
     """
-    try:
-        with open(notebook_path, 'r', encoding='utf-8') as f:
-            notebook = json.load(f)
-    except Exception as e:
-        print(f"Error loading notebook {notebook_path}: {e}")
-        return []
+    with open(notebook_path, 'r', encoding='utf-8') as f:
+        notebook = json.load(f)
 
     cells = notebook.get('cells', [])
     extracted_cells = []
