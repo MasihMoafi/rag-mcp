@@ -6,6 +6,26 @@ import pytest
 from rag.core import RAGPipeline
 
 
+@pytest.mark.parametrize('operation', ['batch', 'query'])
+def test_ollama_status_failure_is_private_and_does_not_fan_out(operation):
+    from rag.embeddings import DirectOllamaGPUWrapper
+    from rag.lancedb_backend import LanceDBBackend
+
+    embedder = DirectOllamaGPUWrapper('fixture', 'http://localhost:11434')
+    embedder._requests = Mock()
+    embedder._requests.post.return_value = Mock(status_code=503, text='private-provider-marker')
+    backend = LanceDBBackend.__new__(LanceDBBackend)
+    backend.embedding_fn = embedder
+    with pytest.raises(RuntimeError) as caught:
+        if operation == 'batch':
+            backend._batch_embed(['private-document-marker'] * 10)
+        else:
+            embedder.embed_query('private-query-marker')
+    assert embedder._requests.post.call_count == 1
+    assert '503' in str(caught.value)
+    assert 'private-' not in str(caught.value)
+
+
 @pytest.mark.parametrize("operation", ["init", "embed", "fts", "create_fts", "clear"])
 def test_storage_errors_omit_payloads_and_preserve_failure_contract(capsys, operation):
     from rag.lancedb_backend import LanceDBBackend
