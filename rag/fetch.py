@@ -291,11 +291,13 @@ def query_documents(
                     excluded_paths.add(os.path.realpath(os.path.expanduser("~/.elpis/memories/archive.md")))
                 all_files = find_all_indexable_files(
                     resolved_path,
-                    max_files=500,
+                    max_files=501,  # Detect overflow rather than silently indexing a subset.
                     exclude_patterns=['test_*.py', '*_test.py', '*__pycache__*', '*.pyc'],
                     excluded_paths=excluded_paths,
                 )
 
+                if len(all_files) > 500:
+                    raise ValueError('Folder exceeds the 500-document limit; select a smaller folder.')
                 if not all_files:
                     raise ValueError(f"No readable documents found in {resolved_path}")
 
