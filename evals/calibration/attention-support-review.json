@@ -1,6 +1,18 @@
 {
   "purpose": "Five non-random grading calibration cases, not a retrieval benchmark score.",
   "reviewer": "assistant; not independently reviewed",
+  "reranker_ablation_capture": {
+    "revision": "41c1c53",
+    "report": "/tmp/rag-41c1c53-ablation.json",
+    "replay_report": "/tmp/rag-41c1c53-ablation-replay.jsonl",
+    "harness": "/tmp/rag-41c1c53-ablation.py",
+    "queries": 30,
+    "shared_top5_passages": 119,
+    "identical_top5_orders": 1,
+    "review": "Compared fusion-only additions for the four existing incomplete cases (0,7,21,27): none supplies the missing support. This does not establish whole-suite relative quality; the other 26 paired cases still need support review. Passage overlap and reordered lists are not relevance grades.",
+    "decision": "Do not disable reranking based on the interpretability miss. Qwen cache has no safetensors/bin weights; no alternate-model download performed.",
+    "new_api_spend_usd": 0
+  },
   "source_title_interpretability_probe": {
     "revision": "7ade0ec",
     "report": "/tmp/rag-7ade0ec-title.json",
