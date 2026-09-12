@@ -168,6 +168,7 @@ def test_failed_metadata_recovery_does_not_replace_stored_evidence(tmp_path, mon
     published = pointer.read_bytes()
     metadata = directory / 'docs.json'
     metadata.write_text('[interrupted')
+    previous_storage = previous.vector_db
     if backend == 'qdrant':
         previous.vector_db.client.close()
     fetch.reset_pipelines()
@@ -189,7 +190,7 @@ def test_failed_metadata_recovery_does_not_replace_stored_evidence(tmp_path, mon
     assert list(directory.parent.glob('generation-*')) == [directory]
     if backend == 'qdrant':
         from rag.qdrant_backend import QdrantVectorDB
-        stored = QdrantVectorDB(previous.vector_db.collection_name, Embedder(), vector_size=2,
+        stored = QdrantVectorDB(previous_storage.collection_name, Embedder(), vector_size=2,
                                persist_path=str(directory / 'qdrant_storage'))
         try:
             assert stored.search('Meeting')[0]['content'] == 'Meeting: Friday.'
@@ -197,7 +198,7 @@ def test_failed_metadata_recovery_does_not_replace_stored_evidence(tmp_path, mon
             stored.client.close()
     else:
         from rag.lancedb_backend import LanceDBBackend
-        stored = LanceDBBackend(previous.vector_db.table_name, Embedder(), vector_size=2,
+        stored = LanceDBBackend(previous_storage.table_name, Embedder(), vector_size=2,
                                 persist_path=str(directory / 'lancedb_storage'))
         assert stored.search_fts('Meeting')[0]['content'] == 'Meeting: Friday.'
     recovered = recover()
