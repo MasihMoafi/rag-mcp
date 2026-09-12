@@ -7,6 +7,20 @@ import pytest
 from rag import fetch
 
 
+@pytest.mark.parametrize('error', [RuntimeError('provider failed'), fetch.PipelineClosedError('retired')])
+def test_query_retry_is_bounded_and_only_for_closed_pipeline(monkeypatch, error):
+    from unittest.mock import Mock
+
+    search = Mock(side_effect=error)
+    acquire = Mock(return_value=SimpleNamespace(search=search))
+    monkeypatch.setattr(fetch, 'get_rag_pipeline_v2', acquire)
+    with pytest.raises(type(error)) as caught:
+        fetch.query_documents('question')
+    assert caught.value is error
+    expected = 2 if isinstance(error, fetch.PipelineClosedError) else 1
+    assert acquire.call_count == search.call_count == expected
+
+
 def test_reset_attempts_other_pipelines_after_close_failure(monkeypatch):
     calls = []
     failure = RuntimeError('first close failed')
@@ -73,6 +87,26 @@ def test_relative_index_directory_reuses_pipeline(sources, monkeypatch, tmp_path
         monkeypatch.setenv('RAG_MCP_DATA_DIR', str(tmp_path / 'index'))
         assert fetch.get_rag_pipeline_v2(sources[0]) is first
         assert first.search('Cedar')[0]['content'] == 'Cedar evidence'
+    finally:
+        fetch.reset_pipelines()
+
+
+def test_query_recovers_when_reset_closes_pipeline_before_search(sources, monkeypatch):
+    original_get = fetch.get_rag_pipeline_v2
+    calls = []
+
+    def acquire(doc_path):
+        pipeline = original_get(doc_path)
+        calls.append(pipeline)
+        if len(calls) == 1:
+            fetch.reset_pipelines()
+        return pipeline
+
+    monkeypatch.setattr(fetch, 'get_rag_pipeline_v2', acquire)
+    try:
+        assert fetch.query_documents('Cedar', sources[0])[0]['content'] == 'Cedar evidence'
+        assert len(calls) == 2
+        assert calls[0] is not calls[1]
     finally:
         fetch.reset_pipelines()
 
