@@ -48,6 +48,17 @@ class RAGPipeline:
             open_or_build(config, self._initialize)
 
     def _initialize(self, config):
+        self.embedding_fn = self.vector_db = None
+        try:
+            return self._initialize_resources(config)
+        except BaseException:
+            try:
+                self._release_resources()
+            except Exception as error:
+                print(f"[RAG V2] Startup cleanup failed: {type(error).__name__}", file=sys.stderr)
+            raise
+
+    def _initialize_resources(self, config):
         self.config = config
         self.device = select_device()
         print(f"[RAG V2] Using compute device: {self.device}")
@@ -108,13 +119,8 @@ class RAGPipeline:
                 b=self.config.get("bm25_b", 0.75)
             )
 
-        try:
-            reranking.initialize_reranker(self)
-            self._load_or_create_database()
-        except BaseException:
-            if self.backend_type == 'qdrant':
-                self.vector_db.client.close()
-            raise
+        reranking.initialize_reranker(self)
+        self._load_or_create_database()
         return self
 
     _extract_text_from_pdf = parsing._extract_text_from_pdf
@@ -140,13 +146,16 @@ class RAGPipeline:
 
     def close(self):
         """Drain running searches before releasing owned storage and model clients."""
-        def release():
-            if self.backend_type == 'qdrant':
+        self._queries.close(self._release_resources)
+
+    def _release_resources(self):
+        try:
+            if self.backend_type == 'qdrant' and self.vector_db is not None:
                 self.vector_db.client.close()
+        finally:
             close_embedder = getattr(self.embedding_fn, 'close', None)
             if close_embedder is not None:
                 close_embedder()
-        self._queries.close(release)
 
     def _search(self, query: str) -> list[dict] | str:
         """Return ranked passages from the configured local retrieval pipeline."""
