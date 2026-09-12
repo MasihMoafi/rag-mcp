@@ -28,6 +28,17 @@ class QueryLifecycle:
                 self.active -= 1
                 self.condition.notify_all()
 
+    def close_if_idle(self, release):
+        if not self.condition.acquire(blocking=False):
+            return False
+        try:
+            if self.active:
+                return False
+            self.close(release)
+            return True
+        finally:
+            self.condition.release()
+
     def close(self, release):
         with self.condition:
             self.closing = True

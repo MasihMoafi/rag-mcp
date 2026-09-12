@@ -7,6 +7,44 @@ import pytest
 from rag.query_lifecycle import QueryLifecycle
 
 
+def test_idle_close_does_not_interrupt_or_mark_active_queries_closing():
+    lifecycle = QueryLifecycle()
+    release = Mock()
+    with lifecycle.query():
+        assert lifecycle.close_if_idle(release) is False
+        assert not lifecycle.closing
+        release.assert_not_called()
+        with lifecycle.query():
+            assert lifecycle.active == 2
+    assert lifecycle.close_if_idle(release) is True
+    assert lifecycle.close_if_idle(release) is True
+    release.assert_called_once_with()
+    with pytest.raises(RuntimeError):
+        with lifecycle.query():
+            pytest.fail('Closed pipeline accepted a query')
+
+
+def test_idle_close_failure_can_be_retried():
+    lifecycle = QueryLifecycle()
+    release = Mock(side_effect=[OSError('close failed'), None])
+    with pytest.raises(OSError):
+        lifecycle.close_if_idle(release)
+    assert lifecycle.closing and not lifecycle.closed
+    assert lifecycle.close_if_idle(release) is True
+    assert release.call_count == 2
+
+
+def test_idle_close_skips_contended_lifecycle_lock():
+    lifecycle = QueryLifecycle()
+    release = Mock()
+    with ThreadPoolExecutor(max_workers=1) as workers:
+        with lifecycle.condition:
+            result = workers.submit(lifecycle.close_if_idle, release)
+            assert result.result(timeout=1) is False
+    release.assert_not_called()
+    assert not lifecycle.closing
+
+
 def test_close_waits_for_parallel_queries_and_releases_only_once():
     lifecycle = QueryLifecycle()
     entered, finish = Barrier(3), Event()
