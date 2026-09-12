@@ -35,10 +35,11 @@ def test_write_releases_python_vectors_between_batches(tmp_path, monkeypatch):
     assert not any(reference() is not None for reference in references)
 
 
-def test_late_provider_failure_preserves_exception_and_table(tmp_path, monkeypatch, capfd):
+@pytest.mark.parametrize('failure_type', [ValueError, KeyboardInterrupt, SystemExit])
+def test_late_provider_failure_preserves_exception_and_table(tmp_path, monkeypatch, capfd, failure_type):
     backend = LanceDBBackend('error_identity', DummyEmbedder(), vector_size=4, persist_path=str(tmp_path))
     backend.add_documents_batch([{'content': 'Original cedar evidence.'}])
-    error = ValueError('private-provider-detail')
+    error = failure_type('private-provider-detail')
     calls = 0
     def embed(texts):
         nonlocal calls
@@ -47,7 +48,7 @@ def test_late_provider_failure_preserves_exception_and_table(tmp_path, monkeypat
             raise error
         return [[1., 0., 1., .5]]
     monkeypatch.setattr(backend, '_batch_embed', embed)
-    with pytest.raises(ValueError) as caught:
+    with pytest.raises(failure_type) as caught:
         backend.add_documents_batch([{'content': 'one'}, {'content': 'two'}], batch_size=1)
     assert caught.value is error
     reopened = LanceDBBackend('error_identity', None, persist_path=str(tmp_path))
@@ -69,6 +70,21 @@ def test_late_incomplete_batch_keeps_existing_table(tmp_path, monkeypatch):
     reopened = LanceDBBackend('integrity', DummyEmbedder(), vector_size=4, persist_path=str(tmp_path))
     assert reopened.count() == 1
     assert reopened.search_fts('cedar')[0]['content'] == 'Original cedar evidence.'
+
+
+def test_consumer_closing_stream_does_not_mask_storage_error(tmp_path, monkeypatch):
+    backend = LanceDBBackend('disposal', None, persist_path=str(tmp_path))
+    failure = OSError('injected storage failure')
+
+    def stop_write(name, *, data, mode):
+        next(data)
+        data.close()
+        raise failure
+
+    monkeypatch.setattr(backend.db, 'create_table', stop_write)
+    with pytest.raises(OSError) as caught:
+        backend.add_documents_batch([{'content': 'one'}, {'content': 'two'}], batch_size=1)
+    assert caught.value is failure
 
 
 def test_lancedb_backend_crud_and_search():
