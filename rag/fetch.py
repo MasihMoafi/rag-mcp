@@ -48,8 +48,13 @@ _rag_system_v2_instances: Dict[str, RAGPipelineV2] = {}
 
 
 def reset_pipelines() -> None:
-    """Forget loaded pipelines so the next query picks up changed settings."""
-    _rag_system_v2_instances.clear()
+    """Drain cached pipelines and release storage before forgetting them."""
+    for key, pipeline in list(_rag_system_v2_instances.items()):
+        close = getattr(pipeline, 'close', None)
+        if close is not None:
+            close()
+        if _rag_system_v2_instances.get(key) is pipeline:
+            del _rag_system_v2_instances[key]
 
 def index_root() -> str:
     """Where indexes live: RAG_MCP_DATA_DIR, else the XDG data dir. Never inside the package."""

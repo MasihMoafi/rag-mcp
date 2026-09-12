@@ -20,6 +20,7 @@ from . import ingestion, parsing, reranking
 from .bm25 import BM25Index
 from .chunking import chunk_text, chunk_document
 from .index_lifecycle import open_or_build
+from .query_lifecycle import QueryLifecycle
 
 
 def select_device() -> str:
@@ -35,6 +36,7 @@ class RAGPipeline:
     """Hybrid local retrieval with optional contextual indexing and reranking."""
     
     def __init__(self, config: dict):
+        self._queries = QueryLifecycle()
         config = dict(config)
         self.backend_type = config.get("backend", os.environ.get("RAG_MCP_BACKEND", "lancedb")).lower()
         if self.backend_type not in {"lancedb", "qdrant"}:
@@ -133,6 +135,14 @@ class RAGPipeline:
     _crossencoder_rerank = reranking.rerank_documents
 
     def search(self, query: str) -> list[dict] | str:
+        with self._queries.query():
+            return self._search(query)
+
+    def close(self):
+        """Reject new searches, drain running searches, then release storage."""
+        self._queries.close(lambda: self.vector_db.client.close() if self.backend_type == 'qdrant' else None)
+
+    def _search(self, query: str) -> list[dict] | str:
         """Return ranked passages from the configured local retrieval pipeline."""
         try:
             top_k = self.config.get("top_k", 20)
