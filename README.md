@@ -139,6 +139,8 @@ Run `rag` from any directory after installing the tool. Use ↑/↓ and Enter to
 Folder queries reject scopes with more than 500 discovered indexable files; select
 a smaller folder instead of relying on a silently truncated index. Existing file
 type, depth, hidden/generated-file and symlink exclusions still apply.
+Directory-listing errors abort discovery; MCP also aborts on metadata-read errors
+instead of caching a partial file manifest.
 
 The provider-first picker lists only sources detected on the machine or explicitly supported by the CLI. Selecting Ollama opens the embedding models reported by its `/api/show` capabilities; selecting an API provider loads that provider's live embedding catalog. “Local CPU” opens FastEmbed's supported-model catalog and labels download sizes. Custom server URLs and model identifiers are requested only in their dedicated final-entry flows, with the required format shown in the question.
 

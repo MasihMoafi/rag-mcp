@@ -62,38 +62,35 @@ def find_all_indexable_files(
         if max_files and len(all_files) >= max_files:
             return
 
-        try:
-            for entry in os.listdir(path):
-                # Skip hidden files and excluded directories
-                if entry.startswith('.') or entry in exclude_dirs:
-                    continue
+        for entry in os.listdir(path):
+            # Skip hidden files and excluded directories
+            if entry.startswith('.') or entry in exclude_dirs:
+                continue
 
-                entry_path = os.path.join(path, entry)
-                # Folder selection does not authorize following linked targets.
-                if os.path.islink(entry_path):
-                    continue
+            entry_path = os.path.join(path, entry)
+            # Folder selection does not authorize following linked targets.
+            if os.path.islink(entry_path):
+                continue
 
-                # Apply exclude patterns
-                if exclude_patterns and matches_pattern(entry_path, exclude_patterns):
-                    continue
+            # Apply exclude patterns
+            if exclude_patterns and matches_pattern(entry_path, exclude_patterns):
+                continue
 
-                if os.path.isfile(entry_path):
-                    if excluded_paths and os.path.realpath(entry_path) in excluded_paths:
-                        continue
-                    if entry.lower().endswith(_INDEXABLE_EXTENSIONS):
-                        # Apply include patterns
-                        if include_patterns:
-                            if matches_pattern(entry_path, include_patterns):
-                                all_files.append(entry_path)
-                        else:
+            if os.path.isfile(entry_path):
+                if excluded_paths and os.path.realpath(entry_path) in excluded_paths:
+                    continue
+                if entry.lower().endswith(_INDEXABLE_EXTENSIONS):
+                    # Apply include patterns
+                    if include_patterns:
+                        if matches_pattern(entry_path, include_patterns):
                             all_files.append(entry_path)
+                    else:
+                        all_files.append(entry_path)
 
-                        if max_files and len(all_files) >= max_files:
-                            return
-                elif os.path.isdir(entry_path):
-                    walk_dir(entry_path, depth + 1)
-        except PermissionError:
-            print(f"[RAG] Permission denied: {path}")
+                    if max_files and len(all_files) >= max_files:
+                        return
+            elif os.path.isdir(entry_path):
+                walk_dir(entry_path, depth + 1)
 
     print(f"[RAG] Scanning: {directory}")
     if include_patterns:
