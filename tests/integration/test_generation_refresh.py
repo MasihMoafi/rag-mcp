@@ -11,7 +11,7 @@ import pytest
 from rag import core, fetch, ingestion, index_lifecycle
 
 
-@pytest.mark.parametrize('phase', ['before', 'after'])
+@pytest.mark.parametrize('phase', ['storage', 'before', 'after'])
 @pytest.mark.parametrize('backend', ['lancedb', 'qdrant'])
 def test_process_exit_around_publication_keeps_complete_searchable_index(tmp_path, phase, backend, monkeypatch):
     if backend == 'qdrant':
@@ -33,12 +33,21 @@ socket.socket.connect = blocked
 from rag import core, index_lifecycle
 if json.loads(sys.argv[1])['backend'] == 'qdrant':
     core.build_embedder = lambda config, device: Embedder()
+if sys.argv[2] == 'storage':
+    from rag.lancedb_backend import LanceDBBackend
+    from rag.qdrant_backend import QdrantVectorDB
+    backend = QdrantVectorDB if json.loads(sys.argv[1])['backend'] == 'qdrant' else LanceDBBackend
+    add = backend.add_documents_batch
+    def write_then_exit(self, *args, **kwargs):
+        add(self, *args, **kwargs)
+        os._exit(73)
+    backend.add_documents_batch = write_then_exit
 write = index_lifecycle.write_json_atomic
 def interrupted(path, value):
     if path.name == 'active-index.json' and sys.argv[2] == 'before':
         os._exit(73)
     write(path, value)
-    if path.name == 'active-index.json':
+    if path.name == 'active-index.json' and sys.argv[2] == 'after':
         os._exit(73)
 index_lifecycle.write_json_atomic = interrupted
 core.RAGPipeline(json.loads(sys.argv[1]))
@@ -51,7 +60,7 @@ core.RAGPipeline(json.loads(sys.argv[1]))
     monkeypatch.setattr(core.RAGPipeline, '_index_documents', unexpected_rebuild)
     reopened = core.RAGPipeline({**config, 'force_reindex': False})
     try:
-        expected = 'Friday' if phase == 'before' else 'Monday'
+        expected = 'Monday' if phase == 'after' else 'Friday'
         passage = reopened.search('Meeting')[0]
         assert passage['content'] == f'Meeting: {expected}.'
         assert passage['source'] == str(source)
