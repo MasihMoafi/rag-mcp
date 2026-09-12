@@ -387,6 +387,9 @@ def _handle_request(message: dict[str, Any]) -> None:
 
     if request_id is None:
         return
+    if message.get("params") is not None and not isinstance(message["params"], dict):
+        _error(request_id, -32602, "Invalid params: expected an object")
+        return
     if method == "initialize":
         params = message.get("params") or {}
         protocol_version = params.get("protocolVersion", "2025-06-18")
