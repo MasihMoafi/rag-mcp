@@ -385,8 +385,8 @@ set it, it does nothing useful.
 
 ### Readiness audit — 2026-09-13
 
-At `18606ea`, the selected offline/local regression suite passes 502 tests in
-50.62 seconds, with 476 existing LanceDB deprecation warnings and no expected
+At `894cd29`, the selected offline/local regression suite passes 512 tests in
+51.61 seconds, with 497 existing LanceDB deprecation warnings and no expected
 failures. This verifies the
 covered extraction/citation, API response handling, scope, cache, CLI/MCP and
 LanceDB lifecycle cases—not universal production readiness. API tests use an
