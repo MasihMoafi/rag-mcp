@@ -92,6 +92,19 @@ def test_pdf_ligatures_expand_without_changing_mathematical_symbols(monkeypatch)
     assert pdf.extract_pdf_text('ligatures.pdf') == 'first efficient flow ffi ffl st st x² √dk'
 
 
+def test_pdf_document_is_closed_when_page_extraction_fails(monkeypatch):
+    from rag.parsers import pdf
+    closed = []
+    class BrokenDocument:
+        def __iter__(self):
+            raise RuntimeError('damaged page')
+        def close(self):
+            closed.append(True)
+    monkeypatch.setattr(pdf.fitz, 'open', lambda _: BrokenDocument())
+    assert pdf.extract_pdf_text('damaged.pdf') == ''
+    assert closed == [True]
+
+
 @pytest.mark.parametrize("text,expected_calls", [("text", 0), ("", 1), (" \n", 1)])
 def test_pdf_dispatch_preserves_overrides_and_fallback(pipeline, text, expected_calls):
     pipeline._extract_text_from_pdf = Mock(return_value=text)
