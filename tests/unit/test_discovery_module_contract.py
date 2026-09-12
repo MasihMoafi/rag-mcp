@@ -74,3 +74,28 @@ def test_folder_limit_does_not_silently_drop_documents(monkeypatch, tmp_path, co
     else:
         assert fetch.query_documents('question', str(tmp_path)) == []
         assert len(selected) == 500
+
+
+@pytest.mark.parametrize('directory', [False, True])
+def test_entry_metadata_failure_aborts_before_pipeline(monkeypatch, tmp_path, directory):
+    from rag import discovery
+
+    (tmp_path / 'good.txt').write_text('readable evidence')
+    target = tmp_path / ('child' if directory else 'source.txt')
+    target.mkdir() if directory else target.touch()
+    failure = PermissionError('injected metadata failure')
+    original_stat, original_lstat = discovery.os.stat, discovery.os.lstat
+
+    def intercept(original):
+        def read(path, *args, **kwargs):
+            if str(path) == str(target):
+                raise failure
+            return original(path, *args, **kwargs)
+        return read
+
+    monkeypatch.setattr(discovery.os, 'stat', intercept(original_stat))
+    monkeypatch.setattr(discovery.os, 'lstat', intercept(original_lstat))
+    monkeypatch.setattr(fetch, 'get_rag_pipeline_v2', lambda *a, **k: pytest.fail('partial scope reached indexing'))
+    with pytest.raises(PermissionError) as caught:
+        fetch.query_documents('question', str(tmp_path))
+    assert caught.value is failure
