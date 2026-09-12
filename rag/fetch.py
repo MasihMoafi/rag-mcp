@@ -129,6 +129,7 @@ def get_rag_pipeline_v2(doc_path: Optional[str | list[str]] = None):
         stamp = {
             "version": 3,  # Source-qualified IDs, preserved by the storage backend.
             "parsing_version": 4,  # Expand PDF Latin ligatures; retain source page/cell citation ranges.
+            "storage": {name: config[name] for name in ("backend", "distance_metric")},
             "chunking": {
                 "size": config["chunk_size"],
                 "overlap": config["chunk_overlap"],
@@ -149,6 +150,7 @@ def get_rag_pipeline_v2(doc_path: Optional[str | list[str]] = None):
         config["source_stamp"] = stamp
         cached = _rag_system_v2_instances.get(key)
         if cached is not None and all(cached.config.get(name) == config[name] for name in (
+            "backend", "distance_metric", "rrf_k", "bm25_k1", "bm25_b", "persist_dir",
             *embedding,
             "top_k",
             "rerank_top_k",
