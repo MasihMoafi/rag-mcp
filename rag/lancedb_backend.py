@@ -144,7 +144,9 @@ class LanceDBBackend:
                     arrow_batch = pa.RecordBatch.from_pylist(records, schema=schema)
                     del records, record, vectors, vector
                     yield arrow_batch
-            except Exception as error:
+            except GeneratorExit:
+                raise
+            except BaseException as error:
                 batch_error = error
                 # Arrow wraps iterator errors; do not embed provider details in its message.
                 raise RuntimeError("Embedding batch preparation failed.") from None
