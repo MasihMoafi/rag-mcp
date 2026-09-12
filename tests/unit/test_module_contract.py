@@ -67,7 +67,7 @@ def test_pipeline_class_supports_legacy_pickle_reference():
 
 
 @pytest.mark.parametrize("failure", [False, True])
-def test_reranking_preserves_payload_limit_order_and_fallback(failure):
+def test_reranking_preserves_payload_order_and_fallback(failure):
     pipeline = RAGPipelineV2.__new__(RAGPipelineV2)
     pipeline.reranker_type = "cross-encoder"
     pipeline.reranker = Mock()
@@ -77,7 +77,7 @@ def test_reranking_preserves_payload_limit_order_and_fallback(failure):
     docs = [{"id": i, "content": str(i) * 600} for i in range(3)]
     result = pipeline._crossencoder_rerank(docs, "query", 2)
     assert result == (docs[:2] if failure else [docs[1], docs[2]])
-    pipeline.reranker.predict.assert_called_once_with([["query", doc["content"][:512]] for doc in docs])
+    pipeline.reranker.predict.assert_called_once_with([["query", doc["content"]] for doc in docs])
 
 
 def test_reranking_short_results_do_not_call_model():
