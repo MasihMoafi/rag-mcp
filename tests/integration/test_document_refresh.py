@@ -21,9 +21,18 @@ def local_search(tmp_path, monkeypatch):
 
 
 @pytest.mark.parametrize("extension", ["txt", "json", "ipynb", "pdf"])
-def test_unreadable_member_cannot_publish_partial_corpus(tmp_path, local_search, extension, monkeypatch):
+@pytest.mark.parametrize("backend", ["lancedb", "qdrant"])
+def test_unreadable_member_cannot_publish_partial_corpus(tmp_path, local_search, extension, monkeypatch, backend):
     import fitz
     from rag.core import RAGPipeline
+    from rag import core
+    from types import SimpleNamespace
+
+    monkeypatch.setitem(fetch.RAG_CONFIG_V2, 'backend', backend)
+    if backend == 'qdrant':
+        embedder = SimpleNamespace(model_name='fixture', embed_documents=lambda texts: [[1., 0.] for _ in texts],
+                                   embed_query=lambda text: [1., 0.])
+        monkeypatch.setattr(core, 'build_embedder', lambda config, device: embedder)
 
     corpus = tmp_path / "corpus"
     corpus.mkdir()
