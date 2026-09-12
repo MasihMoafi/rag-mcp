@@ -33,7 +33,9 @@ def extract_cells_from_notebook(notebook_path: str) -> List[Dict[str, Any]]:
     with open(notebook_path, 'r', encoding='utf-8') as f:
         notebook = json.load(f)
 
-    cells = notebook.get('cells', [])
+    if not isinstance(notebook, dict) or not isinstance(notebook.get('cells'), list):
+        raise ValueError("Notebook must contain a cells list")
+    cells = notebook['cells']
     extracted_cells = []
 
     for idx, cell in enumerate(cells):
