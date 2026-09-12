@@ -1,9 +1,11 @@
 from pathlib import Path
+import socket
 import sys
 
+import pytest
 from docx import Document
 from openpyxl import Workbook
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFont
 from pptx import Presentation
 
 
@@ -50,19 +52,27 @@ def test_office_and_csv_extraction(tmp_path: Path) -> None:
     assert "7319" in pipeline._extract_content(str(csv_path))
 
 
-def test_image_ocr_extraction(tmp_path: Path) -> None:
+def test_image_ocr_extraction(tmp_path: Path, monkeypatch) -> None:
+    pytest.importorskip('rapidocr_onnxruntime')
+
+    def forbidden(*args, **kwargs):
+        pytest.fail('OCR smoke must not open a network connection')
+
+    monkeypatch.setattr(socket.socket, 'connect', forbidden)
+    monkeypatch.setitem(sys.modules, 'unstructured.partition.auto', None)
     image_path = tmp_path / "sample.png"
-    image = Image.new("RGB", (900, 180), "white")
+    image = Image.new("RGB", (1000, 180), "white")
     ImageDraw.Draw(image).text(
         (30, 60),
-        "RAG multimodal test 7319",
+        "The Cedar release review is on Friday.",
+        font=ImageFont.load_default(size=36),
         fill="black",
     )
     image.save(image_path)
 
     extracted = _pipeline()._extract_content(str(image_path))
 
-    assert "7319" in extracted
+    assert 'the cedar release review is on friday' in ' '.join(extracted.lower().split())
 
 
 def test_multimodal_extensions_are_discovered(tmp_path: Path) -> None:
