@@ -1,6 +1,21 @@
 {
   "purpose": "Five non-random grading calibration cases, not a retrieval benchmark score.",
   "reviewer": "assistant; not independently reviewed",
+  "neighbor_context_ablation": {
+    "report": "/tmp/rag-neighbor-context-evaluation.json",
+    "method": "Keep actual runtime final-five ranks fixed; add up to350 contiguous source characters before/after each passage, trimming edge words. No new embeddings, reranking, merged results or generation.",
+    "original_characters": 88892,
+    "expanded_characters": 192386,
+    "context_ratio": 2.16427,
+    "reviewed_changes": [
+      {"index": 1, "before": "partial", "after": "full", "support_rank": 1, "note": "Preceding source sentence supplies explicit joint attention to different subspaces and positions."},
+      {"index": 27, "before": "partial", "after": "full", "support_rank": 1, "note": "Following Table3 text supplies the single-head row and24.9, with table header/base row for context."},
+      {"index": 21, "before": "partial", "after": "partial", "note": "Now includes adding positional encodings to embeddings, but not sine/cosine construction. The intervening Table1 interrupts the paragraph in extracted reading order."}
+    ],
+    "remaining": "Constant-path motivation, interpretability and Figure4 anaphora are still unsupported in expanded results. All150 original passages remain included; preserving text is not proof of unchanged generated-answer quality.",
+    "decision": "Do not enable blanket expansion: two recovered answers cost2.16x context. Investigate bounded structural/neighbor context and PDF reading order; ranking misses require separate treatment.",
+    "api_spend_usd": 0
+  },
   "full_runtime_support_review": {
     "report": "/tmp/rag-current-runtime-verification.jsonl",
     "scope": "Manual reference-support review of the fixed 30-question public-paper suite, candidate20/final5 with cached MiniLM reranker. Not blind, not independent, not a general production score. Existing five calibration cases plus newly inspected supporting passages; all five passages inspected for newly identified incomplete cases.",
