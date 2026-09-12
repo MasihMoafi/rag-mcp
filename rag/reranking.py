@@ -176,5 +176,5 @@ def rerank_documents(self, docs: List[Dict], query: str, k: int) -> List[Dict]:
         return [doc for doc, score in ranked[:k]]
 
     except Exception as e:
-        print(f"[RAG Core] CrossEncoder reranking failed: {e}, falling back to original order")
+        print(f"[RAG Core] CrossEncoder reranking failed: {type(e).__name__}, falling back to original order")
         return docs[:k]
