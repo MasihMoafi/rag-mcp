@@ -97,3 +97,26 @@ def test_mcp_reports_storage_failure_as_error(tmp_path, local_search, monkeypatc
     response = json.loads(server.query_knowledge_base("Meeting", str(document)))
     assert "result" not in response
     assert "storage unavailable" in response["error"]
+
+
+def test_failed_fts_build_does_not_commit_manifest_and_is_retried(tmp_path, local_search, monkeypatch):
+    document = tmp_path / "note.txt"
+    document.write_text("Meeting: Friday.")
+    assert local_search(document)
+    previous = fetch.get_rag_pipeline_v2(str(document))
+    manifest = next((tmp_path / "index").rglob("source-manifest.json"))
+    original_manifest = manifest.read_bytes()
+    table_type = type(previous.vector_db.table)
+    original_build = table_type.create_fts_index
+    def unavailable(*args, **kwargs):
+        raise RuntimeError("keyword index build unavailable")
+    document.write_text("Meeting: Monday.")
+    monkeypatch.setattr(table_type, "create_fts_index", unavailable)
+    for _ in range(2):
+        with pytest.raises(RuntimeError, match="keyword index build unavailable"):
+            local_search(document)
+        assert manifest.read_bytes() == original_manifest
+        fetch.reset_pipelines()
+    monkeypatch.setattr(table_type, "create_fts_index", original_build)
+    assert local_search(document)[0]["content"] == "Meeting: Monday."
+    assert manifest.read_bytes() != original_manifest
