@@ -434,16 +434,25 @@ def _handle_request(message: dict[str, Any]) -> None:
 
 
 def main() -> None:
-    while True:
-        payload = _read_payload()
-        if payload is None:
-            return
+    try:
+        while True:
+            payload = _read_payload()
+            if payload is None:
+                return
+            try:
+                message = json.loads(payload)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(message, dict):
+                _handle_request(message)
+    finally:
+        # Do not load retrieval dependencies for a server that never used them.
+        retrieval = sys.modules.get('rag.fetch')
         try:
-            message = json.loads(payload)
-        except json.JSONDecodeError:
-            continue
-        if isinstance(message, dict):
-            _handle_request(message)
+            if retrieval is not None:
+                retrieval.reset_pipelines()
+        except Exception as error:
+            print(f'[RAG] Shutdown cleanup failed: {type(error).__name__}', file=sys.stderr)
 
 
 if __name__ == "__main__":

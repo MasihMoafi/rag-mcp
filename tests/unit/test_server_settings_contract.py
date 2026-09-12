@@ -8,6 +8,27 @@ import server
 from rag import cli, fetch
 
 
+@pytest.mark.parametrize('read_fails', [False, True])
+@pytest.mark.parametrize('cleanup_fails', [False, True])
+def test_server_shutdown_releases_pipelines(monkeypatch, read_fails, cleanup_fails, capsys):
+    failure = OSError('input failed')
+    read = Mock(side_effect=failure) if read_fails else Mock(return_value=None)
+    reset = Mock(side_effect=RuntimeError('cleanup failed') if cleanup_fails else None)
+    monkeypatch.setattr(server, '_read_payload', read)
+    monkeypatch.setattr(fetch, 'reset_pipelines', reset)
+    if read_fails:
+        with pytest.raises(OSError) as caught:
+            server.main()
+        assert caught.value is failure
+    else:
+        server.main()
+    reset.assert_called_once_with()
+    output = capsys.readouterr()
+    assert not output.out
+    if cleanup_fails:
+        assert 'cleanup' in output.err.lower()
+
+
 @pytest.fixture
 def delegation(monkeypatch):
     calls = []
