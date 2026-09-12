@@ -15,6 +15,20 @@ class DummyEmbedder:
         return [self.embed_query(t) for t in texts]
 
 
+def test_late_incomplete_batch_keeps_existing_table(tmp_path, monkeypatch):
+    backend = LanceDBBackend('integrity', DummyEmbedder(), vector_size=4, persist_path=str(tmp_path))
+    backend.add_documents_batch([{'content': 'Original cedar evidence.'}])
+    responses = iter([[[1., 0., 1., .5]], []])
+    monkeypatch.setattr(backend, '_batch_embed', lambda texts: next(responses))
+    with pytest.raises(ValueError, match='Embedding count'):
+        backend.add_documents_batch([{'content': 'replacement one'}, {'content': 'replacement two'}], batch_size=1)
+    assert backend.count() == 1
+    assert backend.search_fts('cedar')[0]['content'] == 'Original cedar evidence.'
+    reopened = LanceDBBackend('integrity', DummyEmbedder(), vector_size=4, persist_path=str(tmp_path))
+    assert reopened.count() == 1
+    assert reopened.search_fts('cedar')[0]['content'] == 'Original cedar evidence.'
+
+
 def test_lancedb_backend_crud_and_search():
     temp_dir = tempfile.mkdtemp()
     try:
