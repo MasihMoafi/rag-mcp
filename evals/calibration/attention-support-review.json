@@ -1,6 +1,21 @@
 {
   "purpose": "Five non-random grading calibration cases, not a retrieval benchmark score.",
   "reviewer": "assistant; not independently reviewed",
+  "interpretability_failure_trace": {
+    "revision": "4782a32",
+    "query_index": 7,
+    "report": "/tmp/rag-4782a32-trace.json",
+    "replay_report": "/tmp/rag-4782a32-trace-replay.jsonl",
+    "harness": "/tmp/rag-4782a32-trace.py",
+    "support_chunk": 39,
+    "source_page": 7,
+    "fusion_rank": 12,
+    "reranked_rank": 17,
+    "reranker_score": -7.499322891235352,
+    "finding": "The paragraph is extracted and its first part reaches the candidate pool, but not final5. MiniLM demotes chunk39 from fused rank12 to17. The source paragraph is split between chunks39/40, mixed with preceding convolution complexity and following training details. Thus this is not missing extraction; both candidate ordering and passage boundaries merit attention.",
+    "next": "Evaluate paragraph-preserving boundaries and reranker behavior without increasing the final result limit to hide the miss. No runtime heuristic adopted from this single case.",
+    "new_api_spend_usd": 0
+  },
   "repeated_resource_diagnostic_2026_09_13": {
     "revision": "31b0d5e",
     "report": "/tmp/rag-31b0d5e-memory.jsonl",
