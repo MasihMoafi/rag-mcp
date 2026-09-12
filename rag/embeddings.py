@@ -72,6 +72,8 @@ class FastEmbedWrapper:
 class DirectOllamaGPUWrapper:
     """Send true vector batches directly to Ollama's /api/embed."""
 
+    retry_batch_as_queries = False
+
     def __init__(self, model, base_url):
         import requests
 
@@ -108,7 +110,7 @@ class DirectOllamaGPUWrapper:
                 timeout=180,
             )
             if resp.status_code != 200:
-                raise RuntimeError(f"Ollama embedding failed ({resp.status_code}): {resp.text}")
+                raise RuntimeError(f"Ollama embedding failed ({resp.status_code}).")
             all_embeddings.extend(resp.json().get("embeddings", []))
         self._verify_gpu()
         return all_embeddings
@@ -120,7 +122,7 @@ class DirectOllamaGPUWrapper:
             timeout=60,
         )
         if resp.status_code != 200:
-            raise RuntimeError(f"Ollama query embedding failed ({resp.status_code}): {resp.text}")
+            raise RuntimeError(f"Ollama query embedding failed ({resp.status_code}).")
         embeddings = resp.json().get("embeddings", [])
         self._verify_gpu()
         return embeddings[0] if embeddings else []
