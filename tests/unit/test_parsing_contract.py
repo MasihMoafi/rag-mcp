@@ -131,6 +131,28 @@ def test_pdf_failure_requires_nonempty_fallback(pipeline, fallback):
     pipeline._extract_text_with_unstructured.assert_called_once_with('damaged.pdf')
 
 
+@pytest.mark.parametrize('empty', [[], ['  ']])
+def test_failed_ocr_with_empty_fallback_propagates(pipeline, monkeypatch, empty):
+    error = RuntimeError('OCR unavailable')
+    monkeypatch.setitem(sys.modules, 'rapidocr_onnxruntime',
+                        SimpleNamespace(RapidOCR=Mock(side_effect=error)))
+    for name in ('unstructured', 'unstructured.partition', 'unstructured.partition.auto'):
+        monkeypatch.setitem(sys.modules, name, SimpleNamespace())
+    sys.modules['unstructured.partition.auto'].partition = Mock(return_value=empty)
+    with pytest.raises(RuntimeError) as caught:
+        pipeline._extract_text_with_unstructured('image.png')
+    assert caught.value is error
+
+
+def test_successful_empty_ocr_and_fallback_remain_empty(pipeline, monkeypatch):
+    monkeypatch.setitem(sys.modules, 'rapidocr_onnxruntime',
+                        SimpleNamespace(RapidOCR=lambda: Mock(return_value=([], None))))
+    for name in ('unstructured', 'unstructured.partition', 'unstructured.partition.auto'):
+        monkeypatch.setitem(sys.modules, name, SimpleNamespace())
+    sys.modules['unstructured.partition.auto'].partition = Mock(return_value=[])
+    assert pipeline._extract_text_with_unstructured('image.png') == ''
+
+
 def test_image_ocr_short_circuits_fallback(pipeline, monkeypatch):
     engine = Mock(return_value=([[None, "first"], [None, "second"]], None))
     monkeypatch.setitem(sys.modules, "rapidocr_onnxruntime", SimpleNamespace(RapidOCR=lambda: engine))
