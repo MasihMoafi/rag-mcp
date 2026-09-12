@@ -4,6 +4,67 @@ Status: audited mechanical pass verified, 2026-09-12; final evidence and retaine
 behavior boundaries below. This is not a proof of globally minimal code.
 Specification, plan and atomic tasks are kept together to avoid workspace clutter.
 
+## Approved structural follow-up
+
+Success case: module names reveal responsibilities instead of hiding chunking,
+BM25, ingestion and reranking in core.py; discovery is separate from fetch's
+pipeline reuse/query entry points. Parser naming/comments describe extraction
+truthfully. Compatibility imports and existing callable contracts remain usable.
+Recovery checkpoint: ed443ae; baseline215 checks passed in the preceding pass.
+
+Plan: Ohm owns core and extracted chunking/lexical/ingestion/reranking/pipeline
+modules; Halley owns fetch/discovery; coordinator owns docs/parsing review and
+integration. Agree new module interfaces without circular imports. No inheritance
+framework or dynamic module replacement to disguise imports. Retain thin legacy
+entry points where needed. No algorithm, format-support, provider or schema change.
+
+Done checks: focused responsibility modules import independently; old imports and
+method overrides pass compatibility tests; original215 checks plus new boundary
+checks pass; concurrency/device behavior unchanged; README matches actual structure
+and makes no AST claim. Clarify names/comments only in touched RAG responsibilities,
+not unrelated CLI/UI code. Record relocation and total production counts honestly.
+
+### Structural follow-up result
+
+Verified against checkpoint ed443ae with the combined regression command below:
+**240 passed, 38 existing LanceDB deprecation warnings**. No live-provider/GPU
+throughput or new wheel-build claim; no model downloads, deployment or push.
+
+- core.py: 787→173, now pipeline configuration/composition and search.
+- fetch.py: 377→241, now scoped pipeline caching and query orchestration.
+- chunking.py144, bm25.py121, ingestion.py197, reranking.py172,
+  discovery.py145 contain the corresponding implementation responsibilities.
+- parsers/{text,pdf,json,notebook,office}.py contain standalone readers.
+  parsing.py48 is dispatch/legacy adapters; notebook_chunker.py7 is compatibility
+  imports, not a second implementation. The parser package imports formats lazily.
+- Canonical RAGPipeline and query_documents coexist with legacy class/query names.
+  Old core chunk/BM25 imports, pipeline method overrides, parser keyword arguments
+  and legacy pickle references have explicit checks.
+- README now maps the actual files, identifies regex code labels rather than AST
+  chunking, and points to the correct fusion and embedding modules. Moved comments
+  describe responsibilities and failure behavior instead of tutorial step numbers.
+
+The structural pass increases total production Python (including parsers/) from
+5,009 to5,085 lines: **+76**, not a deletion claim. The earlier initial source
+checkpoint was5,104 lines. Module boundaries, docs and compatibility account for
+the organizational overhead; no new retrieval strategy or feature was added.
+
+Before-change parser/discovery/reranker contracts passed; targeted rank-order,
+legacy delegation and device-argument mutations failed expected assertions.
+Extracted engine bodies were compared to the checkpoint excluding docstrings;
+reranker initialization also matched exactly after indentation normalization.
+Fresh imports of discovery/chunking/BM25/notebook load no core, torch, LanceDB or
+unrelated OCR/PDF runtimes. Final outputs and raw commands remain in the session
+tool transcript; the same original regression selection is retained.
+
+Independent review found a boundary worth recording: callable legacy imports and
+pipeline overrides are retained, but arbitrary rebinding of helper globals on a
+legacy module does not forward into the new implementation module (for example,
+notebook_chunker.extract_exercise_number). No repository caller performs such
+rebinding. Dynamic module-forwarding machinery was deliberately not introduced;
+new code should target the named implementation module. No claim of universal
+monkeypatch compatibility or production perfection is made.
+
 Execution clarification from Masih: use a reviewed local Git checkpoint, not an
 elaborate backup workflow. Checkpoint 7054026 preserves the current RAG source,
 tests and dependency files, including previously untracked modules. Working files

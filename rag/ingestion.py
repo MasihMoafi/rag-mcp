@@ -1,0 +1,197 @@
+"""Document ingestion, source locations, and persisted metadata lifecycle."""
+
+import json
+import os
+import sys
+from typing import Dict, List
+
+from .chunking import chunk_document
+from .contextual_retrieval import select_document_context
+from .formats import INDEXABLE_EXTENSIONS
+
+
+def locate_chunk(self, full_text: str, content: str, ext: str, search_from: int) -> tuple:
+    """Recover a human-readable location for a chunk: a page number for PDFs
+    (pages joined with \\f during extraction), a cell number for notebooks
+    (cells joined with \\f), or a line range for everything else, where
+    newlines survive extraction untouched. Returns (location_string, next
+    search_from) so callers can scan the document once, left to right."""
+    start = full_text.find(content, search_from)
+    if start == -1:
+        start = full_text.find(content)
+    if start == -1:
+        return ("", search_from)
+
+    if ext == ".pdf":
+        page = full_text.count("\f", 0, start) + 1
+        location = f"p.{page}"
+    elif ext == ".ipynb":
+        cell = full_text.count("\f", 0, start) + 1
+        location = f"cell {cell}"
+    else:
+        line_start = full_text.count("\n", 0, start) + 1
+        line_end = line_start + content.count("\n")
+        location = f"L{line_start}" if line_end == line_start else f"L{line_start}-L{line_end}"
+    return (location, start + 1)
+
+def add_chunk_context(self, chunk: str, document_context: str) -> str:
+    if not self.config.get("use_contextual", False):
+        return chunk
+
+    try:
+        context = self.contextualizer(chunk, document_context).strip()
+    except Exception as error:
+        print(
+            f"[RAG V2] Contextual retrieval failed; keeping the original chunk: {error}",
+            file=sys.stderr,
+        )
+        return chunk
+    return f"{context}\n{chunk}" if context else chunk
+
+def load_or_create_database(self):
+    """Load or create the persisted database."""
+    persist_dir = self.config.get("persist_dir")
+
+    if not os.path.exists(persist_dir) or self.config.get("force_reindex", False):
+        print(f"[RAG V2] Creating new database at {persist_dir}...")
+        if self.config.get("force_reindex", False):
+            try:
+                self.vector_db.clear()
+            except Exception as e:
+                print(f"[RAG V2] Warning: Failed to clear Qdrant collection: {e}")
+        self._index_documents()
+    else:
+        print(f"[RAG V2] Loading existing database from {persist_dir}...")
+        self._load_existing_database()
+
+def index_documents(self):
+    """Extract, chunk, optionally contextualize, and persist documents."""
+    import concurrent.futures
+    all_docs = []
+    document_contents = {}
+
+    # Collect all file paths first
+    files_to_process = []
+    for path in self.config.get("document_paths"):
+        if not os.path.exists(path):
+            continue
+
+        if os.path.isdir(path):
+            for file in os.listdir(path):
+                if file.lower().endswith(INDEXABLE_EXTENSIONS):
+                    files_to_process.append(os.path.join(path, file))
+        else:
+            files_to_process.append(path)
+
+    def process_file(file_path):
+        content = self._extract_content(file_path)
+        if content:
+            return file_path, content
+        return None
+
+    # First pass: extract all document content using ThreadPoolExecutor
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        results = executor.map(process_file, files_to_process)
+        for result in results:
+            if result:
+                file_path, content = result
+                document_contents[file_path] = content
+
+    # Second pass: chunk and optionally add context
+    for file_path, full_content in document_contents.items():
+        print(f"[RAG V2] Processing {os.path.basename(file_path)}...")
+
+        chunks = chunk_document(
+            full_content,
+            file_path=file_path,
+            chunk_size=self.config.get("chunk_size"),
+            chunk_overlap=self.config.get("chunk_overlap")
+        )
+
+        ext = os.path.splitext(file_path)[1].lower()
+        raw_chunks = [item["content"].replace("\f", " ") for item in chunks]
+        search_from = 0
+        for i, item in enumerate(chunks):
+            chunk = item["content"]
+            if chunk.strip():
+                location, search_from = self._locate_chunk(full_content, chunk, ext, search_from)
+                clean_chunk = raw_chunks[i]
+
+                document_context = full_content
+                if self.config.get("use_contextual", False):
+                    document_context = select_document_context(
+                        full_content,
+                        raw_chunks,
+                        i,
+                        max_source_chars=int(self.config.get("contextual_source_max_chars", 12000)),
+                        start_chunks=int(self.config.get("contextual_start_chunks", 2)),
+                        previous_chunks=int(self.config.get("contextual_prev_chunks", 2)),
+                    )
+                contextualized_chunk = self._add_context_to_chunk(clean_chunk, document_context)
+
+                doc = {
+                    "content": contextualized_chunk,
+                    "original_content": clean_chunk,  # Keep original for comparison
+                    "source": file_path,
+                    "file_path": file_path,
+                    "location": location,
+                    "start_line": int(location[1:].split("-")[0]) if location.startswith("L") else 0,
+                    "end_line": int(location.rsplit("L", 1)[1]) if location.startswith("L") else 0,
+                    "page_number": int(location[2:]) if location.startswith("p.") else 0,
+                    "heading": item["heading"],
+                    "chunk_id": i,
+                    "id": f"{os.path.realpath(file_path)}::chunk:{i}"
+                }
+                all_docs.append(doc)
+
+    if not all_docs:
+        raise ValueError("No readable text found in the selected files.")
+
+    # Add documents to indexes
+    print(f"[RAG V2] Indexing {len(all_docs)} chunks...")
+
+    self.vector_db.add_documents_batch(all_docs, batch_size=512)
+
+
+    if self.bm25_index is not None:
+        print(f"[RAG V2] Building BM25 index...")
+        for doc in all_docs:
+            self.bm25_index.add_document(doc)
+        self.bm25_index._build_index()
+
+    # Save database
+    self._save_database(all_docs)
+    print(f"[RAG V2] Database created with {len(all_docs)} chunks")
+
+
+def save_documents(self, docs: List[Dict]):
+    """Persist source records for reopen and lexical-index reconstruction."""
+    persist_dir = self.config.get("persist_dir")
+    os.makedirs(persist_dir, exist_ok=True)
+    
+    # Save document metadata
+    with open(os.path.join(persist_dir, "docs.json"), 'w') as f:
+        json.dump(docs, f, indent=2)
+
+def load_existing_database(self):
+    """Load existing database"""
+    persist_dir = self.config.get("persist_dir")
+    docs_file = os.path.join(persist_dir, "docs.json")
+
+    db_count = self.vector_db.count()
+
+    if db_count > 0 and os.path.exists(docs_file):
+        with open(docs_file, 'r') as f:
+            docs = json.load(f)
+
+        if self.bm25_index is not None:
+            print(f"[RAG V2] Loading {len(docs)} chunks and rebuilding BM25...")
+            for doc in docs:
+                self.bm25_index.add_document(doc)
+            self.bm25_index._build_index()
+
+        print(f"[RAG V2] Loaded {len(docs)} chunks from existing database ({self.backend_type}: {db_count})")
+    else:
+        # Database directory exists but empty - trigger indexing
+        print(f"[RAG V2] Database empty. Triggering indexing...")
+        self._index_documents()

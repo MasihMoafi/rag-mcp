@@ -43,6 +43,24 @@ def test_malformed_json(pipeline, tmp_path, capsys):
     assert "Error extracting text" in capsys.readouterr().out
 
 
+def test_named_json_reader_and_legacy_keyword_call_match(pipeline, tmp_path):
+    from rag.parsers.json import extract_json_text
+    path = tmp_path / 'source.json'
+    path.write_text('{"content": "evidence"}')
+    assert pipeline._extract_text_from_json(json_path=str(path)) == extract_json_text(str(path)) == 'content: evidence'
+
+
+def test_named_notebook_reader_preserves_keyword_call(pipeline, tmp_path):
+    from rag.parsers.notebook import extract_notebook_text
+    path = tmp_path / 'source.ipynb'
+    path.write_text('{"cells": [{"source": "evidence"}]}')
+    assert pipeline._extract_text_from_notebook(notebook_path=str(path)) == extract_notebook_text(str(path)) == 'evidence'
+
+
+def test_pdf_keyword_call_keeps_missing_file_contract(pipeline, tmp_path):
+    assert pipeline._extract_text_from_pdf(pdf_path=str(tmp_path / 'missing.pdf')) == ''
+
+
 def test_notebook_sources_ignore_outputs_and_preserve_cell_separators(pipeline, tmp_path):
     path = tmp_path / "cells.ipynb"
     path.write_text(json.dumps({"cells": [
