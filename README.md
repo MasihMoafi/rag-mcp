@@ -426,7 +426,7 @@ Remaining gates:
   fixed character cutoff and unbounded candidate batching remain limitations.
 - Realistic retrieval-quality evaluation of the current hybrid/API path, including
   larger private corpora; the new HTML reader currently has fixture-level coverage.
-- The 206786e source distribution and wheel built offline and installed into a
+- The f4fcbc3 source distribution and wheel built offline and installed into a
   fresh Linux/Python 3.13 environment without PyTorch. Installed CLI retrieval,
   separate-process reopen and MCP stdio retrieval passed with correct citations
   and Python socket connections blocked. All36 runtime Python files byte-match
