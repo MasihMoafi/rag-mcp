@@ -16,6 +16,21 @@
     "new_api_spend_usd": 0,
     "limits": "Network sockets blocked, no downloads or live index changes. One sequential local run, not sustained load. Support grading pending; this is not evidence of improved relevance. Changes embeddings, candidate depth and reranking together, not a causal ablation. Local configuration, not API quality."
   },
+  "fusion_only_capture": {
+    "report": "/tmp/rag-napoleon-fusion-only-ctqiiuqr/results.json",
+    "report_sha256": "914e15b8c851298bd8d23938a856f12c42b28d752dda0ddc70caf58849a4b429",
+    "harness": "/tmp/rag-napoleon-fusion-only.py",
+    "completed_queries": 30,
+    "change": "Only reranker_type off; reopen same index, same model/candidate depth/final5/source/questions, blocked network/reindex.",
+    "full_controls_preserving_all_exact_witnesses": [1, 5, 8, 13, 14, 15, 16, 18, 20, 27, 28],
+    "changed_full_control_evidence": [9, 12, 19, 22],
+    "manual_reviews": [
+      {"index": 9, "grade": "missing", "note": "All five passages inspected: equality/distinctions advice absent. Disabling reranking loses this established hybrid gain."},
+      {"index": 28, "grade": "full", "ranks": [1, 3], "note": "Defiles and ironic no-retreat-caused-victory continuation both preserved."}
+    ],
+    "decision": "Fails the preserve-existing-gains condition because case9 regresses. Do not disable reranking globally. No complete arm support score claimed; other changed cases remain ungraded. This is sufficient to reject a no-regression replacement, not to establish which arm has better average relevance.",
+    "new_api_spend_usd": 0
+  },
   "local_hybrid_regression_trace": {
     "report": "/tmp/rag-napoleon-stage-trace-s1589io2/results.json",
     "report_sha256": "f290baf0a51f553c172540cf3754bb3b26995054fdf557886cc078579fba7200",
