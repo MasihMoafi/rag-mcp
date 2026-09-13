@@ -507,6 +507,21 @@ doubling returned context (2.011×); the default remains unchanged. This does no
 establish an optimal chunk size for other documents. Cumulative provider-reported
 embedding spend is $0.00048487, not an independent billing audit.
 
+The larger [Napoleon evaluation](evals/calibration/napoleon-support-review.json)
+uses 1,147 chunks and 30 fixed questions. With local MiniLM embeddings and
+reranking, the assistant-reviewed support counts are 15 full / 11 partial /
+4 missing, versus the lexical baseline's 15 / 12 / 3. This is **not an overall
+retrieval improvement**. These local-model results are separate from the API
+paper experiment above, and neither is a generated-answer accuracy score.
+
+Tracing four regressions found that all six known supporting passages reached
+the reranker but fell outside the final five. Disabling reranking also loses a
+previously supported answer, so neither blanket removal nor deeper candidate
+retrieval is justified as a fix for those particular failures. No defaults were
+changed. A different ranking approach needs validation across existing controls
+and gains, not just the observed failure subset. The single sequential run is
+not sustained-load or private private downstream production validation.
+
 ### Implemented and verified
 
 - MCP `initialize` → `tools/list` → `tools/call` protocol path.
