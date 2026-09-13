@@ -21,6 +21,7 @@ _strip_socks()
 
 import lancedb
 import pyarrow as pa
+from .backend_embeddings import embed_batch, embed_single
 
 
 class LanceDBBackend:
@@ -61,37 +62,10 @@ class LanceDBBackend:
         except Exception as e:
             sys.stderr.write(f"[LanceDB] Notice during init: {type(e).__name__}\n")
 
-    def _embed_single(self, text: str) -> List[float]:
-        """Embed single query string."""
-        if hasattr(self.embedding_fn, "embed_query"):
-            return self.embedding_fn.embed_query(text)
-        elif callable(self.embedding_fn):
-            return self.embedding_fn(text)
-        else:
-            raise ValueError(f"Unsupported embedding function type: {type(self.embedding_fn)}")
+    _embed_single = embed_single
 
     def _batch_embed(self, texts: List[str]) -> List[List[float]]:
-        """Batch embedding with parallel processing fallback."""
-        if hasattr(self.embedding_fn, "embed_documents"):
-            try:
-                return self.embedding_fn.embed_documents(texts)
-            except Exception as e:
-                if not getattr(self.embedding_fn, "retry_batch_as_queries", True):
-                    raise
-                sys.stderr.write(f"[LanceDB] Batch embed_documents failed: {type(e).__name__}\n")
-
-        try:
-            result = self.embedding_fn(texts)
-            if isinstance(result, list) and len(result) == len(texts):
-                return result
-        except Exception:
-            pass
-
-        from concurrent.futures import ThreadPoolExecutor
-        max_workers = 2
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            vectors = list(executor.map(self._embed_single, texts))
-        return vectors
+        return embed_batch(self, texts, "[LanceDB] Batch embed_documents failed")
 
     def add_documents_batch(self, documents: List[Dict[str, Any]], batch_size: int = 512):
         """Add documents to LanceDB in optimal GPU batches ($B=512$) and build Tantivy FTS index."""
