@@ -29,7 +29,21 @@
       {"index": 4, "ranks": [1,5], "note": "Inevitable terror and volcanic analogy recovered; previously partial lexical support."},
       {"index": 6, "ranks": [3], "note": "Musician/violin/sounds/chords/harmonies analogy recovered in one complete witness."}
     ],
-    "decision": "Promising: retains support for all15 hybrid full controls and restores known lost evidence in all4 regressions. Other changed cases remain ungraded; no complete score or cross-corpus improvement claimed. Validate remaining cases and second corpus before runtime adoption; basename quality varies and can contain misleading/untrusted text.",
+    "remaining_case_review": [
+      {"index": 3, "grade": "partial", "ranks": [1,2,3,5], "note": "Civic qualities/common good recovered, but property rationale still absent under existing rubric."},
+      {"index": 7, "grade": "missing", "ranks": [], "note": "Career self-defense still absent; general unity-of-thought discussion insufficient."},
+      {"index": 10, "grade": "partial", "ranks": [1], "note": "Quote retained but Vienna/1805/Murat identity context absent."},
+      {"index": 11, "grade": "partial", "ranks": [1,2,4], "note": "Necker conversation retained; title in footnote358 absent."},
+      {"index": 17, "grade": "missing", "ranks": [], "note": "More of streetwalker conversation appears, but Nantes/Brittany still absent."},
+      {"index": 21, "grade": "partial", "ranks": [1,2,3,4], "note": "Affection and firm heart supported; promised meeting absent. Farewell passage lost versus hybrid baseline, though grade remains partial."},
+      {"index": 23, "grade": "partial", "ranks": [1,2,5], "note": "Theological mechanism retained, mixed-marriage detail absent. Source prejudice remains attributed, not endorsed."},
+      {"index": 24, "grade": "full", "ranks": [1,3], "note": "New passage supplies the source's sexist rationale alongside believers-not-reasoners instruction; source claims are not endorsed."},
+      {"index": 25, "grade": "partial", "ranks": [3], "note": "Reconnaissance criticism retained; logistics details absent."},
+      {"index": 26, "grade": "partial", "ranks": [1,2,3], "note": "Commerce argument supported, Continental System connection remains unsupported."},
+      {"index": 29, "grade": "partial", "ranks": [1,3,5], "note": "Propaganda/frost/losses retained; quantitative and morale details absent."}
+    ],
+    "completed_support_counts": {"full": 18, "partial": 10, "missing": 2},
+    "decision": "Completed all30case review: 18full/10partial/2missing versus hybrid15/11/4; no categorical support regressions, but not every supporting detail retained (see21). Attention second corpus retains26/3/1. Supports scoped predict-based reranker adoption with unchanged source records; no universal quality or untrusted-filename robustness claim.",
     "new_api_spend_usd": 0
   },
   "concurrency_retention_control": {
