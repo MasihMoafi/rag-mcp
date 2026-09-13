@@ -82,9 +82,13 @@ def config_path(environ: Mapping[str, str] | None = None) -> Path:
 def load_settings(environ: Mapping[str, str] | None = None) -> dict[str, Any]:
     try:
         data = json.loads(config_path(environ).read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
+    except FileNotFoundError:
         return {}
-    return data if isinstance(data, dict) else {}
+    except json.JSONDecodeError:
+        raise ValueError("Invalid RAG settings JSON; repair the configuration file before continuing.") from None
+    if not isinstance(data, dict):
+        raise ValueError("Invalid RAG settings: expected a JSON object.")
+    return data
 
 
 def save_settings(settings: Mapping[str, Any], environ: Mapping[str, str] | None = None) -> Path:
