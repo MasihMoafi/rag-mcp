@@ -1,6 +1,24 @@
 {
   "purpose": "Five non-random grading calibration cases, not a retrieval benchmark score.",
   "reviewer": "assistant; not independently reviewed",
+  "hybrid_larger_chunk_review": {
+    "baseline": "/tmp/rag-caption-integrated-eval.jsonl",
+    "candidate": "/tmp/rag-hybrid-1400-ks3msc_t/results.json",
+    "method": "Paired non-blind support review using existing labels. All recorded supporting chunk witnesses survive verbatim after whitespace normalization in 19 full cases. Manually inspected candidate passages for the seven remaining full cases and all four incomplete cases. Not a generated-answer evaluation or independent benchmark.",
+    "chunk_sizes": [700, 1400],
+    "support_counts_each": {"full": 26, "partial": 3, "missing": 1},
+    "partial_indices": [0, 21, 27],
+    "missing_indices": [7],
+    "manually_verified_full_candidate_ranks": {"2": [1, 2, 3], "9": [1, 2, 4], "12": [1, 2], "16": [3], "17": [1], "23": [1, 2], "28": [4]},
+    "incomplete_case_notes": {
+      "0": "Parallelization and shorter dependency paths remain available, but explicit constant-path evidence is absent from the returned set under the existing rubric.",
+      "7": "None of the five returned passages contains the attention-distribution inspection and distinct-head syntactic/semantic behavior explanation.",
+      "21": "Need for positional information is present, but the returned set omits the actual addition of positional encodings and sinusoidal mechanism.",
+      "27": "Rank1 says single-head attention is0.9 BLEU below the best setting; missing Table3 base-versus-single-head values keep the existing partial grade."
+    },
+    "mean_returned_characters": [2871.633333333333, 5775.333333333333],
+    "decision": "No default change: no demonstrated support-coverage gain for2.011x returned context. This one public paper does not establish that700 is optimal for other corpora."
+  },
   "reranker_ablation_capture": {
     "revision": "41c1c53",
     "report": "/tmp/rag-41c1c53-ablation.json",
