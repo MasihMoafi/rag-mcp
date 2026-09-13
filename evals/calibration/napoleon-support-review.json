@@ -16,6 +16,20 @@
     "new_api_spend_usd": 0,
     "limits": "Network sockets blocked, no downloads or live index changes. One sequential local run, not sustained load. Support grading pending; this is not evidence of improved relevance. Changes embeddings, candidate depth and reranking together, not a causal ablation. Local configuration, not API quality."
   },
+  "local_hybrid_regression_trace": {
+    "report": "/tmp/rag-napoleon-stage-trace-s1589io2/results.json",
+    "report_sha256": "f290baf0a51f553c172540cf3754bb3b26995054fdf557886cc078579fba7200",
+    "harness": "/tmp/rag-napoleon-stage-trace.py",
+    "method": "Offline reopen of existing index; capture vector, lexical, fused and complete reranked candidates for four observed regressions. Request all reranked positions then truncate to unchanged5; exact returned content/order matches saved results for all four. Supporting witnesses matched by exact content to lexical baseline.",
+    "cases": [
+      {"index": 0, "witnesses": [{"location": "p.45-46", "vector_rank": null, "lexical_rank": 3, "fused_rank": 10, "reranked_rank": 10}]},
+      {"index": 2, "witnesses": [{"location": "p.145", "vector_rank": null, "lexical_rank": 2, "fused_rank": 7, "reranked_rank": 13}]},
+      {"index": 4, "witnesses": [{"location": "p.105", "vector_rank": 2, "lexical_rank": 1, "fused_rank": 1, "reranked_rank": 11}, {"location": "p.105", "vector_rank": 20, "lexical_rank": 2, "fused_rank": 3, "reranked_rank": 9}]},
+      {"index": 6, "witnesses": [{"location": "p.39", "vector_rank": null, "lexical_rank": 3, "fused_rank": 8, "reranked_rank": 25}, {"location": "p.296-297", "vector_rank": 10, "lexical_rank": 4, "fused_rank": 2, "reranked_rank": 12}]}
+    ],
+    "finding": "All six supporting witnesses reached the reranker; none survived final5. Candidate recall is not the immediate cause of these four regressions. Reranking directly demotes fusion-top5 evidence on cases4/6; cases0/2 already fall below5 after fusion and reranking does not recover them.",
+    "limits": "Observed failure subset only, not evidence that disabling reranking improves the whole suite. No runtime/default change, network, reindex or API spend. A next ranking comparison must retain all thirty controls and existing gains rather than fit these four failures."
+  },
   "local_hybrid_support_review": {
     "method": "Same substantive-support rubric as lexical baseline. Ten full cases retain every previously recorded supporting passage exactly; manually reviewed the other twenty cases in full. Assistant non-blind judgments, not independent evaluation. Reference defects documented in baseline remain applicable.",
     "lexical_counts": {"full": 15, "partial": 12, "missing": 3},
