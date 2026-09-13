@@ -43,7 +43,7 @@ def add_chunk_context(self, chunk: str, document_context: str) -> str:
         context = self.contextualizer(chunk, document_context).strip()
     except Exception as error:
         print(
-            f"[RAG V2] Contextual retrieval failed; keeping the original chunk: {error}",
+            f"[RAG V2] Contextual retrieval failed; keeping the original chunk: {type(error).__name__}",
             file=sys.stderr,
         )
         return chunk
