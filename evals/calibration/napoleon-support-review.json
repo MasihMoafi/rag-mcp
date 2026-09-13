@@ -16,6 +16,19 @@
     "new_api_spend_usd": 0,
     "limits": "Network sockets blocked, no downloads or live index changes. One sequential local run, not sustained load. Support grading pending; this is not evidence of improved relevance. Changes embeddings, candidate depth and reranking together, not a causal ablation. Local configuration, not API quality."
   },
+  "regression_token_budget_check": {
+    "input_report": "/tmp/rag-napoleon-stage-trace-s1589io2/results.json",
+    "tokenizer": "cross-encoder/ms-marco-MiniLM-L-6-v2",
+    "method": "Offline cached tokenizer, exact query/content pairs, special tokens included, truncation=False. No inference or retrieval rerun.",
+    "token_budget": 512,
+    "cases": [
+      {"index": 0, "candidates": 35, "max_pair_tokens": 237, "over_budget": 0, "witness_tokens": [165]},
+      {"index": 2, "candidates": 34, "max_pair_tokens": 182, "over_budget": 0, "witness_tokens": [160]},
+      {"index": 4, "candidates": 35, "max_pair_tokens": 264, "over_budget": 0, "witness_tokens": [145, 125]},
+      {"index": 6, "candidates": 35, "max_pair_tokens": 183, "over_budget": 0, "witness_tokens": [167, 183]}
+    ],
+    "finding": "All139 candidate pairs fit tokenizer's512-token budget, so that truncation limit does not explain these regressions. Runtime passes complete content to predict and sorts higher scores first. No code change justified by this diagnosis; learned relevance judgments/input context remain possible causes, not established individually."
+  },
   "fusion_only_capture": {
     "report": "/tmp/rag-napoleon-fusion-only-ctqiiuqr/results.json",
     "report_sha256": "914e15b8c851298bd8d23938a856f12c42b28d752dda0ddc70caf58849a4b429",
