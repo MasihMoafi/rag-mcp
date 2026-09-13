@@ -1,5 +1,21 @@
 {
   "purpose": "All thirty existing Napoleon queries reviewed for lexical-baseline question support, not API/hybrid quality.",
+  "local_hybrid_capture": {
+    "revision": "8461558",
+    "report": "/tmp/rag-napoleon-local-hybrid-vp2bjbaj/results.json",
+    "report_sha256": "bd6e8acb1c7a96bb5ddf2015fc41e83b14fc6ee3f7f692c4ab945767cf48b4f2",
+    "harness": "/tmp/rag-napoleon-local-hybrid.py",
+    "configuration": "Same source/questions, 700/100 chunking; cached all-MiniLM-L6-v2 embeddings, ms-marco-MiniLM-L-6-v2 reranker, 20 candidates per channel, final5, contextualoff, disposable LanceDB index.",
+    "chunks": 1147,
+    "completed_queries": 30,
+    "initialization_seconds": 7.205114554999454,
+    "mean_query_seconds": 0.07549231979962011,
+    "max_query_seconds": 0.09787160300038522,
+    "peak_rss_kib": 1420576,
+    "mean_returned_characters": 3146.1,
+    "new_api_spend_usd": 0,
+    "limits": "Network sockets blocked, no downloads or live index changes. One sequential local run, not sustained load. Support grading pending; this is not evidence of improved relevance. Changes embeddings, candidate depth and reranking together, not a causal ablation. Local configuration, not API quality."
+  },
   "reviewer": "assistant, non-blind, not independently reviewed",
   "report": "/tmp/rag-napoleon-lexical-13f0603.json",
   "source_sha256": "d95be21cea799bc87f28937940c3b556bcff6540f6815f5bd988fcb6d753c6b5",
