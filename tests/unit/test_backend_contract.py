@@ -98,6 +98,23 @@ def test_parallel_query_failure_propagates(backend):
         backend._batch_embed(['a'])
 
 
+@pytest.mark.parametrize('interruption', [KeyboardInterrupt, SystemExit])
+def test_cancelled_callable_batch_does_not_start_query_fallback(backend, interruption):
+    failure = interruption('stop embedding')
+
+    class Embedder:
+        def __call__(self, texts):
+            raise failure
+
+        def embed_query(self, text):
+            pytest.fail('Cancellation must not start additional embedding work')
+
+    backend.embedding_fn = Embedder()
+    with pytest.raises(interruption) as caught:
+        backend._batch_embed(['a', 'b'])
+    assert caught.value is failure
+
+
 def test_fts_failure_is_not_reported_as_no_matches():
     backend = LanceDBBackend.__new__(LanceDBBackend)
     class BrokenTable:

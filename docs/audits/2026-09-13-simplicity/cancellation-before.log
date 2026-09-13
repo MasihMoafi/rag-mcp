@@ -1,0 +1,110 @@
+..FF                                                                     [100%]
+=================================== FAILURES ===================================
+_ test_cancelled_callable_batch_does_not_start_query_fallback[QdrantVectorDB-KeyboardInterrupt] _
+
+backend = <rag.qdrant_backend.QdrantVectorDB object at 0x7fc2181392b0>
+interruption = <class 'KeyboardInterrupt'>
+
+    @pytest.mark.parametrize('interruption', [KeyboardInterrupt, SystemExit])
+    def test_cancelled_callable_batch_does_not_start_query_fallback(backend, interruption):
+        failure = interruption('stop embedding')
+    
+        class Embedder:
+            def __call__(self, texts):
+                raise failure
+    
+            def embed_query(self, text):
+                pytest.fail('Cancellation must not start additional embedding work')
+    
+        backend.embedding_fn = Embedder()
+        with pytest.raises(interruption) as caught:
+>           backend._batch_embed(['a', 'b'])
+
+tests/unit/test_backend_contract.py:114: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+rag/qdrant_backend.py:148: in _batch_embed
+    vectors = list(executor.map(self._embed_single, texts))
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../../../miniconda3/lib/python3.13/concurrent/futures/_base.py:619: in result_iterator
+    yield _result_or_cancel(fs.pop())
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../../../miniconda3/lib/python3.13/concurrent/futures/_base.py:317: in _result_or_cancel
+    return fut.result(timeout)
+           ^^^^^^^^^^^^^^^^^^^
+../../../miniconda3/lib/python3.13/concurrent/futures/_base.py:449: in result
+    return self.__get_result()
+           ^^^^^^^^^^^^^^^^^^^
+../../../miniconda3/lib/python3.13/concurrent/futures/_base.py:401: in __get_result
+    raise self._exception
+../../../miniconda3/lib/python3.13/concurrent/futures/thread.py:59: in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+rag/qdrant_backend.py:156: in _embed_single
+    return self.embedding_fn.embed_query(text)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <tests.unit.test_backend_contract.test_cancelled_callable_batch_does_not_start_query_fallback.<locals>.Embedder object at 0x7fc2181396a0>
+text = 'a'
+
+    def embed_query(self, text):
+>       pytest.fail('Cancellation must not start additional embedding work')
+E       Failed: Cancellation must not start additional embedding work
+
+tests/unit/test_backend_contract.py:110: Failed
+_ test_cancelled_callable_batch_does_not_start_query_fallback[QdrantVectorDB-SystemExit] _
+
+backend = <rag.qdrant_backend.QdrantVectorDB object at 0x7fc21816b250>
+interruption = <class 'SystemExit'>
+
+    @pytest.mark.parametrize('interruption', [KeyboardInterrupt, SystemExit])
+    def test_cancelled_callable_batch_does_not_start_query_fallback(backend, interruption):
+        failure = interruption('stop embedding')
+    
+        class Embedder:
+            def __call__(self, texts):
+                raise failure
+    
+            def embed_query(self, text):
+                pytest.fail('Cancellation must not start additional embedding work')
+    
+        backend.embedding_fn = Embedder()
+        with pytest.raises(interruption) as caught:
+>           backend._batch_embed(['a', 'b'])
+
+tests/unit/test_backend_contract.py:114: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+rag/qdrant_backend.py:148: in _batch_embed
+    vectors = list(executor.map(self._embed_single, texts))
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../../../miniconda3/lib/python3.13/concurrent/futures/_base.py:619: in result_iterator
+    yield _result_or_cancel(fs.pop())
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../../../miniconda3/lib/python3.13/concurrent/futures/_base.py:317: in _result_or_cancel
+    return fut.result(timeout)
+           ^^^^^^^^^^^^^^^^^^^
+../../../miniconda3/lib/python3.13/concurrent/futures/_base.py:449: in result
+    return self.__get_result()
+           ^^^^^^^^^^^^^^^^^^^
+../../../miniconda3/lib/python3.13/concurrent/futures/_base.py:401: in __get_result
+    raise self._exception
+../../../miniconda3/lib/python3.13/concurrent/futures/thread.py:59: in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+rag/qdrant_backend.py:156: in _embed_single
+    return self.embedding_fn.embed_query(text)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <tests.unit.test_backend_contract.test_cancelled_callable_batch_does_not_start_query_fallback.<locals>.Embedder object at 0x7fc2181397f0>
+text = 'a'
+
+    def embed_query(self, text):
+>       pytest.fail('Cancellation must not start additional embedding work')
+E       Failed: Cancellation must not start additional embedding work
+
+tests/unit/test_backend_contract.py:110: Failed
+=========================== short test summary info ============================
+FAILED tests/unit/test_backend_contract.py::test_cancelled_callable_batch_does_not_start_query_fallback[QdrantVectorDB-KeyboardInterrupt]
+FAILED tests/unit/test_backend_contract.py::test_cancelled_callable_batch_does_not_start_query_fallback[QdrantVectorDB-SystemExit]
+2 failed, 2 passed, 26 deselected in 3.52s

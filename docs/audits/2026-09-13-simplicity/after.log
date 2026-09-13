@@ -1,0 +1,20 @@
+........................................................................ [ 74%]
+.........................                                                [100%]
+=============================== warnings summary ===============================
+tests/unit/test_cache_concurrency.py: 13 warnings
+tests/integration/test_lancedb_backend.py: 11 warnings
+  /home/masih/Desktop/p/rag-mcp/rag/lancedb_backend.py:54: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    table_names = self.db.table_names()
+
+tests/unit/test_cache_concurrency.py: 13 warnings
+tests/integration/test_lancedb_backend.py: 11 warnings
+  /home/masih/miniconda3/lib/python3.13/asyncio/events.py:89: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    self._context.run(self._callback, *self._args)
+
+tests/unit/test_cache_concurrency.py: 10 warnings
+tests/integration/test_lancedb_backend.py: 6 warnings
+  /home/masih/Desktop/p/rag-mcp/rag/lancedb_backend.py:138: DeprecatedWarning: create_fts_index is deprecated as of 0.25.0. Use create_index() with config=FTS() instead.
+    self.table.create_fts_index("content", replace=True)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+97 passed, 64 warnings in 6.76s

@@ -17,6 +17,7 @@ _strip_socks()
 from typing import List, Dict, Any, Callable
 from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, VectorParams, PointStruct
+from .backend_embeddings import embed_batch, embed_single
 
 
 class QdrantVectorDB:
@@ -119,46 +120,9 @@ class QdrantVectorDB:
                 sys.stderr.write(f"[Qdrant] Indexed {min(i + batch_size, total)}/{total} documents..." + "\n")
 
     def _batch_embed(self, texts: List[str]) -> List[List[float]]:
-        """
-        Batch embedding with parallel processing for speed.
-        """
-        # Check if embedding_fn has batch method (vLLM, Gemini, etc.)
-        if hasattr(self.embedding_fn, 'embed_documents'):
-            try:
-                return self.embedding_fn.embed_documents(texts)
-            except Exception as e:
-                if not getattr(self.embedding_fn, "retry_batch_as_queries", True):
-                    raise
-                sys.stderr.write(f"[Qdrant] Batch embedding via embed_documents failed: {type(e).__name__}\n")
+        return embed_batch(self, texts, "[Qdrant] Batch embedding via embed_documents failed")
 
-        # Try calling with list directly (some APIs support this)
-        try:
-            result = self.embedding_fn(texts)
-            if isinstance(result, list) and len(result) == len(texts):
-                return result
-        except:
-            pass
-
-        # Parallel processing fallback (FAST)
-        from concurrent.futures import ThreadPoolExecutor
-
-        max_workers = 2
-
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            vectors = list(executor.map(self._embed_single, texts))
-
-        return vectors
-
-    def _embed_single(self, text: str) -> List[float]:
-        """Embed single text - handles different embedding APIs"""
-        # Try method-based APIs (Ollama, etc.)
-        if hasattr(self.embedding_fn, 'embed_query'):
-            return self.embedding_fn.embed_query(text)
-        # Try callable
-        elif callable(self.embedding_fn):
-            return self.embedding_fn(text)
-        else:
-            raise ValueError(f"Unsupported embedding function type: {type(self.embedding_fn)}")
+    _embed_single = embed_single
 
     def search(self, query: str, top_k: int = 5) -> List[Dict[str, Any]]:
         """Vector similarity search."""
