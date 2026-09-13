@@ -94,8 +94,10 @@ class RAGPipeline:
         # Determine vector database backend (LanceDB by default, or Qdrant)
         print(f"[RAG V2] Using backend: {self.backend_type}")
 
-        # One probe embedding tells the real vector size for any provider/model.
-        vector_size = probe_dimensions(self.embedding_fn) if self.embedding_fn is not None else 0
+        # LanceDB infers its vector schema from document batches or stored data.
+        # Only Qdrant needs dimensions before creating its collection.
+        vector_size = (probe_dimensions(self.embedding_fn)
+                       if self.backend_type == "qdrant" and self.embedding_fn is not None else 0)
 
         # Create unique collection name from persist_dir to avoid conflicts
         persist_dir_name = os.path.basename(self.config.get("persist_dir"))
