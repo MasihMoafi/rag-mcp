@@ -399,6 +399,15 @@ used the API embeddings with local reranking; results and limitations are below.
 
 Remaining gates:
 
+A bounded shared-pipeline replay at `d2d739c` completed 120 searches with four
+workers against the existing 79-chunk public-paper index, using cached API query
+embeddings and the real local CUDA reranker. All ordered passages/citations matched
+the saved baseline. Sequential/concurrent p95 service times were 86/255 ms;
+peak allocated CUDA memory rose from 265 MB to 491 MB (decimal). This is one short
+local run, not sustained-load, live-provider or large-corpus certification, and
+does not establish better retrieval relevance. Raw evidence is in
+`/tmp/rag-concurrent-replay-6hxcklqq/results.json` on the audit machine.
+
 Extraction failures now abort a refresh instead of silently dropping unreadable
 files from an otherwise readable corpus. Text, JSON, notebook and damaged-PDF
 preservation/repair checks pass on both local storage backends. PDF extraction can
