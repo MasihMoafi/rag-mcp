@@ -1,0 +1,17 @@
+{
+  "revision": "3c150df",
+  "source_sha256": "bfaaec89262875f927cf1b38b2da2d775f3309b7bea3537f29b606ca67e79065",
+  "source": "Attention Is All You Need PDF, existing 79-chunk index",
+  "method": "Six assistant-authored out-of-scope queries; manual non-blind review of all 30 returned passages. Same Qwen3-Embedding-8B API model and local MiniLM reranker as the existing paper evaluation. No threshold tuning or generated-answer evaluation.",
+  "raw_artifact": "/tmp/rag-unsupported-query-wr7rxu8k/results.json",
+  "new_embedding_cost_usd": 0.00000074,
+  "cases": [
+    {"question": "What learning rate schedule is recommended for fine-tuning pretrained BERT?", "candidates": 5, "supported": false, "note": "Original Transformer optimizer/training passages do not establish BERT fine-tuning recommendations."},
+    {"question": "How many parameters does GPT-4 contain?", "candidates": 5, "supported": false, "note": "Transformer dimensions, vocabulary and training results do not establish GPT-4 parameter count."},
+    {"question": "How many training steps were used for Llama 2?", "candidates": 5, "supported": false, "note": "Original Transformer training steps are not evidence for Llama 2."},
+    {"question": "What is the Cedar office Wi-Fi password?", "candidates": 5, "supported": false, "note": "Attention keys and positional encoding are unrelated to office credentials."},
+    {"question": "How many days does Orion retain its database backups?", "candidates": 5, "supported": false, "note": "Training duration and checkpoints do not establish a backup-retention policy."},
+    {"question": "What time does the Blue Lantern restaurant in Paris open on Sundays?", "candidates": 5, "supported": false, "note": "Returned attention/training passages contain no restaurant schedule."}
+  ],
+  "conclusion": "All six queries return candidates without supporting the requested facts. This is an evidence-boundary diagnostic, not a caller hallucination rate or a representative abstention benchmark. No runtime change justified without paired supported-case controls and independent validation."
+}
