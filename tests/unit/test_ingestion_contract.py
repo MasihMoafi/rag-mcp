@@ -6,6 +6,16 @@ import pytest
 from rag.core import RAGPipelineV2
 
 
+def test_contextualization_failure_keeps_evidence_without_logging_private_payload(capsys):
+    pipeline = RAGPipelineV2.__new__(RAGPipelineV2)
+    pipeline.config = {'use_contextual': True}
+    pipeline.contextualizer = Mock(side_effect=RuntimeError('private-provider-payload'))
+    assert pipeline._add_context_to_chunk('Original evidence.', 'Document context') == 'Original evidence.'
+    output = capsys.readouterr()
+    assert 'RuntimeError' in output.err
+    assert 'private-provider-payload' not in output.out + output.err
+
+
 def test_directory_formats_case_and_explicit_paths_are_preserved(tmp_path):
     extensions = (
         '.rs', '.toml', '.yaml', '.yml', '.py', '.md', '.txt', '.json',
