@@ -1,4 +1,15 @@
 {
+  "source_filename_reranker_arm": {
+    "report": "/tmp/rag-attention-source-identity-e35q1gxs/results.json",
+    "report_sha256": "f8975c7520f332d83d9b10af4422d6b73821caffd96bd612c4dae1bb89393c07",
+    "harness": "/tmp/rag-attention-source-identity.py",
+    "change": "Prepend Source: att.pdf and newline only to reranker input, preserving original returned records. Existing API vectors/index, same30questions and MiniLM reranker; blocked network/reindex.",
+    "support_counts": {"full": 26, "partial": 3, "missing": 1},
+    "method": "23 original full cases retain all previously recorded supporting passages after whitespace normalization. Case24 Table4 semi-supervised92.7 manually rechecked at rank1. Caption gains1/26 remain full: case1 entire returned set retained, case26 anaphora caption manually verified at rank1. Of incomplete cases,21/27 retain entire returned sets; manually reviewed all5 on0/7, still partial/missing. Same assistant non-blind rubric.",
+    "ordered_result_changes": 17,
+    "decision": "No support regression on this second corpus despite17order/set changes; no quality gain either. This supports further validation of the Napoleon result, not universal filename safety or immediate runtime adoption.",
+    "new_api_spend_usd": 0
+  },
   "purpose": "Five non-random grading calibration cases, not a retrieval benchmark score.",
   "reviewer": "assistant; not independently reviewed",
   "hybrid_larger_chunk_review": {
