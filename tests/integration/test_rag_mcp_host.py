@@ -10,6 +10,7 @@ from server import _TOOL
 
 @pytest.mark.parametrize('framed', [False, True])
 def test_stdio_process_recovers_from_invalid_call(tmp_path, framed):
+    import hashlib
     import io
     import json
     import os
@@ -21,6 +22,8 @@ def test_stdio_process_recovers_from_invalid_call(tmp_path, framed):
          'params': {'name': ['نام نامعتبر']}},
         {'jsonrpc': '2.0', 'id': 3, 'method': 'tools/list'},
         {'jsonrpc': '2.0', 'id': 4, 'method': 'ping'},
+        {'jsonrpc': '2.0', 'id': 5, 'method': 'tools/call',
+         'params': {'name': 'get_rag_settings', 'arguments': {}}},
     ]
     payload = b''
     for request in requests:
@@ -45,7 +48,7 @@ def test_stdio_process_recovers_from_invalid_call(tmp_path, framed):
             replies.append(json.loads(stream.read(length)))
     else:
         replies = [json.loads(line) for line in result.stdout.splitlines()]
-    assert [reply['id'] for reply in replies] == [1, 2, 3, 4]
+    assert [reply['id'] for reply in replies] == [1, 2, 3, 4, 5]
     assert replies[1]['error']['code'] == -32602
     search_tool = next(tool for tool in replies[2]['result']['tools'] if tool['name'] == _TOOL['name'])
     description = search_tool['description']
@@ -56,6 +59,13 @@ def test_stdio_process_recovers_from_invalid_call(tmp_path, framed):
                         'configured providers'):
         assert instruction in description
     assert replies[3]['result'] == {}
+    settings_result = replies[4]['result']
+    assert not settings_result.get('isError', False)
+    report = json.loads(settings_result['content'][0]['text'])
+    assert report['runtime']['pid'] > 0
+    assert report['runtime']['pid'] != os.getpid()
+    assert report['runtime']['server_source_sha256_at_startup'] == hashlib.sha256(server_path.read_bytes()).hexdigest()
+    assert not (tmp_path / 'config.json').exists()
 
 
 @pytest.mark.parametrize('params', [
