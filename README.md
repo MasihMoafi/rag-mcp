@@ -387,8 +387,8 @@ Use `cross-encoder`, `fastembed`, `auto` or `disabled` instead.
 
 ### Readiness audit — 2026-09-13
 
-At `e844709`, the selected offline/local regression suite passes 549 tests in
-56.12 seconds, with 521 existing LanceDB deprecation warnings and no expected
+At `a966859`, the selected offline/local regression suite passes 559 tests in
+55.72 seconds, with 521 existing LanceDB deprecation warnings and no expected
 failures. This verifies the
 covered extraction/citation, API response handling, scope, cache, CLI/MCP and
 LanceDB lifecycle cases—not universal production readiness. API tests use an
@@ -397,7 +397,7 @@ A separate live OpenRouter/Qwen3-Embedding-8B probe returned 4096 dimensions and
 reported $0.00000003 usage cost. Subsequent public-paper retrieval experiments
 used the API embeddings with local reranking; results and limitations are below.
 
-Remaining gates:
+Evidence and remaining limits:
 
 A bounded shared-pipeline replay at `d2d739c` completed 120 searches with four
 workers against the existing 79-chunk public-paper index, using cached API query
