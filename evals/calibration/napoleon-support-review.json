@@ -16,6 +16,20 @@
     "new_api_spend_usd": 0,
     "limits": "Network sockets blocked, no downloads or live index changes. One sequential local run, not sustained load. Support grading pending; this is not evidence of improved relevance. Changes embeddings, candidate depth and reranking together, not a causal ablation. Local configuration, not API quality."
   },
+  "concurrency_retention_control": {
+    "report": "/tmp/rag-napoleon-memory-control-5l_yx2dj/results.json",
+    "report_sha256": "e0fd65b46b7bc1548f0ed6ac94f3d9aa8033d9addfccbf567e9c5835ee6d75f9",
+    "harness": "/tmp/rag-napoleon-memory-control.py",
+    "change": "Identical workload/config; discard returned passages after equality check, retain only timing, evidence hash and match flag.",
+    "queries": 1200,
+    "mismatches": 0,
+    "total_round_seconds": 81.3234026650025,
+    "rss_bytes_by_round": [1513951232,1551749120,1553870848,1558454272,1561051136,1563348992,1563971584,1566720000,1567207424,1567264768],
+    "cuda_allocated_after_each_round_bytes": 224977920,
+    "finding": "CPU RSS still rises about53.3MB after first round, but only57KB between last two rounds. Full passage retention is not the sole cause; this bounded run shows growth slowing, not proof of a leak or leak-free long-term operation. GPU in-use memory stable after each round. No errors or evidence drift.",
+    "limits": "One fresh-process control, allocator/native cache effects unisolated, about81seconds of repeated fixed questions. No production quality/default change justified.",
+    "new_api_spend_usd": 0
+  },
   "repeated_concurrency_check": {
     "revision": "8759c23",
     "report": "/tmp/rag-napoleon-concurrent-xj41h47e/results.json",
