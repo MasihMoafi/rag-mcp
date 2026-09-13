@@ -387,12 +387,13 @@ Use `cross-encoder`, `fastembed`, `auto` or `disabled` instead.
 
 ### Readiness audit — 2026-09-13
 
-At runtime revision `c1fdd77`, the selected offline/local regression suite returned
-568 passes and one stale assertion in 56.65 seconds, with 530 existing LanceDB
-deprecation warnings. The assertion expected raw contextualizer error text, which
-the privacy fix intentionally suppresses. After updating it to require the error
-type without the raw message, all 12 contextualization/ingestion checks passed;
-the combined suite was not rerun after this test-only correction. This verifies the
+At runtime revision `6430bc0`, the selected offline/local regression suite returned
+569 passes and one stale assertion in 57.39 seconds, with 528 existing LanceDB
+deprecation warnings. The assertion expected passage-only reranker input; the new
+source-aware input intentionally includes the basename. After correcting that
+expectation, all 29 API-retrieval/reranker checks passed, including unchanged
+evidence, citations and reopening. The combined suite was not rerun after this
+test-only correction. This verifies the
 covered extraction/citation, API response handling, scope, cache, CLI/MCP and
 LanceDB lifecycle cases—not universal production readiness. API tests use an
 in-memory HTTP transport with the real SDK and storage, not paid-provider inference.

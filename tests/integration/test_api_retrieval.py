@@ -155,7 +155,7 @@ def test_api_embeddings_retrieve_semantic_fixture_and_reopen(tmp_path, monkeypat
                 pipeline.reranker = SimpleNamespace(predict=predict)
                 pipeline.config['reranker_type'] = 'cross-encoder'
                 ranked = pipeline.search(query)
-                assert scored == [[[query, doc['content']] for doc in fused]]
+                assert scored == [[[query, f"Source: facts.md\n{doc['content']}"] for doc in fused]]
                 assert ranked == fused[::-1]
                 pipeline.config['reranker_type'] = 'off'
                 assert pipeline.search(query) == fused
