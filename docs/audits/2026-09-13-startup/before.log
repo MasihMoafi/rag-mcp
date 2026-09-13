@@ -1,0 +1,105 @@
+F.                                                                       [100%]
+=================================== FAILURES ===================================
+___________ test_startup_embeds_only_what_storage_requires[lancedb] ____________
+
+tmp_path = PosixPath('/tmp/pytest-of-masih/pytest-1/test_startup_embeds_only_what_0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x746093005e00>
+backend = 'lancedb'
+
+    @pytest.mark.parametrize('backend', ['lancedb', 'qdrant'])
+    def test_startup_embeds_only_what_storage_requires(tmp_path, monkeypatch, backend):
+        calls = []
+    
+        class Embedder:
+            model_name = 'counted-fixture'
+    
+            def embed_documents(self, texts):
+                calls.append(('documents', list(texts)))
+                return [[1., 0., 0.] for _ in texts]
+    
+            def embed_query(self, text):
+                calls.append(('query', text))
+                return [1., 0., 0.]
+    
+        monkeypatch.setattr(core, 'build_embedder', lambda *args, **kwargs: Embedder())
+        monkeypatch.setattr(core, 'select_device', lambda: 'cpu')
+        source = tmp_path / 'facts.txt'
+        source.write_text('Cedar trees preserve the evidence used to verify retrieval and exact source citations.')
+        config = dict(persist_dir=str(tmp_path / 'index'), document_paths=[str(source)],
+                      backend=backend, embed_provider='fixture', reranker_type='off',
+                      chunk_size=700, chunk_overlap=0)
+    
+        results = []
+        startup_queries = []
+        for _ in range(2):
+            start = len(calls)
+            pipeline = core.RAGPipeline(config)
+            try:
+                startup_queries.append([text for kind, text in calls[start:] if kind == 'query'])
+                results.append(pipeline.search('Cedar'))
+            finally:
+                pipeline.close()
+    
+        assert results[0] == results[1]
+        assert results[0][0]['original_content'] == source.read_text()
+        assert len([call for call in calls if call[0] == 'documents']) == 1
+>       assert startup_queries == ([['dimension probe'], ['dimension probe']]
+                                   if backend == 'qdrant' else [[], []])
+E       AssertionError: assert [['dimension ...nsion probe']] == [[], []]
+E         
+E         At index 0 diff: ['dimension probe'] != []
+E         Use -v to get more diff
+
+tests/integration/test_startup_embedding_requests.py:45: AssertionError
+----------------------------- Captured stdout call -----------------------------
+[RAG V2] Using compute device: cpu
+[RAG V2] Using fixture embeddings with model: counted-fixture
+[RAG V2] Using backend: lancedb
+[RAG V2] Reranker off.
+[RAG V2] Creating new database at /tmp/pytest-of-masih/pytest-1/test_startup_embeds_only_what_0/index/generation-2k_yr84f...
+[RAG V2] Processing facts.txt...
+[RAG V2] Indexing 1 chunks...
+[RAG V2] Database created with 1 chunks
+[RAG V2] Searching (backend: lancedb)
+[RAG V2] Step 3: LanceDB Vector search...
+[RAG V2] Step 4: LanceDB Tantivy FTS search...
+[RAG V2] Step 5: RRF fusion...
+[RAG V2] Using compute device: cpu
+[RAG V2] Using fixture embeddings with model: counted-fixture
+[RAG V2] Using backend: lancedb
+[RAG V2] Reranker off.
+[RAG V2] Loading existing database from /tmp/pytest-of-masih/pytest-1/test_startup_embeds_only_what_0/index/generation-2k_yr84f...
+[RAG V2] Loaded 1 chunks from existing database (lancedb: 1)
+[RAG V2] Searching (backend: lancedb)
+[RAG V2] Step 3: LanceDB Vector search...
+[RAG V2] Step 4: LanceDB Tantivy FTS search...
+[RAG V2] Step 5: RRF fusion...
+----------------------------- Captured stderr call -----------------------------
+[LanceDB] Opening database at: /tmp/pytest-of-masih/pytest-1/test_startup_embeds_only_what_0/index/generation-2k_yr84f/lancedb_storage
+[LanceDB] Indexing 1 documents in GPU batches of 512...
+[2026-09-13T18:26:24Z WARN  lance::dataset::write::insert] No existing dataset at /tmp/pytest-of-masih/pytest-1/test_startup_embeds_only_what_0/index/generation-2k_yr84f/lancedb_storage/rag_v2_generation_2k_yr84f.lance, it will be created
+[LanceDB] Created table 'rag_v2_generation_2k_yr84f' with 1 records.
+[LanceDB] Built Tantivy FTS index on 'content' column.
+[RAG V2] Returning 1 unique results
+[LanceDB] Opening database at: /tmp/pytest-of-masih/pytest-1/test_startup_embeds_only_what_0/index/generation-2k_yr84f/lancedb_storage
+[LanceDB] Opened existing table: rag_v2_generation_2k_yr84f (1 rows)
+[RAG V2] Returning 1 unique results
+=============================== warnings summary ===============================
+tests/integration/test_startup_embedding_requests.py::test_startup_embeds_only_what_storage_requires[lancedb]
+tests/integration/test_startup_embedding_requests.py::test_startup_embeds_only_what_storage_requires[lancedb]
+  /home/masih/Desktop/p/rag-mcp/rag/lancedb_backend.py:54: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    table_names = self.db.table_names()
+
+tests/integration/test_startup_embedding_requests.py::test_startup_embeds_only_what_storage_requires[lancedb]
+tests/integration/test_startup_embedding_requests.py::test_startup_embeds_only_what_storage_requires[lancedb]
+  /home/masih/miniconda3/lib/python3.13/asyncio/events.py:89: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    self._context.run(self._callback, *self._args)
+
+tests/integration/test_startup_embedding_requests.py::test_startup_embeds_only_what_storage_requires[lancedb]
+  /home/masih/Desktop/p/rag-mcp/rag/lancedb_backend.py:138: DeprecatedWarning: create_fts_index is deprecated as of 0.25.0. Use create_index() with config=FTS() instead.
+    self.table.create_fts_index("content", replace=True)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/integration/test_startup_embedding_requests.py::test_startup_embeds_only_what_storage_requires[lancedb]
+1 failed, 1 passed, 5 warnings in 4.17s

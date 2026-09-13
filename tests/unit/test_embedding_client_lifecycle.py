@@ -232,7 +232,8 @@ def test_failed_startup_releases_embedding_client(stage, cleanup_fails, monkeypa
     try:
         with pytest.raises(RuntimeError) as caught:
             RAGPipeline(dict(persist_dir=str(tmp_path/'index'), document_paths=[],
-                             backend='lancedb', embed_provider='openai_compatible',
+                             backend='qdrant' if stage == 'probe' else 'lancedb',
+                             embed_provider='openai_compatible',
                              reranker_type='off'))
         assert caught.value is failure
         assert embedder.client.is_closed()
