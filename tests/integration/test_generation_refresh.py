@@ -80,6 +80,31 @@ class Embedder:
 
 
 @pytest.mark.parametrize('backend', ['lancedb', 'qdrant'])
+def test_live_readers_keep_their_generation_after_successful_refreshes(tmp_path, monkeypatch, backend):
+    monkeypatch.setattr(core, 'build_embedder', lambda config, device: Embedder())
+    source = tmp_path / 'note.txt'
+    root = tmp_path / 'index'
+    readers = []
+    days = ['Friday', 'Monday', 'Tuesday']
+    try:
+        for day in days:
+            source.write_text(f'Meeting: {day}.')
+            readers.append(core.RAGPipeline(dict(
+                persist_dir=str(root), document_paths=[str(source)], backend=backend,
+                embed_provider='none', reranker_type='off', force_reindex=True,
+                chunk_size=700, chunk_overlap=100, top_k=5, rerank_top_k=5)))
+        assert index_lifecycle.active_directory(root) == Path(readers[-1].config['persist_dir'])
+        assert len({reader.config['persist_dir'] for reader in readers}) == 3
+        for reader, day in zip(readers, days):
+            result = reader.search('Meeting')[0]
+            assert result['content'] == f'Meeting: {day}.'
+            assert result['source'] == str(source)
+    finally:
+        for reader in readers:
+            reader.close()
+
+
+@pytest.mark.parametrize('backend', ['lancedb', 'qdrant'])
 @pytest.mark.parametrize('entry_point', ['fetch', 'engine'])
 @pytest.mark.parametrize('failure', ['embedding', 'metadata', 'manifest', 'publication'])
 def test_failed_generation_keeps_old_storage_and_can_retry(tmp_path, monkeypatch, backend, failure, entry_point):
