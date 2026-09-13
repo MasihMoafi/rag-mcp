@@ -47,7 +47,9 @@ def test_contextualizer_failure_falls_back_to_original_chunk(capsys):
     pipeline.contextualizer = failing_contextualizer
 
     assert pipeline._add_context_to_chunk("original", "source") == "original"
-    assert "API unavailable" in capsys.readouterr().err
+    error = capsys.readouterr().err
+    assert "RuntimeError" in error
+    assert "API unavailable" not in error
 
 
 def test_large_sources_use_start_and_previous_chunks_for_context():

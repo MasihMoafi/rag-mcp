@@ -378,8 +378,8 @@ Gemini's OpenAI-compatible modes — install the optional `openai` package
 (`uv sync --extra openai`), then set `RAG_MCP_EMBED_PROVIDER=openai_compatible`,
 `RAG_MCP_EMBED_MODEL` to the provider's model name, `RAG_MCP_EMBED_API_KEY`, and
 `RAG_MCP_EMBED_BASE_URL` if the provider isn't OpenAI itself. The client construction is
-verified; a real embedding call against a paid provider is not — test it against your own
-key before trusting it. The unsupported `reranker_type=llm` setting is rejected
+verified, and OpenRouter has live embedding evidence described below; other provider
+endpoints still need verification. The unsupported `reranker_type=llm` setting is rejected
 before resource initialization; it previously returned fusion order without scoring.
 Use `cross-encoder`, `fastembed`, `auto` or `disabled` instead.
 
@@ -387,9 +387,12 @@ Use `cross-encoder`, `fastembed`, `auto` or `disabled` instead.
 
 ### Readiness audit — 2026-09-13
 
-At `a966859`, the selected offline/local regression suite passes 559 tests in
-55.72 seconds, with 521 existing LanceDB deprecation warnings and no expected
-failures. This verifies the
+At runtime revision `c1fdd77`, the selected offline/local regression suite returned
+568 passes and one stale assertion in 56.65 seconds, with 530 existing LanceDB
+deprecation warnings. The assertion expected raw contextualizer error text, which
+the privacy fix intentionally suppresses. After updating it to require the error
+type without the raw message, all 12 contextualization/ingestion checks passed;
+the combined suite was not rerun after this test-only correction. This verifies the
 covered extraction/citation, API response handling, scope, cache, CLI/MCP and
 LanceDB lifecycle cases—not universal production readiness. API tests use an
 in-memory HTTP transport with the real SDK and storage, not paid-provider inference.
@@ -498,8 +501,11 @@ Caption-aware PDF boundaries improved manually reviewed answer support from
 3.1% less returned text. Literal containment stayed at 11/30: it is not a
 relevance score. This is one public paper, assistant-reviewed and not blinded;
 it does not establish general production quality. Remaining misses include
-interpretability, incomplete explanations and table context. Cumulative
-provider-reported embedding spend was $0.00037691, not an independent billing audit.
+interpretability, incomplete explanations and table context. A paired 700→1400-character
+chunk-size comparison retained the same 26 full / 3 partial / 1 missing cases while
+doubling returned context (2.011×); the default remains unchanged. This does not
+establish an optimal chunk size for other documents. Cumulative provider-reported
+embedding spend is $0.00048487, not an independent billing audit.
 
 ### Implemented and verified
 
