@@ -10,6 +10,7 @@ at an arbitrary workspace.
 from __future__ import annotations
 
 import contextlib
+import hashlib
 from dataclasses import dataclass
 from fnmatch import fnmatch
 import importlib
@@ -38,6 +39,7 @@ from rag.formats import INDEXABLE_EXTENSIONS  # noqa: E402
 
 _SERVER_NAME = "rag-mcp"
 _SERVER_VERSION = "0.2.0"
+_SERVER_SOURCE_SHA256 = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
 _use_content_length_framing = False
 _initialized = False
 _INDEXABLE_EXTENSIONS = set(INDEXABLE_EXTENSIONS)
@@ -146,6 +148,7 @@ def _settings_report() -> dict[str, Any]:
 
     embedding = embedding_config()
     return {
+        "runtime": {"pid": os.getpid(), "server_source_sha256_at_startup": _SERVER_SOURCE_SHA256},
         "settings": user_settings.describe_settings(),
         "embedding": {"provider": embedding["embed_provider"], "model": embedding["embed_model"]},
         "retrieval": user_settings.retrieval_config(),

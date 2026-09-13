@@ -8,6 +8,20 @@ import server
 from rag import cli, fetch
 
 
+def test_settings_report_uses_captured_server_identity(monkeypatch):
+    from rag import detect
+    assert server._SERVER_SOURCE_SHA256 == server.hashlib.sha256(server.Path(server.__file__).read_bytes()).hexdigest()
+    monkeypatch.setattr(server, '_SERVER_SOURCE_SHA256', 'startup-fingerprint')
+    monkeypatch.setattr(server.Path, 'read_bytes', lambda *args: pytest.fail('Do not rehash changed disk contents'))
+    monkeypatch.setattr(server.user_settings, 'describe_settings', lambda: [])
+    monkeypatch.setattr(server, 'embedding_config', lambda: {
+        'embed_provider': 'none', 'embed_model': '', 'ollama_url': 'unused'})
+    monkeypatch.setattr(server.user_settings, 'retrieval_config', lambda: {})
+    monkeypatch.setattr(detect, 'detect_all', lambda *args: {})
+    assert server._settings_report()['runtime'] == {
+        'pid': server.os.getpid(), 'server_source_sha256_at_startup': 'startup-fingerprint'}
+
+
 def test_mcp_retrieval_error_does_not_echo_provider_payload(monkeypatch, tmp_path):
     import json
 
