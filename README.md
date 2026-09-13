@@ -522,6 +522,14 @@ changed. A different ranking approach needs validation across existing controls
 and gains, not just the observed failure subset. The single sequential run is
 not sustained-load or private private downstream production validation.
 
+Follow-up: predict-based rerankers now receive the source basename alongside the
+passage, without changing stored or returned evidence. On the same reviewed
+Napoleon questions, this yields 18 full / 10 partial / 2 missing; the Attention
+paper retains 26 / 3 / 1. The runtime reproduces all 60 experimental outputs.
+This is a bounded, non-blind improvement, not universal filename reliability.
+Qwen's separate prompt path is unchanged. No re-embedding is required; existing
+server processes need restarting to load the code.
+
 ### Implemented and verified
 
 - MCP `initialize` → `tools/list` → `tools/call` protocol path.

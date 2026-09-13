@@ -5,6 +5,26 @@ import pytest
 from rag.reranking import rerank_documents
 
 
+def test_reranker_uses_basename_without_mutating_source_records():
+    from copy import deepcopy
+    docs = [{'content': 'Original evidence.', 'file_path': '/private/client/Napoleon.pdf', 'location': 'p.3'},
+            {'content': 'Other evidence.'}]
+    original = deepcopy(docs)
+    received = []
+
+    def predict(pairs):
+        received.extend(pairs)
+        return [2.0, 1.0]
+
+    pipeline = SimpleNamespace(reranker_type='cross-encoder', reranker=SimpleNamespace(predict=predict))
+    results = rerank_documents(pipeline, docs, 'question', 2)
+    assert received == [['question', 'Source: Napoleon.pdf\nOriginal evidence.'],
+                        ['question', 'Other evidence.']]
+    assert docs == original
+    assert results[0] is docs[0]
+    assert results[1] is docs[1]
+
+
 @pytest.mark.parametrize('k', [2, 5])
 @pytest.mark.parametrize('failure', [False, True])
 def test_reranker_orders_candidates_even_when_all_fit(k, failure):

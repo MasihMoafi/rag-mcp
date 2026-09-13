@@ -1,6 +1,7 @@
 """Rank fusion and optional passage reranking without storage concerns."""
 
 import math
+from pathlib import Path
 from typing import Dict, List, Tuple
 
 
@@ -144,7 +145,11 @@ def rerank_documents(self, docs: List[Dict], query: str, k: int) -> List[Dict]:
             torch.cuda.empty_cache()
         elif hasattr(self, 'reranker') and self.reranker:
             # Let the model tokenizer enforce its token budget, not a character cutoff.
-            pairs = [[query, doc['content']] for doc in docs]
+            pairs = []
+            for doc in docs:
+                source = Path(doc.get('file_path') or '').name
+                passage = f"Source: {source}\n{doc['content']}" if source else doc['content']
+                pairs.append([query, passage])
             scores = self.reranker.predict(pairs)
         else:
             scores = [1.0] * len(docs)
