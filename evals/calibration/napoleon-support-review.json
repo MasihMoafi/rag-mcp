@@ -16,6 +16,25 @@
     "new_api_spend_usd": 0,
     "limits": "Network sockets blocked, no downloads or live index changes. One sequential local run, not sustained load. Support grading pending; this is not evidence of improved relevance. Changes embeddings, candidate depth and reranking together, not a causal ablation. Local configuration, not API quality."
   },
+  "repeated_concurrency_check": {
+    "revision": "8759c23",
+    "report": "/tmp/rag-napoleon-concurrent-xj41h47e/results.json",
+    "report_sha256": "37511cdb896b66eda94f1a8eab79947838f9f7e9405d8bcb2a70b12511f575be",
+    "harness": "/tmp/rag-napoleon-concurrent.py",
+    "workload": "Same1147chunk local MiniLM hybrid index, 10 rounds of120 queries using4workers; fixed30questions repeated4times per round; blockednetwork/reindex.",
+    "queries": 1200,
+    "ordered_evidence_mismatches": 0,
+    "load_seconds": 4.522993922997557,
+    "total_round_seconds": 81.0108551359881,
+    "p95_service_seconds_excluding_executor_queue": 0.30641187600122066,
+    "cuda_allocated_after_each_round_bytes": 224977920,
+    "cuda_peak_allocated_bytes": 674408960,
+    "cuda_allocated_after_close_bytes": 42598400,
+    "rss_first_round_bytes": 1502228480,
+    "rss_last_round_bytes": 1567338496,
+    "limits": "All searches succeeded and matched saved ordered evidence. GPU in-use memory returns to identical level each round. CPU RSS grows about65MB between rounds0/9; harness retains raw results and allocator effects are not isolated, so no leak-free claim. CUDA reserved memory stays about1.21GB after close. An81second repeated local workload is not long-duration, API or private downstream certification; no quality improvement claimed.",
+    "new_api_spend_usd": 0
+  },
   "regression_token_budget_check": {
     "input_report": "/tmp/rag-napoleon-stage-trace-s1589io2/results.json",
     "tokenizer": "cross-encoder/ms-marco-MiniLM-L-6-v2",
