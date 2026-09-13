@@ -5,6 +5,17 @@
   "method": "Six assistant-authored out-of-scope queries; manual non-blind review of all 30 returned passages. Same Qwen3-Embedding-8B API model and local MiniLM reranker as the existing paper evaluation. No threshold tuning or generated-answer evaluation.",
   "raw_artifact": "/tmp/rag-unsupported-query-wr7rxu8k/results.json",
   "new_embedding_cost_usd": 0.00000074,
+  "score_separation_diagnostic": {
+    "raw_artifact": "/tmp/rag-score-separation-logh3g9h/results.json",
+    "method": "Offline CPU rescoring of the frozen top5 passages with the same cached MiniLM weights; maximum score per question. Existing manual full/partial/missing labels retained. Exploratory, not independent threshold validation.",
+    "full_support_controls": 26,
+    "unsupported_controls": 6,
+    "full_score_range": [-1.5428433418273926, 8.230799674987793],
+    "unsupported_score_range": [-11.326752662658691, 1.1364165544509888],
+    "separable_by_single_cutoff": false,
+    "full_controls_at_or_below_highest_unsupported": 2,
+    "finding": "Unsupported Llama 2 training-step question scores above supported optimizer and Figure 4 questions. Rejecting all six negatives using a minimum-score cutoff loses at least two of 26 full-support controls. The existing missing interpretability case also scores above that unsupported question. No cutoff adopted."
+  },
   "cases": [
     {"question": "What learning rate schedule is recommended for fine-tuning pretrained BERT?", "candidates": 5, "supported": false, "note": "Original Transformer optimizer/training passages do not establish BERT fine-tuning recommendations."},
     {"question": "How many parameters does GPT-4 contain?", "candidates": 5, "supported": false, "note": "Transformer dimensions, vocabulary and training results do not establish GPT-4 parameter count."},
