@@ -16,6 +16,22 @@
     "new_api_spend_usd": 0,
     "limits": "Network sockets blocked, no downloads or live index changes. One sequential local run, not sustained load. Support grading pending; this is not evidence of improved relevance. Changes embeddings, candidate depth and reranking together, not a causal ablation. Local configuration, not API quality."
   },
+  "source_identity_reranker_arm": {
+    "report": "/tmp/rag-napoleon-source-identity-8i49zpbd/results.json",
+    "report_sha256": "e9cda963a4f7957462a892527dc04bed6e1fdf4838da8f0b3e6d4d10d18fe2c6",
+    "harness": "/tmp/rag-napoleon-source-identity.py",
+    "change": "Only prepend Source: plus existing file_path basename and newline to reranker passage input. Return original records unchanged. No guessed title, document-specific branch, retrieval or chunking changes; all30queries captured offline on existing index.",
+    "full_controls_preserving_all_exact_witnesses": [1,5,8,9,12,13,14,15,16,18,19,20,27,28],
+    "changed_full_control_review": {"index": 22, "grade": "full", "ranks": [2,3,4,5], "note": "Manually reviewed all5; calculation, almost-exact accident allowance, decimal sensitivity, creation and indeterminate equation remain supported."},
+    "regression_witness_ranks": [
+      {"index": 0, "ranks": [1], "note": "Crisis/character evidence recovered; previously partial lexical support, not a newly full answer."},
+      {"index": 2, "ranks": [3], "note": "Specific religion/inequality/heavenly equality mechanism recovered."},
+      {"index": 4, "ranks": [1,5], "note": "Inevitable terror and volcanic analogy recovered; previously partial lexical support."},
+      {"index": 6, "ranks": [3], "note": "Musician/violin/sounds/chords/harmonies analogy recovered in one complete witness."}
+    ],
+    "decision": "Promising: retains support for all15 hybrid full controls and restores known lost evidence in all4 regressions. Other changed cases remain ungraded; no complete score or cross-corpus improvement claimed. Validate remaining cases and second corpus before runtime adoption; basename quality varies and can contain misleading/untrusted text.",
+    "new_api_spend_usd": 0
+  },
   "concurrency_retention_control": {
     "report": "/tmp/rag-napoleon-memory-control-5l_yx2dj/results.json",
     "report_sha256": "e0fd65b46b7bc1548f0ed6ac94f3d9aa8033d9addfccbf567e9c5835ee6d75f9",
