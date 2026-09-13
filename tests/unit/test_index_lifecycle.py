@@ -11,10 +11,13 @@ from rag.index_lifecycle import active_directory, open_or_build, RebuildRequired
 
 
 @pytest.mark.parametrize('unreadable_pointer', [False, True])
-def test_pointer_write_error_after_replace_preserves_published_index(monkeypatch, tmp_path, unreadable_pointer):
+@pytest.mark.parametrize('error_type', [OSError, KeyboardInterrupt, SystemExit])
+def test_pointer_write_error_after_replace_preserves_published_index(monkeypatch, tmp_path, unreadable_pointer, error_type):
     from rag import index_lifecycle
+    from unittest.mock import Mock
     write = index_lifecycle.write_json_atomic
-    failure = OSError('post-replace failure')
+    failure = error_type('post-replace failure')
+    close = Mock()
 
     def publish_then_fail(path, value):
         write(path, value)
@@ -23,13 +26,29 @@ def test_pointer_write_error_after_replace_preserves_published_index(monkeypatch
         raise failure
 
     monkeypatch.setattr(index_lifecycle, 'write_json_atomic', publish_then_fail)
-    with pytest.raises(OSError) as caught:
+    with pytest.raises(error_type) as caught:
         open_or_build({'persist_dir': str(tmp_path), 'force_reindex': True},
-                      lambda config: SimpleNamespace())
+                      lambda config: SimpleNamespace(close=close))
     assert caught.value is failure
+    close.assert_called_once_with()
     assert len(list(tmp_path.glob('generation-*'))) == 1
     if not unreadable_pointer:
         assert active_directory(tmp_path).is_dir()
+
+
+@pytest.mark.parametrize('error_type', [KeyboardInterrupt, SystemExit])
+def test_interrupted_build_removes_only_unpublished_staging(tmp_path, error_type):
+    config = {'persist_dir': str(tmp_path), 'force_reindex': True}
+    previous = open_or_build(config, lambda config: SimpleNamespace(config=config))
+    failure = error_type('interrupted build')
+    def interrupted(config):
+        (Path(config['persist_dir']) / 'partial').write_text('partial index')
+        raise failure
+    with pytest.raises(error_type) as caught:
+        open_or_build(config, interrupted)
+    assert caught.value is failure
+    assert active_directory(tmp_path) == Path(previous.config['persist_dir'])
+    assert list(tmp_path.glob('generation-*')) == [active_directory(tmp_path)]
 
 
 @pytest.mark.parametrize('close_fails', [False, True])
