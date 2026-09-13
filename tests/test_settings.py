@@ -37,6 +37,28 @@ def test_defaults_are_exact_words_only_until_a_choice_is_saved(tmp_path: Path):
     assert "BM25" in settings.describe_embedding(config)
 
 
+@pytest.mark.parametrize('content', ['{"embed_provider":', '[]', 'null', '"private-marker"'])
+def test_damaged_settings_are_not_replaced_by_an_update(tmp_path, content):
+    environ = env_for(tmp_path)
+    path = settings.config_path(environ)
+    path.parent.mkdir(parents=True)
+    path.write_text(content)
+    with pytest.raises(ValueError, match='settings') as failure:
+        settings.update_settings({'top_k': '9'}, environ)
+    assert path.read_text() == content
+    assert 'private-marker' not in str(failure.value)
+
+
+def test_unreadable_settings_do_not_silently_select_defaults(tmp_path, monkeypatch):
+    failure = PermissionError('settings unavailable')
+    def unreadable(*args, **kwargs):
+        raise failure
+    monkeypatch.setattr(Path, 'read_text', unreadable)
+    with pytest.raises(PermissionError) as caught:
+        settings.embedding_config(env_for(tmp_path))
+    assert caught.value is failure
+
+
 def test_saved_choice_is_owner_only_and_environment_overrides_it(tmp_path: Path):
     environ = env_for(tmp_path)
     path = settings.save_settings(
