@@ -13,9 +13,11 @@ import contextlib
 import hashlib
 from dataclasses import dataclass
 from fnmatch import fnmatch
+from functools import lru_cache
 import importlib
 import json
 import os
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -46,8 +48,8 @@ _INDEXABLE_EXTENSIONS = set(INDEXABLE_EXTENSIONS)
 _UNSAFE_PATH_COMPONENTS = {"node_modules", ".git", ".venv", "venv", "dist", "build", "target", "__pycache__", "rag_db_v2"}
 _INDEX_EXCLUDED_PATH_COMPONENTS = {".ipynb_checkpoints", "migrations", "rag_db_v2"}
 _INDEX_EXCLUDED_FILE_PATTERNS = ("test_*.py", "*_test.py", "*__pycache__*", "*.pyc")
-_MAX_INDEXED_FILES = 500
-_INDEX_MAX_DEPTH = 5
+_DEFAULT_MAX_INDEXED_FILES = 5_000
+_DEFAULT_INDEX_MAX_DEPTH = 12
 _DEFAULT_MAX_DEPTH = 20
 _DEFAULT_MAX_TOKENS = 2_000_000
 
@@ -273,6 +275,36 @@ def _matches_excluded_file(path: Path) -> bool:
     )
 
 
+@lru_cache(maxsize=4096)
+def _git_ignored_set(directory: str) -> frozenset[str]:
+    """Names git ignores in one directory, empty outside a work tree."""
+    try:
+        listing = os.listdir(directory)
+    except OSError:
+        return frozenset()
+    if not listing:
+        return frozenset()
+    try:
+        completed = subprocess.run(
+            ["git", "-C", directory, "check-ignore", "--stdin", "-z"],
+            input="\0".join(listing),
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return frozenset()
+    # 0 = something ignored, 1 = nothing ignored, 128 = not a git work tree.
+    if completed.returncode not in (0, 1):
+        return frozenset()
+    return frozenset(name for name in completed.stdout.split("\0") if name)
+
+
+def _is_git_ignored(candidate: Path) -> bool:
+    """Whether git ignores this file, so ignored data cannot consume the budget."""
+    return candidate.name in _git_ignored_set(str(candidate.parent))
+
+
 def _validate_rag_scope(path: Path) -> _ScopeManifest | None:
     """Validate a scope and retain its safe file manifest for reuse."""
     if not path.exists():
@@ -287,7 +319,9 @@ def _validate_rag_scope(path: Path) -> _ScopeManifest | None:
 
     max_depth = _configured_limit("RAG_MCP_MAX_DEPTH", _DEFAULT_MAX_DEPTH)
     max_tokens = _configured_limit("RAG_MCP_MAX_TOKENS", _DEFAULT_MAX_TOKENS)
-    cache_key = (str(path), max_depth, max_tokens)
+    max_files = _configured_limit("RAG_MCP_MAX_FILES", _DEFAULT_MAX_INDEXED_FILES)
+    index_max_depth = _configured_limit("RAG_MCP_INDEX_MAX_DEPTH", _DEFAULT_INDEX_MAX_DEPTH)
+    cache_key = (str(path), max_depth, max_tokens, max_files, index_max_depth)
     cached = _validated_scope_cache.get(cache_key)
     if cached is not None and cached.is_current():
         return cached
@@ -326,13 +360,11 @@ def _validate_rag_scope(path: Path) -> _ScopeManifest | None:
                 candidate_stat.st_size,
                 True,
             )
-            estimated_tokens += candidate_stat.st_size // 4 + 1
-            if estimated_tokens > max_tokens:
-                raise ValueError(
-                    f"RAG scan exceeds the configured {max_tokens:,}-token limit. "
-                    "Choose a narrower folder or raise RAG_MCP_MAX_TOKENS deliberately."
-                )
-            if depth > _INDEX_MAX_DEPTH:
+            # Every filter below decides a file will never be indexed, so applying
+            # them before the budget keeps ignored data out of the token count.
+            # Counting first made a repository with a large ignored data directory
+            # unscannable even though its tracked sources fit comfortably.
+            if depth > index_max_depth:
                 continue
             relative_parts = candidate.relative_to(path).parts
             if (
@@ -341,9 +373,17 @@ def _validate_rag_scope(path: Path) -> _ScopeManifest | None:
                 or _matches_excluded_file(candidate)
             ):
                 continue
-            if len(indexed_files) >= _MAX_INDEXED_FILES:
+            if _is_git_ignored(candidate):
+                continue
+            estimated_tokens += candidate_stat.st_size // 4 + 1
+            if estimated_tokens > max_tokens:
                 raise ValueError(
-                    f"Folder exceeds the {_MAX_INDEXED_FILES}-document limit; select a smaller folder."
+                    f"RAG scan exceeds the configured {max_tokens:,}-token limit. "
+                    "Choose a narrower folder or raise RAG_MCP_MAX_TOKENS deliberately."
+                )
+            if len(indexed_files) >= max_files:
+                raise ValueError(
+                    f"Folder exceeds the {max_files}-document limit; select a smaller folder."
                 )
             indexed_files.append(str(candidate))
 

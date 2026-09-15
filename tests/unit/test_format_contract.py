@@ -57,6 +57,9 @@ def test_mcp_stat_failure_cannot_cache_partial_scope(tmp_path, monkeypatch):
 
 @pytest.mark.parametrize('count', [500, 501])
 def test_mcp_rejects_overflow_without_caching_partial_manifest(tmp_path, monkeypatch, count):
+    # Pin the cap so this asserts the overflow mechanism rather than whatever the
+    # shipped default happens to be.
+    monkeypatch.setenv('RAG_MCP_MAX_FILES', '500')
     monkeypatch.setattr(server, '_validated_scope_cache', {})
     for index in range(count):
         (tmp_path / f'doc-{index}.txt').touch()
