@@ -19,9 +19,16 @@ from typing import Any, Callable, Dict, List
 from utils.proxy import strip_socks as _strip_socks
 _strip_socks()
 
+import re
+
 import lancedb
 import pyarrow as pa
 from .backend_embeddings import embed_batch, embed_single
+
+
+_IDENTIFIER_BOUNDARY = re.compile(
+    r"(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])|[_:./\\-]+"
+)
 
 
 class LanceDBBackend:
@@ -61,6 +68,17 @@ class LanceDBBackend:
                 sys.stderr.write(f"[LanceDB] Opened existing table: {self.table_name} ({len(self.table)} rows)\n")
         except Exception as e:
             sys.stderr.write(f"[LanceDB] Notice during init: {type(e).__name__}\n")
+
+    @staticmethod
+    def _identifier_words(content: str) -> str:
+        """Content with identifier boundaries turned into spaces.
+
+        Tantivy's default tokenizer splits on non-alphanumerics, so
+        ``queued_user_messages`` is already three words but ``QueuedUserMessage``
+        is one opaque token. Indexing this alongside the raw content lets a
+        plain-English query reach a CamelCase symbol.
+        """
+        return _IDENTIFIER_BOUNDARY.sub(" ", content)
 
     _embed_single = embed_single
 
@@ -104,6 +122,7 @@ class LanceDBBackend:
                             "end_line": int(doc.get("end_line", 0)),
                             "page_number": int(doc.get("page_number", 0)),
                             "original_content": str(doc.get("original_content", doc.get("content", ""))),
+                            "symbols": self._identifier_words(doc.get("content", "")),
                         }
                         if vector is not None:
                             record["vector"] = vector
@@ -135,8 +154,19 @@ class LanceDBBackend:
 
         # Create Full Text Search (FTS) index using Tantivy
         try:
-            self.table.create_fts_index("content", replace=True)
-            sys.stderr.write(f"[LanceDB] Built Tantivy FTS index on 'content' column.\n")
+            # stem/stop-word removal and positionless indexing are wrong for code:
+            # they drop "is not", mangle identifiers, and make any quoted phrase
+            # query raise instead of returning results.
+            # Native FTS indexes one field each, so the identifier column gets its own.
+            for column in ("content", "symbols"):
+                self.table.create_fts_index(
+                    column,
+                    replace=True,
+                    with_position=True,
+                    stem=False,
+                    remove_stop_words=False,
+                )
+            sys.stderr.write("[LanceDB] Built FTS indexes on 'content' and 'symbols'.\n")
         except Exception as e:
             sys.stderr.write(f"[LanceDB] FTS index creation failed: {type(e).__name__}\n")
             raise
@@ -153,6 +183,7 @@ class LanceDBBackend:
         results = (
             self.table.search(query_vector, vector_column_name="vector")
             .metric(metric)
+            .select([name for name in self.table.schema.names if name != "vector"] + ["_distance"])
             .limit(top_k)
             .to_list()
         )
@@ -173,19 +204,33 @@ class LanceDBBackend:
             return []
 
         try:
+            schema = getattr(self.table, "schema", None)
+            names = list(schema.names) if schema is not None else []
+            fts_columns = [
+                name for name in ("content", "symbols") if name in names
+            ] or ["content"]
+            payload = [name for name in names if name not in ("vector", "symbols")]
             results = (
-                self.table.search(query, query_type="fts")
+                self.table.search(query, query_type="fts", fts_columns=fts_columns)
+                .select(payload + ["_score"])
                 .limit(top_k)
                 .to_list()
             )
             formatted = []
             for hit in results:
                 score = hit.get("_score", 1.0)
-                doc = {k: v for k, v in hit.items() if k not in ("vector", "_distance", "_score")}
+                doc = {
+                    k: v
+                    for k, v in hit.items()
+                    if k not in ("vector", "symbols", "_distance", "_score")
+                }
                 doc["score"] = score
                 formatted.append(doc)
             return formatted
         except Exception as e:
+            # Deliberately propagate: a retrieval failure must never reach the
+            # caller disguised as "no matches". See
+            # tests/unit/test_backend_contract.py::test_fts_failure_is_not_reported_as_no_matches.
             sys.stderr.write(f"[LanceDB] FTS search failed: {type(e).__name__}\n")
             raise
 

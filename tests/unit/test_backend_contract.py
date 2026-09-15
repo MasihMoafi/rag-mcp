@@ -163,17 +163,24 @@ def test_lancedb_record_batches_and_fts_contract(dense, fts_failure, capsys):
     expected = [
         dict(id='source::0', content='Cedar', file_path='source.md', source='source.md',
              heading='Title', location='L1', start_line=1, end_line=1, page_number=0,
-             original_content='Original'),
+             original_content='Original', symbols='Cedar'),
         dict(id='1', content='فارسی', file_path='', source='book.pdf', heading='',
-             location='', start_line=0, end_line=0, page_number=2, original_content='فارسی'),
+             location='', start_line=0, end_line=0, page_number=2, original_content='فارسی',
+             symbols='فارسی'),
         dict(id='2', content='Third', file_path='', source='', heading='', location='',
-             start_line=0, end_line=0, page_number=0, original_content='Third'),
+             start_line=0, end_line=0, page_number=0, original_content='Third',
+             symbols='Third'),
     ]
     if dense:
         for record in expected:
             record['vector'] = [float(len(record['content']))]
     assert writes == [('test', dict(data=expected, mode='overwrite'))]
-    assert indexes == [('content', {'replace': True})]
+    # Both the raw text and the identifier-split column are indexed, without
+    # stemming or stop-word removal, so code tokens survive analysis.
+    options = {'replace': True, 'with_position': True, 'stem': False,
+               'remove_stop_words': False}
+    assert indexes == ([('content', options)] if fts_failure
+                       else [('content', options), ('symbols', options)])
     assert backend.table is table
     if fts_failure:
         logs = capsys.readouterr().err
