@@ -55,3 +55,17 @@ def test_preformatted_code_keeps_original_indentation(tmp_path):
     source = tmp_path / 'page.html'
     source.write_text('<pre>def run():\n    return 42</pre>')
     assert extract_html_text(str(source)) == 'def run():\n    return 42'
+
+
+def test_unrendered_template_is_not_content(tmp_path):
+    source = tmp_path / 'report.html'
+    source.write_text('<h1>Your Smart Prune record</h1>\n'
+                      '<p>{{SAVED}} tokens removed on {{DATE}}</p>\n'
+                      '{% if sessions %}<p>{{SESSIONS}} sessions</p>{% endif %}')
+    assert extract_html_text(str(source)) == ''
+
+
+def test_placeholders_quoted_in_code_keep_the_page(tmp_path):
+    source = tmp_path / 'guide.html'
+    source.write_text('<p>Write the name as</p>\n<pre>{{ name }}</pre>')
+    assert extract_html_text(str(source)) == 'Write the name as\n{{ name }}'

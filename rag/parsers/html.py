@@ -9,6 +9,8 @@ from .text import extract_plain_text
 _VOID = set('area base br col embed hr img input link meta param source track wbr'.split())
 _SKIP = {'script', 'style', 'nav', 'template'}
 _BLOCK = set('p div section article header footer h1 h2 h3 h4 h5 h6 li ul ol table tr td th br hr'.split())
+# A page still carrying template placeholders is scaffolding, not content.
+_PLACEHOLDER = re.compile(r'\{\{.*?\}\}|\{%.*?%\}')
 
 
 class _ContentReader(HTMLParser):
@@ -62,6 +64,10 @@ def extract_html_text(file_path):
     parser = _ContentReader(source)
     parser.feed(source)
     parser.close()
-    return '\n'.join(''.join(parts) if index in parser.pre_lines
-                     else re.sub(r'\s+', ' ', ''.join(parts)).strip()
-                     for index, parts in enumerate(parser.lines))
+    lines = [''.join(parts) if index in parser.pre_lines
+             else re.sub(r'\s+', ' ', ''.join(parts)).strip()
+             for index, parts in enumerate(parser.lines)]
+    if any(_PLACEHOLDER.search(line) for index, line in enumerate(lines)
+           if index not in parser.pre_lines):
+        return ''
+    return '\n'.join(lines)

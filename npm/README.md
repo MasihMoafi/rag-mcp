@@ -12,4 +12,4 @@ npx ragmcp doctor
 
 `pnpm dlx ragmcp ...` and a global `npm install -g ragmcp` (then `rag ...`) work the same way.
 
-Environment: `RAGMCP_EXTRAS=full,ocr,office,qdrant` adds optional extras to the Python install. Full documentation: https://github.com/MasihMoafi/rag-mcp
+Environment: `RAGMCP_EXTRAS=full,office,qdrant` adds optional extras to the Python install. Full documentation: https://github.com/MasihMoafi/rag-mcp

@@ -20,7 +20,7 @@ def local_search(tmp_path, monkeypatch):
     fetch.reset_pipelines()
 
 
-@pytest.mark.parametrize("extension", ["txt", "json", "ipynb", "pdf", "png"])
+@pytest.mark.parametrize("extension", ["txt", "json", "ipynb", "pdf"])
 @pytest.mark.parametrize("backend", ["lancedb", "qdrant"])
 def test_unreadable_member_cannot_publish_partial_corpus(tmp_path, local_search, extension, monkeypatch, backend):
     import fitz
@@ -39,15 +39,6 @@ def test_unreadable_member_cannot_publish_partial_corpus(tmp_path, local_search,
     good = corpus / "good.txt"
     damaged = corpus / f"damaged.{extension}"
     good.write_text("Meeting: Friday.")
-    if extension == 'png':
-        import sys
-        # Text-backed OCR adapter fixture: verify publication, not image recognition.
-        engine = lambda path: ([[None, damaged.read_text()]], None)
-        monkeypatch.setitem(sys.modules, 'rapidocr_onnxruntime',
-                            SimpleNamespace(RapidOCR=lambda: engine))
-        for name in ('unstructured', 'unstructured.partition', 'unstructured.partition.auto'):
-            monkeypatch.setitem(sys.modules, name, SimpleNamespace())
-        sys.modules['unstructured.partition.auto'].partition = lambda **kwargs: []
     def write_member(text):
         if extension == "pdf":
             with fitz.open() as document:
@@ -92,19 +83,13 @@ def test_short_file_refreshes_in_memory_and_after_reopening(tmp_path, local_sear
     assert local_search(document)[0]["content"] == "Meeting: Sunday."
 
 
-@pytest.mark.parametrize('extension', ['txt', 'png'])
-def test_legacy_partial_index_is_revalidated_before_reuse(tmp_path, local_search, monkeypatch, extension):
+def test_legacy_partial_index_is_revalidated_before_reuse(tmp_path, local_search, monkeypatch):
     from rag.core import RAGPipeline
-    from pathlib import Path
-
-    if extension == 'png':
-        monkeypatch.setattr(RAGPipeline, '_extract_text_with_unstructured',
-                            lambda self, path: Path(path).read_text())
 
     corpus = tmp_path / 'legacy'
     corpus.mkdir()
     (corpus / 'good.txt').write_text('Meeting: Friday.')
-    bad = corpus / f'bad.{extension}'
+    bad = corpus / 'bad.txt'
     bad.write_bytes(b'\xff')
     original = RAGPipeline._extract_content
     with monkeypatch.context() as patch:
@@ -114,7 +99,7 @@ def test_legacy_partial_index_is_revalidated_before_reuse(tmp_path, local_search
     fetch.reset_pipelines()
     manifest = next((tmp_path / 'index').rglob('source-manifest.json'))
     stamp = json.loads(manifest.read_text())
-    stamp['parsing_version'] = 7 if extension == 'png' else 6
+    stamp['parsing_version'] = 6
     manifest.write_text(json.dumps(stamp))
     pointer = next((tmp_path / 'index').rglob('active-index.json'))
     previous_pointer = pointer.read_bytes()

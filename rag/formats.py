@@ -5,5 +5,5 @@ INDEXABLE_EXTENSIONS = (
     '.js', '.ts', '.tsx', '.jsx', '.c', '.h', '.cpp', '.hpp',
     '.go', '.sh', '.bash', '.zsh', '.css', '.html', '.sql', '.java',
     '.kt', '.proto', '.pdf', '.ipynb', '.rst', '.ini', '.cfg', '.conf',
-    '.png', '.jpg', '.jpeg', '.webp', '.tiff', '.bmp', '.docx', '.pptx', '.xlsx', '.csv'
+    '.docx', '.pptx', '.xlsx', '.csv'
 )

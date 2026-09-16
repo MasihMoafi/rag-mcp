@@ -3,7 +3,6 @@ import sys
 
 from docx import Document
 from openpyxl import Workbook
-from PIL import Image, ImageDraw
 from pptx import Presentation
 
 
@@ -50,23 +49,8 @@ def test_office_and_csv_extraction(tmp_path: Path) -> None:
     assert "7319" in pipeline._extract_content(str(csv_path))
 
 
-def test_image_ocr_extraction(tmp_path: Path) -> None:
-    image_path = tmp_path / "sample.png"
-    image = Image.new("RGB", (900, 180), "white")
-    ImageDraw.Draw(image).text(
-        (30, 60),
-        "RAG multimodal test 7319",
-        fill="black",
-    )
-    image.save(image_path)
-
-    extracted = _pipeline()._extract_content(str(image_path))
-
-    assert "7319" in extracted
-
-
 def test_multimodal_extensions_are_discovered(tmp_path: Path) -> None:
-    extensions = (".png", ".docx", ".pptx", ".xlsx", ".csv")
+    extensions = (".docx", ".pptx", ".xlsx", ".csv")
     for extension in extensions:
         (tmp_path / f"sample{extension}").touch()
 
