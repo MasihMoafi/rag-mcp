@@ -42,7 +42,7 @@ def source_delta(previous_stamp, stamp):
     """Sources to re-read and to drop when nothing but the file list changed."""
     if not isinstance(previous_stamp, dict) or previous_stamp == stamp:
         return None
-    settings = lambda stamp: {name: value for name, value in stamp.items() if name != 'sources'}
+    settings = lambda manifest: {name: value for name, value in manifest.items() if name != 'sources'}
     if settings(previous_stamp) != settings(stamp):
         return None  # Chunking, parsing, storage or the embedding model changed.
     previous = {entry[0]: tuple(entry[1:]) for entry in previous_stamp.get('sources', [])}
