@@ -83,6 +83,14 @@ def test_changed_file_is_the_only_text_embedded_again(workspace):
     assert workspace.embedder.documents == ['Meeting: Wednesday.']
     assert contents == {'Meeting: Friday.', 'Meeting: Wednesday.', 'Meeting: Tuesday.'}
 
+    # A refreshed index must stay refreshable, not fall back to a full rebuild.
+    workspace.embedder.documents.clear()
+    (workspace.folder / 'first.txt').write_text('Meeting: Sunday.')
+    contents = {passage['content'] for passage in workspace.search()}
+
+    assert workspace.embedder.documents == ['Meeting: Sunday.']
+    assert contents == {'Meeting: Sunday.', 'Meeting: Wednesday.', 'Meeting: Tuesday.'}
+
 
 def test_deleted_file_loses_its_passages_without_embedding_again(workspace):
     assert len(workspace.search()) == 3
