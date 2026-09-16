@@ -199,7 +199,7 @@ def test_query_recovers_when_reset_closes_pipeline_before_search(sources, monkey
     original_get = fetch.get_rag_pipeline_v2
     calls = []
 
-    def acquire(doc_path):
+    def acquire(doc_path, scope=None):
         pipeline = original_get(doc_path)
         calls.append(pipeline)
         if len(calls) == 1:

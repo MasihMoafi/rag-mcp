@@ -128,7 +128,9 @@ def test_scoped_pipeline_cache_and_manifest(monkeypatch, tmp_path, as_list, sett
     source.write_text('Cedar changed', encoding='utf-8')
     refreshed = fetch.get_rag_pipeline_v2(scope)
     assert refreshed is not reopened
-    assert refreshed.config['force_reindex'] is True
+    # A changed source refreshes that source alone instead of reindexing the scope.
+    assert refreshed.config['force_reindex'] is False
+    assert refreshed.config['source_delta'] == {'changed': [str(source)], 'removed': []}
     assert len(instances) == 3
     if setting:
         retrieval[setting] = 'changed' if setting == 'contextual_model' else retrieval[setting] + 1
