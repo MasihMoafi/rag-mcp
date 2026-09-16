@@ -12,7 +12,7 @@ from .core import RAGPipelineV2
 from .discovery import resolve_path, find_all_indexable_files, find_relevant_files
 from .formats import INDEXABLE_EXTENSIONS as _INDEXABLE_EXTENSIONS
 from .settings import contextual_retrieval_enabled, embedding_config, retrieval_config
-from .index_lifecycle import active_directory, open_or_build, source_snapshot
+from .index_lifecycle import active_directory, open_or_build, source_delta, source_snapshot
 from .query_lifecycle import PipelineClosedError
 
 def _env_str(name: str, default: str) -> str:
@@ -135,8 +135,8 @@ def _safe_dir_name(path: str, embedding: Optional[Dict[str, str]] = None) -> str
     base = os.path.basename(abs_path.rstrip(os.sep)) or "root"
     return f"{base}_{h}"
 
-def get_rag_pipeline_v2(doc_path: Optional[str | list[str]] = None):
-    
+def get_rag_pipeline_v2(doc_path: Optional[str | list[str]] = None, scope: Optional[str] = None):
+
     # Resolve path
     if isinstance(doc_path, list):
         doc_paths = [resolve_path(path) for path in doc_path]
@@ -147,8 +147,10 @@ def get_rag_pipeline_v2(doc_path: Optional[str | list[str]] = None):
         doc_path = resolve_path(doc_path)
         if not os.path.exists(doc_path):
             raise ValueError(f"Path does not exist: {doc_path}")
-    
-    key = "\n".join(doc_path) if isinstance(doc_path, list) else (doc_path if doc_path else "__DEFAULT__")
+
+    # The folder a manifest was enumerated from keeps one index across added and
+    # removed files; without it every file-list change starts a new index.
+    key = scope or ("\n".join(doc_path) if isinstance(doc_path, list) else (doc_path if doc_path else "__DEFAULT__"))
     with _scope_lock(key):
         instance = _get_scoped_pipeline(key, doc_path)
         # Dict insertion order tracks the last acquisition of each scope.
@@ -236,7 +238,13 @@ def _get_scoped_pipeline(key, doc_path):
             previous_stamp = json.loads(manifest.read_text())
         except (OSError, ValueError):
             previous_stamp = None
-        config["force_reindex"] = config.get("force_reindex", False) or previous_stamp != stamp
+        # Only LanceDB can carry a published index forward; Qdrant point ids are
+        # positional, so a changed file cannot be replaced in place there.
+        delta = (source_delta(previous_stamp, stamp)
+                 if config['backend'] == 'lancedb' and not config.get('force_reindex', False) else None)
+        config['source_delta'] = delta
+        config["force_reindex"] = config.get("force_reindex", False) or (
+            delta is None and previous_stamp != stamp)
         if not config['force_reindex'] and config['backend'] == 'qdrant':
             # Embedded Qdrant permits one client per storage path.
             _retire_cached_pipeline(key)
@@ -263,8 +271,12 @@ def query_documents(
     query: str,
     doc_path: Optional[str | list[str]] = None,
     exclude_global_archive: bool = False,
+    scope: Optional[str] = None,
 ) -> list[dict] | str:
-    """Retrieve evidence from a file, directory or prevalidated file manifest."""
+    """Retrieve evidence from a file, directory or prevalidated file manifest.
+
+    `scope` names the folder a file manifest came from, so that folder keeps one
+    index while files are added and removed."""
     try:
         if not isinstance(query, str) or not query:
             raise ValueError("Enter a question to search for.")
@@ -302,12 +314,13 @@ def query_documents(
 
                 # Pass the vetted files so RAG cannot silently add global memory artifacts.
                 doc_path = all_files
+                scope = resolved_path
 
-        pipeline = get_rag_pipeline_v2(doc_path=doc_path)
+        pipeline = get_rag_pipeline_v2(doc_path=doc_path, scope=scope)
         try:
             return pipeline.search(query)
         except PipelineClosedError:
-            return get_rag_pipeline_v2(doc_path=doc_path).search(query)
+            return get_rag_pipeline_v2(doc_path=doc_path, scope=scope).search(query)
     except Exception as e:
         print(f"[RAG] Retrieval failed: {type(e).__name__}", file=sys.stderr)
         raise
@@ -319,5 +332,7 @@ def fetchExternalKnowledge(
     query: str,
     doc_path: Optional[str | list[str]] = None,
     exclude_global_archive: bool = False,
+    scope: Optional[str] = None,
 ) -> list[dict] | str:
-    return fetchExternalKnowledgeV2(query, doc_path=doc_path, exclude_global_archive=exclude_global_archive)
+    return fetchExternalKnowledgeV2(query, doc_path=doc_path,
+                                    exclude_global_archive=exclude_global_archive, scope=scope)
