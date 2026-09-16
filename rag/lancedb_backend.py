@@ -63,6 +63,10 @@ class LanceDBBackend:
                 table_names = self.db.list_tables()
             else:
                 table_names = []
+            if self.table_name not in table_names and len(table_names) == 1:
+                # A published index carried into a new generation keeps the name
+                # it was created under, and a storage directory holds one table.
+                self.table_name = table_names[0]
             if self.table_name in table_names:
                 self.table = self.db.open_table(self.table_name)
                 sys.stderr.write(f"[LanceDB] Opened existing table: {self.table_name} ({len(self.table)} rows)\n")
@@ -106,9 +110,19 @@ class LanceDBBackend:
                 for i in range(0, total, batch_size):
                     batch = documents[i : i + batch_size]
                     contents = [doc.get("content", "") for doc in batch]
-                    vectors = self._batch_embed(contents) if self.embedding_fn is not None else [None] * len(batch)
-                    if len(vectors) != len(batch):
-                        raise ValueError(f"Embedding count {len(vectors)} does not match document count {len(batch)}.")
+                    if self.embedding_fn is None:
+                        vectors = [None] * len(batch)
+                    else:
+                        # A refresh carries the vectors of unchanged passages, so
+                        # only new text is sent to the embedding provider.
+                        vectors = [doc.get("vector") for doc in batch]
+                        missing = [index for index, vector in enumerate(vectors) if vector is None]
+                        embedded = self._batch_embed([contents[index] for index in missing]) if missing else []
+                        if len(embedded) != len(missing):
+                            raise ValueError(f"Embedding count {len(embedded)} does not match document count {len(missing)}.")
+                        for index, vector in zip(missing, embedded):
+                            vectors[index] = vector
+                        del embedded
                     records = []
                     for j, (doc, vector) in enumerate(zip(batch, vectors)):
                         record = {
@@ -233,6 +247,12 @@ class LanceDBBackend:
             # tests/unit/test_backend_contract.py::test_fts_failure_is_not_reported_as_no_matches.
             sys.stderr.write(f"[LanceDB] FTS search failed: {type(e).__name__}\n")
             raise
+
+    def stored_documents(self) -> List[Dict[str, Any]]:
+        """Every stored passage with its vector, so a refresh reuses embeddings."""
+        if self.table is None:
+            return []
+        return self.table.to_arrow().to_pylist()
 
     def count(self) -> int:
         """Get document count."""

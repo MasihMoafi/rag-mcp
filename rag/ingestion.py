@@ -56,17 +56,15 @@ def load_or_create_database(self):
     if not os.path.exists(persist_dir) or self.config.get("force_reindex", False):
         print(f"[RAG V2] Creating new database at {persist_dir}...")
         self._index_documents()
+    elif self.config.get("source_delta"):
+        print(f"[RAG V2] Refreshing changed sources in {persist_dir}...")
+        self._refresh_documents(self.config["source_delta"])
     else:
         print(f"[RAG V2] Loading existing database from {persist_dir}...")
         self._load_existing_database()
 
-def index_documents(self):
-    """Extract, chunk, optionally contextualize, and persist documents."""
-    import concurrent.futures
-    all_docs = []
-    document_contents = {}
-
-    # Collect all file paths first
+def source_files(self):
+    """The files of this scope, in the order the index reads them."""
     files_to_process = []
     for path in self.config.get("document_paths"):
         if not os.path.exists(path):
@@ -78,6 +76,13 @@ def index_documents(self):
                     files_to_process.append(os.path.join(path, file))
         else:
             files_to_process.append(path)
+    return files_to_process
+
+def build_documents(self, files_to_process):
+    """Extract, chunk and optionally contextualize the given sources."""
+    import concurrent.futures
+    all_docs = []
+    document_contents = {}
 
     def process_file(file_path):
         content = self._extract_content(file_path)
@@ -140,6 +145,13 @@ def index_documents(self):
                 }
                 all_docs.append(doc)
 
+    return all_docs
+
+
+def index_documents(self):
+    """Extract, chunk, optionally contextualize, and persist documents."""
+    all_docs = build_documents(self, source_files(self))
+
     if not all_docs:
         raise ValueError("No readable text found in the selected files.")
 
@@ -160,6 +172,31 @@ def index_documents(self):
     print(f"[RAG V2] Database created with {len(all_docs)} chunks")
 
 
+def refresh_documents(self, delta):
+    """Re-read only the changed sources; keep the stored embeddings of the rest."""
+    changed = {os.path.realpath(path) for path in delta["changed"]}
+    stale = changed | {os.path.realpath(path) for path in delta["removed"]}
+    fresh = lambda doc: os.path.realpath(doc.get("file_path", "")) not in stale
+
+    kept = [doc for doc in read_documents(self) if fresh(doc)]
+    reused = [record for record in self.vector_db.stored_documents() if fresh(record)]
+    refreshed = build_documents(self, [path for path in source_files(self)
+                                       if os.path.realpath(path) in changed])
+    if not kept and not refreshed:
+        raise ValueError("No readable text found in the selected files.")
+
+    print(f"[RAG V2] Re-indexing {len(refreshed)} chunks from {len(changed)} changed sources...")
+    self.vector_db.add_documents_batch(reused + refreshed, batch_size=512)
+
+    if self.bm25_index is not None:
+        for doc in kept + refreshed:
+            self.bm25_index.add_document(doc)
+        self.bm25_index._build_index()
+
+    self._save_database(kept + refreshed)
+    print(f"[RAG V2] Database refreshed with {len(kept) + len(refreshed)} chunks")
+
+
 def save_documents(self, docs: List[Dict]):
     """Persist source records for reopen and lexical-index reconstruction."""
     persist_dir = self.config.get("persist_dir")
@@ -167,32 +204,36 @@ def save_documents(self, docs: List[Dict]):
     
     write_json_atomic(os.path.join(persist_dir, "docs.json"), docs)
 
-def load_existing_database(self):
-    """Load existing database"""
+def read_documents(self):
+    """Persisted passages, or a rebuild demand when they cannot be trusted."""
     persist_dir = self.config.get("persist_dir")
     docs_file = os.path.join(persist_dir, "docs.json")
 
     db_count = self.vector_db.count()
 
-    if db_count > 0 and os.path.exists(docs_file):
-        try:
-            with open(docs_file, 'r', encoding='utf-8') as f:
-                docs = json.load(f)
-            if not isinstance(docs, list) or len(docs) != db_count or any(
-                not isinstance(doc, dict) or not isinstance(doc.get('content'), str)
-                for doc in docs
-            ):
-                raise ValueError("Metadata does not match stored documents")
-        except (OSError, ValueError) as error:
-            print(f"[RAG] Cannot reuse document metadata; rebuilding from sources: {error}", file=sys.stderr)
-            raise RebuildRequired("Document metadata needs recovery") from error
-
-        if self.bm25_index is not None:
-            print(f"[RAG V2] Loading {len(docs)} chunks and rebuilding BM25...")
-            for doc in docs:
-                self.bm25_index.add_document(doc)
-            self.bm25_index._build_index()
-
-        print(f"[RAG V2] Loaded {len(docs)} chunks from existing database ({self.backend_type}: {db_count})")
-    else:
+    if db_count <= 0 or not os.path.exists(docs_file):
         raise RebuildRequired("Database or document metadata is missing")
+    try:
+        with open(docs_file, 'r', encoding='utf-8') as f:
+            docs = json.load(f)
+        if not isinstance(docs, list) or len(docs) != db_count or any(
+            not isinstance(doc, dict) or not isinstance(doc.get('content'), str)
+            for doc in docs
+        ):
+            raise ValueError("Metadata does not match stored documents")
+    except (OSError, ValueError) as error:
+        print(f"[RAG] Cannot reuse document metadata; rebuilding from sources: {error}", file=sys.stderr)
+        raise RebuildRequired("Document metadata needs recovery") from error
+    return docs
+
+def load_existing_database(self):
+    """Load existing database"""
+    docs = read_documents(self)
+
+    if self.bm25_index is not None:
+        print(f"[RAG V2] Loading {len(docs)} chunks and rebuilding BM25...")
+        for doc in docs:
+            self.bm25_index.add_document(doc)
+        self.bm25_index._build_index()
+
+    print(f"[RAG V2] Loaded {len(docs)} chunks from existing database ({self.backend_type}: {self.vector_db.count()})")
