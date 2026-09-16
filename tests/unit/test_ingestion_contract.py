@@ -22,7 +22,7 @@ def test_directory_formats_case_and_explicit_paths_are_preserved(tmp_path):
         '.js', '.ts', '.tsx', '.jsx', '.c', '.h', '.cpp', '.hpp',
         '.go', '.sh', '.bash', '.zsh', '.css', '.html', '.sql', '.java',
         '.kt', '.proto', '.pdf', '.ipynb', '.rst', '.ini', '.cfg', '.conf',
-        '.png', '.jpg', '.jpeg', '.webp', '.tiff', '.bmp', '.docx', '.pptx', '.xlsx', '.csv'
+        '.docx', '.pptx', '.xlsx', '.csv'
     )
     directory = tmp_path / "directory"
     directory.mkdir()

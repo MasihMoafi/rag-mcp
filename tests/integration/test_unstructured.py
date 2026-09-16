@@ -1,9 +1,7 @@
 from pathlib import Path
-import socket
 import sys
 
 import pytest
-from PIL import Image, ImageDraw, ImageFont
 
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -53,31 +51,8 @@ def test_office_and_csv_extraction(tmp_path: Path) -> None:
     assert "7319" in pipeline._extract_content(str(csv_path))
 
 
-def test_image_ocr_extraction(tmp_path: Path, monkeypatch) -> None:
-    pytest.importorskip('rapidocr_onnxruntime')
-
-    def forbidden(*args, **kwargs):
-        pytest.fail('OCR smoke must not open a network connection')
-
-    monkeypatch.setattr(socket.socket, 'connect', forbidden)
-    monkeypatch.setitem(sys.modules, 'unstructured.partition.auto', None)
-    image_path = tmp_path / "sample.png"
-    image = Image.new("RGB", (1000, 180), "white")
-    ImageDraw.Draw(image).text(
-        (30, 60),
-        "The Cedar release review is on Friday.",
-        font=ImageFont.load_default(size=36),
-        fill="black",
-    )
-    image.save(image_path)
-
-    extracted = _pipeline()._extract_content(str(image_path))
-
-    assert 'the cedar release review is on friday' in ' '.join(extracted.lower().split())
-
-
 def test_multimodal_extensions_are_discovered(tmp_path: Path) -> None:
-    extensions = (".png", ".docx", ".pptx", ".xlsx", ".csv")
+    extensions = (".docx", ".pptx", ".xlsx", ".csv")
     for extension in extensions:
         (tmp_path / f"sample{extension}").touch()
 

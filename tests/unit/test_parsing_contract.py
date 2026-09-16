@@ -1,4 +1,4 @@
-"""Extraction contracts without downloading optional OCR models."""
+"""Extraction contracts without importing optional parsers."""
 
 import json
 import sys
@@ -131,41 +131,7 @@ def test_pdf_failure_requires_nonempty_fallback(pipeline, fallback):
     pipeline._extract_text_with_unstructured.assert_called_once_with('damaged.pdf')
 
 
-@pytest.mark.parametrize('empty', [[], ['  ']])
-def test_failed_ocr_with_empty_fallback_propagates(pipeline, monkeypatch, empty, capsys):
-    error = RuntimeError('private-document-marker')
-    monkeypatch.setitem(sys.modules, 'rapidocr_onnxruntime',
-                        SimpleNamespace(RapidOCR=Mock(side_effect=error)))
-    for name in ('unstructured', 'unstructured.partition', 'unstructured.partition.auto'):
-        monkeypatch.setitem(sys.modules, name, SimpleNamespace())
-    sys.modules['unstructured.partition.auto'].partition = Mock(return_value=empty)
-    with pytest.raises(RuntimeError) as caught:
-        pipeline._extract_text_with_unstructured('private-source-marker.png')
-    assert caught.value is error
-    captured = capsys.readouterr()
-    output = captured.out + captured.err
-    assert 'private-document-marker' not in output
-    assert 'private-source-marker' not in output
-    assert 'RuntimeError' in output
-
-
-def test_successful_empty_ocr_and_fallback_remain_empty(pipeline, monkeypatch):
-    monkeypatch.setitem(sys.modules, 'rapidocr_onnxruntime',
-                        SimpleNamespace(RapidOCR=lambda: Mock(return_value=([], None))))
-    for name in ('unstructured', 'unstructured.partition', 'unstructured.partition.auto'):
-        monkeypatch.setitem(sys.modules, name, SimpleNamespace())
-    sys.modules['unstructured.partition.auto'].partition = Mock(return_value=[])
-    assert pipeline._extract_text_with_unstructured('image.png') == ''
-
-
-def test_image_ocr_short_circuits_fallback(pipeline, monkeypatch):
-    engine = Mock(return_value=([[None, "first"], [None, "second"]], None))
-    monkeypatch.setitem(sys.modules, "rapidocr_onnxruntime", SimpleNamespace(RapidOCR=lambda: engine))
-    assert pipeline._extract_content("image.png") == "first\nsecond"
-    engine.assert_called_once_with("image.png")
-
-
-def test_optional_extractor_page_labels_and_ocr_failure(pipeline, monkeypatch, capsys):
+def test_optional_extractor_page_labels_and_failure(pipeline, monkeypatch):
     class Element:
         def __init__(self, text, page=None):
             self.text = text
@@ -178,12 +144,8 @@ def test_optional_extractor_page_labels_and_ocr_failure(pipeline, monkeypatch, c
     for name in ("unstructured", "unstructured.partition", "unstructured.partition.auto"):
         monkeypatch.setitem(sys.modules, name, ModuleType(name))
     sys.modules["unstructured.partition.auto"].partition = partition
-    monkeypatch.setitem(sys.modules, "rapidocr_onnxruntime", SimpleNamespace(RapidOCR=Mock(side_effect=RuntimeError("OCR failed"))))
-    assert pipeline._extract_content("image.png") == "[Page 2] title\n\nbody"
-    partition.assert_called_once_with(filename="image.png")
-    assert "[OCR] Warning" in capsys.readouterr().out
+    assert pipeline._extract_content("document.docx") == "[Page 2] title\n\nbody"
+    partition.assert_called_once_with(filename="document.docx")
     partition.side_effect = RuntimeError("parser failed")
     with pytest.raises(RuntimeError, match="parser failed"):
         pipeline._extract_content("document.docx")
-    with pytest.raises(RuntimeError, match="parser failed"):
-        pipeline._extract_content("image.png")

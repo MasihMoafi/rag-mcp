@@ -3,7 +3,7 @@ import pytest
 from rag import fetch
 
 
-SUPPORTED = tuple('.rs .toml .yaml .yml .py .md .txt .json .js .ts .tsx .jsx .c .h .cpp .hpp .go .sh .bash .zsh .css .html .sql .java .kt .proto .pdf .ipynb .rst .ini .cfg .conf .png .jpg .jpeg .webp .tiff .bmp .docx .pptx .xlsx .csv'.split())
+SUPPORTED = tuple('.rs .toml .yaml .yml .py .md .txt .json .js .ts .tsx .jsx .c .h .cpp .hpp .go .sh .bash .zsh .css .html .sql .java .kt .proto .pdf .ipynb .rst .ini .cfg .conf .docx .pptx .xlsx .csv'.split())
 
 
 @pytest.mark.parametrize('entrypoint', ['mcp', 'discovery'])
@@ -96,3 +96,12 @@ def test_mcp_startup_does_not_load_retrieval_dependencies():
         timeout=15,
     )
     assert result.returncode == 0, result.stderr
+
+
+def test_images_are_never_indexed(tmp_path):
+    from pathlib import Path
+    from rag.discovery import find_all_indexable_files
+    for extension in ('.png', '.jpg', '.jpeg', '.webp', '.tiff', '.bmp'):
+        (tmp_path / f'screenshot{extension}').touch()
+    (tmp_path / 'notes.md').write_text('text')
+    assert [Path(path).name for path in find_all_indexable_files(str(tmp_path))] == ['notes.md']

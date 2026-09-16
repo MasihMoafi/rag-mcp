@@ -39,13 +39,11 @@ dependencies = [
 full = ["torch>=2.5.1", "sentence-transformers>=5.0.0", "transformers>=4.40"]
 # DOCX / PPTX / XLSX / CSV parsing.
 office = ["unstructured[docx,pptx,xlsx,csv]>=0.18.32"]
-# OCR for images and scanned PDFs.
-ocr = ["pytesseract>=0.3.13", "pdf2image>=1.17.0", "pillow>=10", "rapidocr-onnxruntime>=1.4.4"]
 # Alternative vector store.
 qdrant = ["qdrant-client>=1.7.0"]
 # Optional ingestion-time contextual retrieval through Anthropic's Messages API.
 anthropic = ["anthropic>=0.40.0"]
-all = ["ragmcp[full,office,ocr,qdrant,anthropic]"]
+all = ["ragmcp[full,office,qdrant,anthropic]"]
 
 [project.scripts]
 rag = "rag.cli:main"

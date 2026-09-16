@@ -8,7 +8,7 @@ import os
 
 from .parsers.json import extract_json_text
 from .parsers.notebook import extract_notebook_text
-from .parsers.office import extract_office_or_image_text
+from .parsers.office import extract_office_text
 from .parsers.pdf import extract_pdf_text
 from .parsers.text import extract_plain_text
 from .parsers.html import extract_html_text
@@ -19,7 +19,7 @@ def _extract_text_from_pdf(self, pdf_path: str) -> str:
 
 
 def _extract_text_with_unstructured(self, file_path: str) -> str:
-    return extract_office_or_image_text(file_path)
+    return extract_office_text(file_path)
 
 
 def _extract_text_from_notebook(self, notebook_path: str) -> str:
@@ -31,9 +31,9 @@ def _extract_text_from_json(self, json_path: str) -> str:
 
 
 def _extract_content(self, file_path: str) -> str:
-    """Extract content from various file types, using Unstructured for images and complex docs."""
+    """Extract content from various file types, using Unstructured for office documents."""
     ext = os.path.splitext(file_path)[1].lower()
-    unstructured_exts = {".png", ".jpg", ".jpeg", ".webp", ".tiff", ".bmp", ".docx", ".pptx", ".xlsx", ".csv"}
+    unstructured_exts = {".docx", ".pptx", ".xlsx", ".csv"}
     if ext in unstructured_exts:
         return self._extract_text_with_unstructured(file_path)
     elif ext == ".pdf":
