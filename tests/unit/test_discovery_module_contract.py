@@ -23,7 +23,7 @@ def test_legacy_query_keeps_patchable_pipeline_and_discovery(monkeypatch, tmp_pa
     def discover(directory, **kwargs):
         calls.append(('discover', directory, kwargs['max_files']))
         return selected
-    def pipeline(doc_path):
+    def pipeline(doc_path, scope=None):
         calls.append(('pipeline', doc_path))
         return SimpleNamespace(search=lambda query: result)
     monkeypatch.setattr(fetch, 'find_all_indexable_files', discover)
@@ -63,7 +63,7 @@ def test_folder_limit_does_not_silently_drop_documents(monkeypatch, tmp_path, co
     for index in range(count):
         (tmp_path / f'doc-{index}.txt').touch()
     selected = []
-    def pipeline(doc_path):
+    def pipeline(doc_path, scope=None):
         selected.extend(doc_path)
         return SimpleNamespace(search=lambda query: [])
     monkeypatch.setattr(fetch, 'get_rag_pipeline_v2', pipeline)
