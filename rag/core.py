@@ -146,6 +146,7 @@ class RAGPipeline:
     _add_context_to_chunk = ingestion.add_chunk_context
     _load_or_create_database = ingestion.load_or_create_database
     _index_documents = ingestion.index_documents
+    _refresh_documents = ingestion.refresh_documents
     _save_database = ingestion.save_documents
     _load_existing_database = ingestion.load_existing_database
 
