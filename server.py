@@ -411,8 +411,11 @@ def query_knowledge_base(query: str, doc_path: str = "") -> str:
     try:
         scope = _validate_rag_scope(Path(normalized_doc_path))
         fetch_doc_path: str | list[str] = normalized_doc_path
+        fetch_scope: str | None = None
         if scope is not None and scope.files:
             fetch_doc_path = list(scope.files)
+            # Name the folder so its index survives files being added or removed.
+            fetch_scope = normalized_doc_path
         # rag.core/fetch/qdrant_backend log via plain print() to stdout. On a stdio
         # MCP transport, stdout carries only JSON-RPC frames, so redirect that noise
         # to stderr for the duration of the call instead of touching every print().
@@ -422,7 +425,7 @@ def query_knowledge_base(query: str, doc_path: str = "") -> str:
             if not callable(fetch):
                 return json.dumps({"error": "rag.fetch has no fetchExternalKnowledge function"})
             try:
-                value = fetch(query=query, doc_path=fetch_doc_path)
+                value = fetch(query=query, doc_path=fetch_doc_path, scope=fetch_scope)
             except Exception as exc:
                 return json.dumps({"error": (
                     f"RAG retrieval failed ({type(exc).__name__}). "
