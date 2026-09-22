@@ -1,0 +1,846 @@
+{
+  "captured_utc": "2026-09-22T15:45:22.162373+00:00",
+  "head": "db7dafcc5cb8e16a8cdb789a9af79253497bffe0",
+  "status": " M docs/audits/2026-09-12-source-fidelity.md\n M docs/audits/2026-09-13-simplicity/README.md\n M docs/specs-2026-09-12-safe-rag-refactor.md\n M evals/calibration/napoleon-support-review.json\n M evals/experiments/experiment-isolated-scaling/run_experiment.py\n M evals/experiments/experiment-unified-scaling/experiment.md\n M evals/experiments/experiment-unified-scaling/run_experiment.py\n M rag/bm25.py\n M rag/embeddings.py\n M tests/unit/test_api_embedding_contract.py\n M tests/unit/test_bm25_contract.py\n?? docs/audits/2026-09-08-cli/\n?? docs/audits/2026-09-13-efficiency/\n?? evals/experiments/experiment-isolated-scaling/data/attention/att.pdf\n?? evals/experiments/experiment-isolated-scaling/data/attention/lancedb_isolated_0.6b/\n?? evals/experiments/experiment-isolated-scaling/data/brain-and-behavior/brain_and_behavior.pdf\n?? evals/experiments/experiment-isolated-scaling/data/brain-and-behavior/lancedb_isolated_0.6b/\n?? \"evals/experiments/experiment-isolated-scaling/data/fire-and-blood/Fire And Blood_George.R.R.Martin_furfalling.ir.pdf\"\n?? evals/experiments/experiment-isolated-scaling/data/fire-and-blood/lancedb_isolated_0.6b/\n?? evals/experiments/experiment-isolated-scaling/data/mixed-codebase/lancedb_isolated_0.6b/\n?? evals/experiments/experiment-isolated-scaling/data/napoleon/Napoleon.pdf\n?? evals/experiments/experiment-isolated-scaling/data/napoleon/lancedb_isolated_0.6b/\n?? evals/experiments/experiment-unified-scaling/data/attention/att.pdf\n?? evals/experiments/experiment-unified-scaling/data/attention/lancedb_isolated_0.6b/\n?? evals/experiments/experiment-unified-scaling/data/brain-and-behavior/brain_and_behavior.pdf\n?? evals/experiments/experiment-unified-scaling/data/brain-and-behavior/lancedb_isolated_0.6b/\n?? \"evals/experiments/experiment-unified-scaling/data/corpus/Fire And Blood_George.R.R.Martin_furfalling.ir.pdf\"\n?? evals/experiments/experiment-unified-scaling/data/corpus/Napoleon.pdf\n?? evals/experiments/experiment-unified-scaling/data/corpus/att.pdf\n?? evals/experiments/experiment-unified-scaling/data/corpus/brain_and_behavior.pdf\n?? \"evals/experiments/experiment-unified-scaling/data/fire-and-blood/Fire And Blood_George.R.R.Martin_furfalling.ir.pdf\"\n?? evals/experiments/experiment-unified-scaling/data/fire-and-blood/lancedb_isolated_0.6b/\n?? evals/experiments/experiment-unified-scaling/data/mixed-codebase/lancedb_isolated_0.6b/\n?? evals/experiments/experiment-unified-scaling/data/napoleon/Napoleon.pdf\n?? evals/experiments/experiment-unified-scaling/data/napoleon/lancedb_isolated_0.6b/\n?? scripts/benchmark_search_materialization.py\n?? scripts/full_benchmark_results.json\n?? scripts/run_benchmark_comparison.py\n?? scripts/run_full_benchmark.py\n",
+  "tracked_diff_sha256": "c755f0b73dc42649a4fbc58c8487d941eba31193013558fa915ad5f8dd47fab6",
+  "staged_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "dirty_files": [
+    {
+      "path": "docs/audits/2026-09-08-cli/REPORT.md",
+      "bytes": 6279,
+      "sha256": "def2060a097452892523dccd4fc94d0fd15e01fdc09b0832dd2deae907b16a85"
+    },
+    {
+      "path": "docs/audits/2026-09-08-cli/check_tmux.py",
+      "bytes": 5147,
+      "sha256": "8ab762cf6cdb42fe1eaca74075f64304c1bb055ce5a1baf1acd6a71f928f1595"
+    },
+    {
+      "path": "docs/audits/2026-09-08-cli/check_tui.py",
+      "bytes": 2981,
+      "sha256": "6b1de3b0bfde4f1400dad501e8def63515256abf66282f70bdb6b4e7b71ce996"
+    },
+    {
+      "path": "docs/audits/2026-09-08-cli/hybrid-search.png",
+      "bytes": 216521,
+      "sha256": "86cc5b97feccc7217cc1a05b62acaf9822489ecbcea9ae40decb69ad07a657e2"
+    },
+    {
+      "path": "docs/audits/2026-09-08-cli/manual-live-refresh.txt",
+      "bytes": 5489,
+      "sha256": "fddcda71df32fa27bc95662adb18c111dc5d02e7882589afc70f833d7f283de2"
+    },
+    {
+      "path": "docs/audits/2026-09-08-cli/manual-mcp-session.txt",
+      "bytes": 7843,
+      "sha256": "4cb6d5c426c56d1aa2de57ba04165d2425dcf839a3961f9460c98757b32198f5"
+    },
+    {
+      "path": "docs/audits/2026-09-08-cli/manual-review-terminal.txt",
+      "bytes": 4239,
+      "sha256": "319f57fc10d9dd105206a1fd460215390d5896e01df598090e47d77193595cce"
+    },
+    {
+      "path": "docs/audits/2026-09-08-cli/manual-saved-provider.txt",
+      "bytes": 1381,
+      "sha256": "1a0ac72380d484f20bc129deba4079a475ceb62894306fa0b956ca8d30a1c9ab"
+    },
+    {
+      "path": "docs/audits/2026-09-08-cli/paired-studio.png",
+      "bytes": 180001,
+      "sha256": "aef032dc986252d92491bd650467347bfb0404d422d28f6d6a8b6c920ab8fbbf"
+    },
+    {
+      "path": "docs/audits/2026-09-08-cli/production-deployment.json",
+      "bytes": 55875,
+      "sha256": "4f19695f8a3aed46be2c2e1af0006a672afad271351f6c5cab404f22016a445b"
+    },
+    {
+      "path": "docs/audits/2026-09-08-cli/production-hybrid-search.png",
+      "bytes": 217632,
+      "sha256": "9e1671708378df178ebec575a08682d93a8863768aeadb108c526296ec50d1c9"
+    },
+    {
+      "path": "docs/audits/2026-09-08-cli/results.json",
+      "bytes": 4602,
+      "sha256": "b55b7845a944f9efff18504439ec0ddd7425afe186ea61df6f0e68e1abb1671f"
+    },
+    {
+      "path": "docs/audits/2026-09-08-cli/studio-playground-390.png",
+      "bytes": 68076,
+      "sha256": "ab8247c5c667c003f2152ec4337cc5c57335e61ccf323ec32edacd7af8c31b49"
+    },
+    {
+      "path": "docs/audits/2026-09-08-cli/terminal-preview.txt",
+      "bytes": 1301,
+      "sha256": "39a76640af2b4a4d13ed7f6ffdd78b38b88525ecd244d27aa082c8fe786454aa"
+    },
+    {
+      "path": "docs/audits/2026-09-08-cli/tmux-80-columns.txt",
+      "bytes": 885,
+      "sha256": "a09c5f1139bf140f50c10f4024b3a975cf9898571ee851444495f022c99bead5"
+    },
+    {
+      "path": "docs/audits/2026-09-08-cli/tmux-api-models.txt",
+      "bytes": 1107,
+      "sha256": "2f999435a757cca8a5ddfb7cf3a5d346f0ae9bb3c485f6257aae2c4d0fdf327d"
+    },
+    {
+      "path": "docs/audits/2026-09-08-cli/tmux-api-scroll.txt",
+      "bytes": 1102,
+      "sha256": "640806fc67ce005456b2250dc617430af16af90af4d20683cd20d71e7cbe8545"
+    },
+    {
+      "path": "docs/audits/2026-09-08-cli/tmux-downloads.txt",
+      "bytes": 1530,
+      "sha256": "b574c97097510ebdd63af95f729613526bfdc4df145d9664412066158da3e227"
+    },
+    {
+      "path": "docs/audits/2026-09-08-cli/tmux-files.txt",
+      "bytes": 1070,
+      "sha256": "0b066f05535490c7e375c6fc951e6a711415ceab99e8bb68261d322328c50366"
+    },
+    {
+      "path": "docs/audits/2026-09-08-cli/tmux-local-models.txt",
+      "bytes": 480,
+      "sha256": "8250e7132e411343dc8bb8a603dd28defcc3b610be7f1a5f9171f505a6cb42c6"
+    },
+    {
+      "path": "docs/audits/2026-09-08-cli/tmux-search.txt",
+      "bytes": 972,
+      "sha256": "d9ba3b65ea072b8e1ebe7541e619d0c21602f72e1fb0a0fb956d504cd1c5cd05"
+    },
+    {
+      "path": "docs/audits/2026-09-08-cli/tmux-unavailable-server.txt",
+      "bytes": 1338,
+      "sha256": "d37134d4f7440be7cadf6ac369d6b94ea7fb22fbf6fe806ca0a5582b7cdf8dad"
+    },
+    {
+      "path": "docs/audits/2026-09-08-cli/tmux-verified-model.txt",
+      "bytes": 447,
+      "sha256": "8124870e52a0e317e208b1de9ec635e1fe44b689f1c549682a8b40eb2aef7800"
+    },
+    {
+      "path": "docs/audits/2026-09-08-cli/tmux-walkthrough.txt",
+      "bytes": 1973,
+      "sha256": "3433e987a6558ebaa3e94b2409aa0723b8d4ea324acc48cf8731024a1712942b"
+    },
+    {
+      "path": "docs/audits/2026-09-08-cli/tui-terminal.log",
+      "bytes": 6598,
+      "sha256": "9916bf178ac42ddd328623ccfb48ba3d08251552ce2e50c25c44a7ec5101d757"
+    },
+    {
+      "path": "docs/audits/2026-09-08-cli/web-tests.log",
+      "bytes": 21117,
+      "sha256": "449e8f6cbee75c257cccb69ef437fbcd4133174d0a111dafdbf611f46951c262"
+    },
+    {
+      "path": "docs/audits/2026-09-12-source-fidelity.md",
+      "bytes": 3312,
+      "sha256": "fccf97e6b95e8b80e3b7e9093529f51e13e59bd04754453d01f316305100f027"
+    },
+    {
+      "path": "docs/audits/2026-09-13-efficiency/README.md",
+      "bytes": 2729,
+      "sha256": "1c5bc11953f5ff0a50e87464d57ef5919ea05fce7dbbf56952ab0a6529f7a290"
+    },
+    {
+      "path": "docs/audits/2026-09-13-efficiency/rag-efficiency-after.json",
+      "bytes": 2278,
+      "sha256": "d91564e1b7fb739ccc69efe3eaf6ebf9a09337d161b6e9a1f6107b81f3712dcb"
+    },
+    {
+      "path": "docs/audits/2026-09-13-efficiency/rag-efficiency-before.json",
+      "bytes": 2244,
+      "sha256": "c46721320dd035220eb6772ea21e24d2f74bcf0367436496d2f755ea2273e26f"
+    },
+    {
+      "path": "docs/audits/2026-09-13-efficiency/rag-efficiency-tests.log",
+      "bytes": 2186,
+      "sha256": "32926ea6391217e401a8140ef22b781b99959f959b5d0cbb9008ddcadcb94412"
+    },
+    {
+      "path": "docs/audits/2026-09-13-simplicity/README.md",
+      "bytes": 1842,
+      "sha256": "ffd98a0c8b16fabedfdf6d2168061441b3b3a0e26536e39b47ac166ef15a2bee"
+    },
+    {
+      "path": "docs/specs-2026-09-12-safe-rag-refactor.md",
+      "bytes": 26440,
+      "sha256": "131c00624b0ef847f18b0290c4b788868c663f1889adcdd4345fc58f639e19f5"
+    },
+    {
+      "path": "evals/calibration/napoleon-support-review.json",
+      "bytes": 40727,
+      "sha256": "e2d65241a24dfa313cb2de33a0607447fc3a23ea68763628976a9d715e7afd7d"
+    },
+    {
+      "path": "evals/experiments/experiment-isolated-scaling/data/attention/att.pdf",
+      "bytes": 2201700,
+      "sha256": "bfaaec89262875f927cf1b38b2da2d775f3309b7bea3537f29b606ca67e79065"
+    },
+    {
+      "path": "evals/experiments/experiment-isolated-scaling/data/attention/lancedb_isolated_0.6b/docs.json",
+      "bytes": 104560,
+      "sha256": "f2d44c4891eafcbba97d0df3ca5bbcf4d3cc030eb7688e637eaa28e98be4be34"
+    },
+    {
+      "path": "evals/experiments/experiment-isolated-scaling/data/attention/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_indices/8d19c8f8-7f02-48cf-9e88-8b2130d33c3b/metadata.lance",
+      "bytes": 904,
+      "sha256": "920edf16c750bf4f16df7d67b5e5bb4314487a90ec4fd6a2a1163054cfe1e4bf"
+    },
+    {
+      "path": "evals/experiments/experiment-isolated-scaling/data/attention/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_indices/8d19c8f8-7f02-48cf-9e88-8b2130d33c3b/part_7_docs.lance",
+      "bytes": 1173,
+      "sha256": "4bdfbf7a4639436e4b3d4db51cf6337515ebbcd18c3f1efc49dfa7f94967e1cb"
+    },
+    {
+      "path": "evals/experiments/experiment-isolated-scaling/data/attention/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_indices/8d19c8f8-7f02-48cf-9e88-8b2130d33c3b/part_7_invert.lance",
+      "bytes": 31089,
+      "sha256": "b0e7cf8e682008ddb7416d6c1f732caea49119a607ccc0db54d2a37b74a489a2"
+    },
+    {
+      "path": "evals/experiments/experiment-isolated-scaling/data/attention/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_indices/8d19c8f8-7f02-48cf-9e88-8b2130d33c3b/part_7_tokens.lance",
+      "bytes": 11846,
+      "sha256": "7fabdae1a80b305656015ee4e30130c565f3308ef3646c5639cc7bf3ed0ff01e"
+    },
+    {
+      "path": "evals/experiments/experiment-isolated-scaling/data/attention/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_transactions/0-c8c8c518-5ec8-4ade-b2bd-3717e6327b2a.txn",
+      "bytes": 525,
+      "sha256": "dd961cf1375627e69c174e4c9fd3fd67e4923f1b60d594c03d5d68b13b7a71f9"
+    },
+    {
+      "path": "evals/experiments/experiment-isolated-scaling/data/attention/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_transactions/1-4c7fc9bb-fecb-417e-98bb-d50ce806139c.txn",
+      "bytes": 287,
+      "sha256": "f545a050bfe48b99e3ece09accbb33d75f04e12e5433d6dba1e081a7358131d1"
+    },
+    {
+      "path": "evals/experiments/experiment-isolated-scaling/data/attention/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_versions/18446744073709551613.manifest",
+      "bytes": 1140,
+      "sha256": "e834d7d4eb4e8384359710c1ffae4188f12cace2f52af9e754b4e48bdc5c3ebd"
+    },
+    {
+      "path": "evals/experiments/experiment-isolated-scaling/data/attention/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_versions/18446744073709551614.manifest",
+      "bytes": 1128,
+      "sha256": "ca8f7c9d0508417935aac54c8819e4c0c301a1c968f34b4cfd50ada4c787da32"
+    },
+    {
+      "path": "evals/experiments/experiment-isolated-scaling/data/attention/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_versions/latest_version_hint.json",
+      "bytes": 13,
+      "sha256": "732322c128ed67841ef5aa42c7cd04ffcd74a61b2d17d710cd502b713d62930d"
+    },
+    {
+      "path": "evals/experiments/experiment-isolated-scaling/data/attention/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/data/10100101110011110100010066455e40868e73669ba30c2d73.lance",
+      "bytes": 259488,
+      "sha256": "ac0d137a50df139d9814ad8dd060ba57bf104857d4b7860e212d5d011e9f32f3"
+    },
+    {
+      "path": "evals/experiments/experiment-isolated-scaling/data/brain-and-behavior/brain_and_behavior.pdf",
+      "bytes": 141613623,
+      "sha256": "78a79b3964f3bde4c37cbf4fb57fc4410a1a7142eff01e7b4242f22b337ed8d3"
+    },
+    {
+      "path": "evals/experiments/experiment-isolated-scaling/data/brain-and-behavior/lancedb_isolated_0.6b/docs.json",
+      "bytes": 7677354,
+      "sha256": "60d93823f09fe0752b526a17aa15c5c880671261f9e7641acdbfb468d2b0e40e"
+    },
+    {
+      "path": "evals/experiments/experiment-isolated-scaling/data/brain-and-behavior/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_indices/ca11cb15-2475-4660-b0ed-6cbfbdde9146/metadata.lance",
+      "bytes": 904,
+      "sha256": "eba2f93ad925f3b25513ecbb49cb871061544a6a8cc9cc085b5a5c63dec3a3c2"
+    },
+    {
+      "path": "evals/experiments/experiment-isolated-scaling/data/brain-and-behavior/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_indices/ca11cb15-2475-4660-b0ed-6cbfbdde9146/part_0_docs.lance",
+      "bytes": 10524,
+      "sha256": "b40105184683fa98510fa8cb4ad871eba436ec2fa07c2d9e457877151716657a"
+    },
+    {
+      "path": "evals/experiments/experiment-isolated-scaling/data/brain-and-behavior/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_indices/ca11cb15-2475-4660-b0ed-6cbfbdde9146/part_0_invert.lance",
+      "bytes": 1173540,
+      "sha256": "2d002635f89abb04e74dd9e67cca31ed4192821afea151439777b95913fbd564"
+    },
+    {
+      "path": "evals/experiments/experiment-isolated-scaling/data/brain-and-behavior/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_indices/ca11cb15-2475-4660-b0ed-6cbfbdde9146/part_0_tokens.lance",
+      "bytes": 115734,
+      "sha256": "b46160f95c5774f2270617e9efcc0aa41d9e7f1a1d5c1c7acf878ce15645ec6a"
+    },
+    {
+      "path": "evals/experiments/experiment-isolated-scaling/data/brain-and-behavior/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_transactions/0-c15b7ffc-a66f-4ec4-877a-70a278ce9ae2.txn",
+      "bytes": 527,
+      "sha256": "712c6082b3a59f69bd0c936e2d085dce864479216887f750eecff10a7ae5a7b1"
+    },
+    {
+      "path": "evals/experiments/experiment-isolated-scaling/data/brain-and-behavior/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_transactions/1-a44e62b6-bdad-4ae6-9323-55c64624cd18.txn",
+      "bytes": 288,
+      "sha256": "3712b325d7f33d61cc7f6a74a113bf229f9dedbb6c441feb7e2563573aa5a406"
+    },
+    {
+      "path": "evals/experiments/experiment-isolated-scaling/data/brain-and-behavior/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_versions/18446744073709551613.manifest",
+      "bytes": 1144,
+      "sha256": "cc2a8cec53f325dc2456a8789c882cd0a30bb5ff9a5dc5f3ab58183b7bf30ae1"
+    },
+    {
+      "path": "evals/experiments/experiment-isolated-scaling/data/brain-and-behavior/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_versions/18446744073709551614.manifest",
+      "bytes": 1132,
+      "sha256": "e0791cce704a94daf205c45ce0dbf9bb50cb31db8412f29c980a743b74844678"
+    },
+    {
+      "path": "evals/experiments/experiment-isolated-scaling/data/brain-and-behavior/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_versions/latest_version_hint.json",
+      "bytes": 13,
+      "sha256": "732322c128ed67841ef5aa42c7cd04ffcd74a61b2d17d710cd502b713d62930d"
+    },
+    {
+      "path": "evals/experiments/experiment-isolated-scaling/data/brain-and-behavior/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/data/100001001010000101100101a90d934ffdb19a1c4c09ec63e9.lance",
+      "bytes": 17662685,
+      "sha256": "eec78b4ad328b07d3b8511e00fdb17d3cfbbe019a6edcc26a923d072e92cc7b8"
+    },
+    {
+      "path": "evals/experiments/experiment-isolated-scaling/data/fire-and-blood/Fire And Blood_George.R.R.Martin_furfalling.ir.pdf",
+      "bytes": 14779095,
+      "sha256": "8fc6656a9072a64db7287540612b5577f752d0052faf251bacc3d3ce0328d7f0"
+    },
+    {
+      "path": "evals/experiments/experiment-isolated-scaling/data/fire-and-blood/lancedb_isolated_0.6b/docs.json",
+      "bytes": 4044413,
+      "sha256": "c01774063852f052937cf64d64ebd95180850f94ed2bce6e8c00a00695bd84e8"
+    },
+    {
+      "path": "evals/experiments/experiment-isolated-scaling/data/fire-and-blood/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_indices/48b24b0f-b579-4d8e-9b9d-ddd178f5c2e6/metadata.lance",
+      "bytes": 904,
+      "sha256": "ccd8952a64437294381b68b9d3d3341008af27422c986bc99660c938f2c74427"
+    },
+    {
+      "path": "evals/experiments/experiment-isolated-scaling/data/fire-and-blood/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_indices/48b24b0f-b579-4d8e-9b9d-ddd178f5c2e6/part_0_docs.lance",
+      "bytes": 5276,
+      "sha256": "ff795ceaf8c403149746fafc73211f79df3f29a217a24fb6cfbedee9daf65ed2"
+    },
+    {
+      "path": "evals/experiments/experiment-isolated-scaling/data/fire-and-blood/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_indices/48b24b0f-b579-4d8e-9b9d-ddd178f5c2e6/part_0_invert.lance",
+      "bytes": 537498,
+      "sha256": "7082ece0aff6041ad59c09adbdd9cb1e5e75bfc17a435e0c523eb338eaae0ab2"
+    },
+    {
+      "path": "evals/experiments/experiment-isolated-scaling/data/fire-and-blood/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_indices/48b24b0f-b579-4d8e-9b9d-ddd178f5c2e6/part_0_tokens.lance",
+      "bytes": 49686,
+      "sha256": "2790f2eb0c058aaa5e8013174413de5370e41d6ec2446fc2cccd72be447977f1"
+    },
+    {
+      "path": "evals/experiments/experiment-isolated-scaling/data/fire-and-blood/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_transactions/0-c52a5424-4dd9-4844-ab80-d7ecb6712b8b.txn",
+      "bytes": 527,
+      "sha256": "50b675d56ee911c3d58616218ac11a8bde200efcd324f975679aaa55d7900c43"
+    },
+    {
+      "path": "evals/experiments/experiment-isolated-scaling/data/fire-and-blood/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_transactions/1-a49a9469-c386-4db1-835c-62691743e52e.txn",
+      "bytes": 288,
+      "sha256": "c54f4632aa024b63d7fda92e8cea649dfc006d3f1e04a34f2158807856a274d2"
+    },
+    {
+      "path": "evals/experiments/experiment-isolated-scaling/data/fire-and-blood/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_versions/18446744073709551613.manifest",
+      "bytes": 1143,
+      "sha256": "f77ca9de372cb4aeb8ed76ff05c1f49208a3c09d4de23c326ab33ee7e4d7dcff"
+    },
+    {
+      "path": "evals/experiments/experiment-isolated-scaling/data/fire-and-blood/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_versions/18446744073709551614.manifest",
+      "bytes": 1132,
+      "sha256": "180ce4809490018566c83307b5a5775ed8ff333b69107943852b44454b4e9d7f"
+    },
+    {
+      "path": "evals/experiments/experiment-isolated-scaling/data/fire-and-blood/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_versions/latest_version_hint.json",
+      "bytes": 13,
+      "sha256": "732322c128ed67841ef5aa42c7cd04ffcd74a61b2d17d710cd502b713d62930d"
+    },
+    {
+      "path": "evals/experiments/experiment-isolated-scaling/data/fire-and-blood/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/data/000100111000111001110000e3ee4348f5b2b300687ea5877d.lance",
+      "bytes": 8838167,
+      "sha256": "de6ba426803d879cf07d27d87fff526feda0141a8f896ebc7e44d7aff2bf9fcc"
+    },
+    {
+      "path": "evals/experiments/experiment-isolated-scaling/data/mixed-codebase/lancedb_isolated_0.6b/docs.json",
+      "bytes": 1067275,
+      "sha256": "c3efffe118e030ba9e01e9af76a446177fd7d7cc618748714e4c07dbed74a5ce"
+    },
+    {
+      "path": "evals/experiments/experiment-isolated-scaling/data/mixed-codebase/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_indices/a28525a9-3909-489e-bf86-0d5921c53e2f/metadata.lance",
+      "bytes": 904,
+      "sha256": "ccd8952a64437294381b68b9d3d3341008af27422c986bc99660c938f2c74427"
+    },
+    {
+      "path": "evals/experiments/experiment-isolated-scaling/data/mixed-codebase/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_indices/a28525a9-3909-489e-bf86-0d5921c53e2f/part_0_docs.lance",
+      "bytes": 2971,
+      "sha256": "d0242503ac1de2313b6ca7a288eb7e58fa3b2eacd713511c74d502d2e274ebf0"
+    },
+    {
+      "path": "evals/experiments/experiment-isolated-scaling/data/mixed-codebase/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_indices/a28525a9-3909-489e-bf86-0d5921c53e2f/part_0_invert.lance",
+      "bytes": 143072,
+      "sha256": "a6cd18c302f52f87d6e5f6be35a0e07032cf44a8d6c473fddf1b573d76fc4ee9"
+    },
+    {
+      "path": "evals/experiments/experiment-isolated-scaling/data/mixed-codebase/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_indices/a28525a9-3909-489e-bf86-0d5921c53e2f/part_0_tokens.lance",
+      "bytes": 24652,
+      "sha256": "df78f1104c29345f784074d960ca4775706efef17c4151a64b87d9a7ec7ff79e"
+    },
+    {
+      "path": "evals/experiments/experiment-isolated-scaling/data/mixed-codebase/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_transactions/0-79c7f5a8-5538-483c-965e-fd33f8c565ec.txn",
+      "bytes": 527,
+      "sha256": "c4f76738f60ef0ba894662c81155af5fde810a414e517f0b907eaa932a6f0440"
+    },
+    {
+      "path": "evals/experiments/experiment-isolated-scaling/data/mixed-codebase/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_transactions/1-4ac2672e-6a36-4c80-a0ad-14c404f764be.txn",
+      "bytes": 288,
+      "sha256": "2c18bc88442b67ce705bd36c1f32b51b9672662baf4c9ee63341a66876604377"
+    },
+    {
+      "path": "evals/experiments/experiment-isolated-scaling/data/mixed-codebase/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_versions/18446744073709551613.manifest",
+      "bytes": 1143,
+      "sha256": "24e05104e6a88cb6d1df21c3922d67f0d11d05e15349ffefb478dd176c12f4a5"
+    },
+    {
+      "path": "evals/experiments/experiment-isolated-scaling/data/mixed-codebase/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_versions/18446744073709551614.manifest",
+      "bytes": 1131,
+      "sha256": "0d7f577fedad776e014d13440fb77d554ee7238e4aa747c7efe3f3c2963fcea1"
+    },
+    {
+      "path": "evals/experiments/experiment-isolated-scaling/data/mixed-codebase/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_versions/latest_version_hint.json",
+      "bytes": 13,
+      "sha256": "732322c128ed67841ef5aa42c7cd04ffcd74a61b2d17d710cd502b713d62930d"
+    },
+    {
+      "path": "evals/experiments/experiment-isolated-scaling/data/mixed-codebase/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/data/101000000001111110010000eeb6954e3d99f0051da147d886.lance",
+      "bytes": 2692914,
+      "sha256": "05c2d91f9cb17da6ae0e2c56fbc9ebd5a132aa546e53418165ed57676cff9796"
+    },
+    {
+      "path": "evals/experiments/experiment-isolated-scaling/data/napoleon/Napoleon.pdf",
+      "bytes": 3063342,
+      "sha256": "d95be21cea799bc87f28937940c3b556bcff6540f6815f5bd988fcb6d753c6b5"
+    },
+    {
+      "path": "evals/experiments/experiment-isolated-scaling/data/napoleon/lancedb_isolated_0.6b/docs.json",
+      "bytes": 1665403,
+      "sha256": "72096ae64bc7529563577b95cad7bfa2be9a24166a7a51623e6a2ec32260a9d2"
+    },
+    {
+      "path": "evals/experiments/experiment-isolated-scaling/data/napoleon/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_indices/344c828b-a047-48c3-b2c7-43b44fbd7e1b/metadata.lance",
+      "bytes": 904,
+      "sha256": "75c47f29550a34cd87c15c4b7272447253add639c320d1cd988224647857dbdb"
+    },
+    {
+      "path": "evals/experiments/experiment-isolated-scaling/data/napoleon/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_indices/344c828b-a047-48c3-b2c7-43b44fbd7e1b/part_0_docs.lance",
+      "bytes": 2971,
+      "sha256": "41f2425aebe9fe5866c12d26496b8102d04b591596e61455ce97c74a3441628e"
+    },
+    {
+      "path": "evals/experiments/experiment-isolated-scaling/data/napoleon/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_indices/344c828b-a047-48c3-b2c7-43b44fbd7e1b/part_0_invert.lance",
+      "bytes": 347545,
+      "sha256": "dea4a3007e9c3e3a106822408646eccaf3ea925057daf94082e8988855031eaf"
+    },
+    {
+      "path": "evals/experiments/experiment-isolated-scaling/data/napoleon/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_indices/344c828b-a047-48c3-b2c7-43b44fbd7e1b/part_0_tokens.lance",
+      "bytes": 45846,
+      "sha256": "89f535f89fad6bf9d159befa92247bab38d38f7952e11043e7e76829265dc183"
+    },
+    {
+      "path": "evals/experiments/experiment-isolated-scaling/data/napoleon/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_transactions/0-697708fe-7567-430c-a0fc-4ac1aa93fcb5.txn",
+      "bytes": 527,
+      "sha256": "3de5a24f0bfe99efa9a5c13b73d759ad85ef6447287a5afcacd370783ba062f1"
+    },
+    {
+      "path": "evals/experiments/experiment-isolated-scaling/data/napoleon/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_transactions/1-691c2f97-51ce-4f80-ae01-7e487db26de6.txn",
+      "bytes": 288,
+      "sha256": "518ccfaa3ce1225195a6823066ae2235951422c2abaeb17a1ca0d0dc831facc1"
+    },
+    {
+      "path": "evals/experiments/experiment-isolated-scaling/data/napoleon/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_versions/18446744073709551613.manifest",
+      "bytes": 1144,
+      "sha256": "915bce0f2593a966b6bdc3b789c96599af3cfb0f180bd7496d1e69c787cea538"
+    },
+    {
+      "path": "evals/experiments/experiment-isolated-scaling/data/napoleon/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_versions/18446744073709551614.manifest",
+      "bytes": 1132,
+      "sha256": "b03b3dd2aa61cb8ce1d6e14acfa193005e36aa0ee6f9bcea4d2333c38a4f7a4c"
+    },
+    {
+      "path": "evals/experiments/experiment-isolated-scaling/data/napoleon/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_versions/latest_version_hint.json",
+      "bytes": 13,
+      "sha256": "732322c128ed67841ef5aa42c7cd04ffcd74a61b2d17d710cd502b713d62930d"
+    },
+    {
+      "path": "evals/experiments/experiment-isolated-scaling/data/napoleon/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/data/0111110101000101000001102e8b0c40d6af4dd0a3ce45479a.lance",
+      "bytes": 3867351,
+      "sha256": "ff008e9edcabb1414d5a8c055120da49a708e0fe030e2e0f32f729f3ad94cf6b"
+    },
+    {
+      "path": "evals/experiments/experiment-isolated-scaling/run_experiment.py",
+      "bytes": 7617,
+      "sha256": "4e251a867833adad5f2cba4501c9177833de74ca3a7ca48ff4972f9832e1a86c"
+    },
+    {
+      "path": "evals/experiments/experiment-unified-scaling/data/attention/att.pdf",
+      "bytes": 2201700,
+      "sha256": "bfaaec89262875f927cf1b38b2da2d775f3309b7bea3537f29b606ca67e79065"
+    },
+    {
+      "path": "evals/experiments/experiment-unified-scaling/data/attention/lancedb_isolated_0.6b/docs.json",
+      "bytes": 104560,
+      "sha256": "f2d44c4891eafcbba97d0df3ca5bbcf4d3cc030eb7688e637eaa28e98be4be34"
+    },
+    {
+      "path": "evals/experiments/experiment-unified-scaling/data/attention/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_indices/8d19c8f8-7f02-48cf-9e88-8b2130d33c3b/metadata.lance",
+      "bytes": 904,
+      "sha256": "920edf16c750bf4f16df7d67b5e5bb4314487a90ec4fd6a2a1163054cfe1e4bf"
+    },
+    {
+      "path": "evals/experiments/experiment-unified-scaling/data/attention/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_indices/8d19c8f8-7f02-48cf-9e88-8b2130d33c3b/part_7_docs.lance",
+      "bytes": 1173,
+      "sha256": "4bdfbf7a4639436e4b3d4db51cf6337515ebbcd18c3f1efc49dfa7f94967e1cb"
+    },
+    {
+      "path": "evals/experiments/experiment-unified-scaling/data/attention/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_indices/8d19c8f8-7f02-48cf-9e88-8b2130d33c3b/part_7_invert.lance",
+      "bytes": 31089,
+      "sha256": "b0e7cf8e682008ddb7416d6c1f732caea49119a607ccc0db54d2a37b74a489a2"
+    },
+    {
+      "path": "evals/experiments/experiment-unified-scaling/data/attention/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_indices/8d19c8f8-7f02-48cf-9e88-8b2130d33c3b/part_7_tokens.lance",
+      "bytes": 11846,
+      "sha256": "7fabdae1a80b305656015ee4e30130c565f3308ef3646c5639cc7bf3ed0ff01e"
+    },
+    {
+      "path": "evals/experiments/experiment-unified-scaling/data/attention/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_transactions/0-c8c8c518-5ec8-4ade-b2bd-3717e6327b2a.txn",
+      "bytes": 525,
+      "sha256": "dd961cf1375627e69c174e4c9fd3fd67e4923f1b60d594c03d5d68b13b7a71f9"
+    },
+    {
+      "path": "evals/experiments/experiment-unified-scaling/data/attention/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_transactions/1-4c7fc9bb-fecb-417e-98bb-d50ce806139c.txn",
+      "bytes": 287,
+      "sha256": "f545a050bfe48b99e3ece09accbb33d75f04e12e5433d6dba1e081a7358131d1"
+    },
+    {
+      "path": "evals/experiments/experiment-unified-scaling/data/attention/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_versions/18446744073709551613.manifest",
+      "bytes": 1140,
+      "sha256": "e834d7d4eb4e8384359710c1ffae4188f12cace2f52af9e754b4e48bdc5c3ebd"
+    },
+    {
+      "path": "evals/experiments/experiment-unified-scaling/data/attention/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_versions/18446744073709551614.manifest",
+      "bytes": 1128,
+      "sha256": "ca8f7c9d0508417935aac54c8819e4c0c301a1c968f34b4cfd50ada4c787da32"
+    },
+    {
+      "path": "evals/experiments/experiment-unified-scaling/data/attention/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_versions/latest_version_hint.json",
+      "bytes": 13,
+      "sha256": "732322c128ed67841ef5aa42c7cd04ffcd74a61b2d17d710cd502b713d62930d"
+    },
+    {
+      "path": "evals/experiments/experiment-unified-scaling/data/attention/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/data/10100101110011110100010066455e40868e73669ba30c2d73.lance",
+      "bytes": 259488,
+      "sha256": "ac0d137a50df139d9814ad8dd060ba57bf104857d4b7860e212d5d011e9f32f3"
+    },
+    {
+      "path": "evals/experiments/experiment-unified-scaling/data/brain-and-behavior/brain_and_behavior.pdf",
+      "bytes": 141613623,
+      "sha256": "78a79b3964f3bde4c37cbf4fb57fc4410a1a7142eff01e7b4242f22b337ed8d3"
+    },
+    {
+      "path": "evals/experiments/experiment-unified-scaling/data/brain-and-behavior/lancedb_isolated_0.6b/docs.json",
+      "bytes": 7677354,
+      "sha256": "60d93823f09fe0752b526a17aa15c5c880671261f9e7641acdbfb468d2b0e40e"
+    },
+    {
+      "path": "evals/experiments/experiment-unified-scaling/data/brain-and-behavior/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_indices/ca11cb15-2475-4660-b0ed-6cbfbdde9146/metadata.lance",
+      "bytes": 904,
+      "sha256": "eba2f93ad925f3b25513ecbb49cb871061544a6a8cc9cc085b5a5c63dec3a3c2"
+    },
+    {
+      "path": "evals/experiments/experiment-unified-scaling/data/brain-and-behavior/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_indices/ca11cb15-2475-4660-b0ed-6cbfbdde9146/part_0_docs.lance",
+      "bytes": 10524,
+      "sha256": "b40105184683fa98510fa8cb4ad871eba436ec2fa07c2d9e457877151716657a"
+    },
+    {
+      "path": "evals/experiments/experiment-unified-scaling/data/brain-and-behavior/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_indices/ca11cb15-2475-4660-b0ed-6cbfbdde9146/part_0_invert.lance",
+      "bytes": 1173540,
+      "sha256": "2d002635f89abb04e74dd9e67cca31ed4192821afea151439777b95913fbd564"
+    },
+    {
+      "path": "evals/experiments/experiment-unified-scaling/data/brain-and-behavior/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_indices/ca11cb15-2475-4660-b0ed-6cbfbdde9146/part_0_tokens.lance",
+      "bytes": 115734,
+      "sha256": "b46160f95c5774f2270617e9efcc0aa41d9e7f1a1d5c1c7acf878ce15645ec6a"
+    },
+    {
+      "path": "evals/experiments/experiment-unified-scaling/data/brain-and-behavior/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_transactions/0-c15b7ffc-a66f-4ec4-877a-70a278ce9ae2.txn",
+      "bytes": 527,
+      "sha256": "712c6082b3a59f69bd0c936e2d085dce864479216887f750eecff10a7ae5a7b1"
+    },
+    {
+      "path": "evals/experiments/experiment-unified-scaling/data/brain-and-behavior/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_transactions/1-a44e62b6-bdad-4ae6-9323-55c64624cd18.txn",
+      "bytes": 288,
+      "sha256": "3712b325d7f33d61cc7f6a74a113bf229f9dedbb6c441feb7e2563573aa5a406"
+    },
+    {
+      "path": "evals/experiments/experiment-unified-scaling/data/brain-and-behavior/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_versions/18446744073709551613.manifest",
+      "bytes": 1144,
+      "sha256": "cc2a8cec53f325dc2456a8789c882cd0a30bb5ff9a5dc5f3ab58183b7bf30ae1"
+    },
+    {
+      "path": "evals/experiments/experiment-unified-scaling/data/brain-and-behavior/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_versions/18446744073709551614.manifest",
+      "bytes": 1132,
+      "sha256": "e0791cce704a94daf205c45ce0dbf9bb50cb31db8412f29c980a743b74844678"
+    },
+    {
+      "path": "evals/experiments/experiment-unified-scaling/data/brain-and-behavior/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_versions/latest_version_hint.json",
+      "bytes": 13,
+      "sha256": "732322c128ed67841ef5aa42c7cd04ffcd74a61b2d17d710cd502b713d62930d"
+    },
+    {
+      "path": "evals/experiments/experiment-unified-scaling/data/brain-and-behavior/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/data/100001001010000101100101a90d934ffdb19a1c4c09ec63e9.lance",
+      "bytes": 17662685,
+      "sha256": "eec78b4ad328b07d3b8511e00fdb17d3cfbbe019a6edcc26a923d072e92cc7b8"
+    },
+    {
+      "path": "evals/experiments/experiment-unified-scaling/data/corpus/Fire And Blood_George.R.R.Martin_furfalling.ir.pdf",
+      "bytes": 14779095,
+      "sha256": "8fc6656a9072a64db7287540612b5577f752d0052faf251bacc3d3ce0328d7f0"
+    },
+    {
+      "path": "evals/experiments/experiment-unified-scaling/data/corpus/Napoleon.pdf",
+      "bytes": 3063342,
+      "sha256": "d95be21cea799bc87f28937940c3b556bcff6540f6815f5bd988fcb6d753c6b5"
+    },
+    {
+      "path": "evals/experiments/experiment-unified-scaling/data/corpus/att.pdf",
+      "bytes": 2201700,
+      "sha256": "bfaaec89262875f927cf1b38b2da2d775f3309b7bea3537f29b606ca67e79065"
+    },
+    {
+      "path": "evals/experiments/experiment-unified-scaling/data/corpus/brain_and_behavior.pdf",
+      "bytes": 141613623,
+      "sha256": "78a79b3964f3bde4c37cbf4fb57fc4410a1a7142eff01e7b4242f22b337ed8d3"
+    },
+    {
+      "path": "evals/experiments/experiment-unified-scaling/data/fire-and-blood/Fire And Blood_George.R.R.Martin_furfalling.ir.pdf",
+      "bytes": 14779095,
+      "sha256": "8fc6656a9072a64db7287540612b5577f752d0052faf251bacc3d3ce0328d7f0"
+    },
+    {
+      "path": "evals/experiments/experiment-unified-scaling/data/fire-and-blood/lancedb_isolated_0.6b/docs.json",
+      "bytes": 4044413,
+      "sha256": "c01774063852f052937cf64d64ebd95180850f94ed2bce6e8c00a00695bd84e8"
+    },
+    {
+      "path": "evals/experiments/experiment-unified-scaling/data/fire-and-blood/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_indices/48b24b0f-b579-4d8e-9b9d-ddd178f5c2e6/metadata.lance",
+      "bytes": 904,
+      "sha256": "ccd8952a64437294381b68b9d3d3341008af27422c986bc99660c938f2c74427"
+    },
+    {
+      "path": "evals/experiments/experiment-unified-scaling/data/fire-and-blood/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_indices/48b24b0f-b579-4d8e-9b9d-ddd178f5c2e6/part_0_docs.lance",
+      "bytes": 5276,
+      "sha256": "ff795ceaf8c403149746fafc73211f79df3f29a217a24fb6cfbedee9daf65ed2"
+    },
+    {
+      "path": "evals/experiments/experiment-unified-scaling/data/fire-and-blood/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_indices/48b24b0f-b579-4d8e-9b9d-ddd178f5c2e6/part_0_invert.lance",
+      "bytes": 537498,
+      "sha256": "7082ece0aff6041ad59c09adbdd9cb1e5e75bfc17a435e0c523eb338eaae0ab2"
+    },
+    {
+      "path": "evals/experiments/experiment-unified-scaling/data/fire-and-blood/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_indices/48b24b0f-b579-4d8e-9b9d-ddd178f5c2e6/part_0_tokens.lance",
+      "bytes": 49686,
+      "sha256": "2790f2eb0c058aaa5e8013174413de5370e41d6ec2446fc2cccd72be447977f1"
+    },
+    {
+      "path": "evals/experiments/experiment-unified-scaling/data/fire-and-blood/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_transactions/0-c52a5424-4dd9-4844-ab80-d7ecb6712b8b.txn",
+      "bytes": 527,
+      "sha256": "50b675d56ee911c3d58616218ac11a8bde200efcd324f975679aaa55d7900c43"
+    },
+    {
+      "path": "evals/experiments/experiment-unified-scaling/data/fire-and-blood/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_transactions/1-a49a9469-c386-4db1-835c-62691743e52e.txn",
+      "bytes": 288,
+      "sha256": "c54f4632aa024b63d7fda92e8cea649dfc006d3f1e04a34f2158807856a274d2"
+    },
+    {
+      "path": "evals/experiments/experiment-unified-scaling/data/fire-and-blood/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_versions/18446744073709551613.manifest",
+      "bytes": 1143,
+      "sha256": "f77ca9de372cb4aeb8ed76ff05c1f49208a3c09d4de23c326ab33ee7e4d7dcff"
+    },
+    {
+      "path": "evals/experiments/experiment-unified-scaling/data/fire-and-blood/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_versions/18446744073709551614.manifest",
+      "bytes": 1132,
+      "sha256": "180ce4809490018566c83307b5a5775ed8ff333b69107943852b44454b4e9d7f"
+    },
+    {
+      "path": "evals/experiments/experiment-unified-scaling/data/fire-and-blood/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_versions/latest_version_hint.json",
+      "bytes": 13,
+      "sha256": "732322c128ed67841ef5aa42c7cd04ffcd74a61b2d17d710cd502b713d62930d"
+    },
+    {
+      "path": "evals/experiments/experiment-unified-scaling/data/fire-and-blood/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/data/000100111000111001110000e3ee4348f5b2b300687ea5877d.lance",
+      "bytes": 8838167,
+      "sha256": "de6ba426803d879cf07d27d87fff526feda0141a8f896ebc7e44d7aff2bf9fcc"
+    },
+    {
+      "path": "evals/experiments/experiment-unified-scaling/data/mixed-codebase/lancedb_isolated_0.6b/docs.json",
+      "bytes": 1067275,
+      "sha256": "c3efffe118e030ba9e01e9af76a446177fd7d7cc618748714e4c07dbed74a5ce"
+    },
+    {
+      "path": "evals/experiments/experiment-unified-scaling/data/mixed-codebase/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_indices/a28525a9-3909-489e-bf86-0d5921c53e2f/metadata.lance",
+      "bytes": 904,
+      "sha256": "ccd8952a64437294381b68b9d3d3341008af27422c986bc99660c938f2c74427"
+    },
+    {
+      "path": "evals/experiments/experiment-unified-scaling/data/mixed-codebase/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_indices/a28525a9-3909-489e-bf86-0d5921c53e2f/part_0_docs.lance",
+      "bytes": 2971,
+      "sha256": "d0242503ac1de2313b6ca7a288eb7e58fa3b2eacd713511c74d502d2e274ebf0"
+    },
+    {
+      "path": "evals/experiments/experiment-unified-scaling/data/mixed-codebase/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_indices/a28525a9-3909-489e-bf86-0d5921c53e2f/part_0_invert.lance",
+      "bytes": 143072,
+      "sha256": "a6cd18c302f52f87d6e5f6be35a0e07032cf44a8d6c473fddf1b573d76fc4ee9"
+    },
+    {
+      "path": "evals/experiments/experiment-unified-scaling/data/mixed-codebase/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_indices/a28525a9-3909-489e-bf86-0d5921c53e2f/part_0_tokens.lance",
+      "bytes": 24652,
+      "sha256": "df78f1104c29345f784074d960ca4775706efef17c4151a64b87d9a7ec7ff79e"
+    },
+    {
+      "path": "evals/experiments/experiment-unified-scaling/data/mixed-codebase/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_transactions/0-79c7f5a8-5538-483c-965e-fd33f8c565ec.txn",
+      "bytes": 527,
+      "sha256": "c4f76738f60ef0ba894662c81155af5fde810a414e517f0b907eaa932a6f0440"
+    },
+    {
+      "path": "evals/experiments/experiment-unified-scaling/data/mixed-codebase/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_transactions/1-4ac2672e-6a36-4c80-a0ad-14c404f764be.txn",
+      "bytes": 288,
+      "sha256": "2c18bc88442b67ce705bd36c1f32b51b9672662baf4c9ee63341a66876604377"
+    },
+    {
+      "path": "evals/experiments/experiment-unified-scaling/data/mixed-codebase/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_versions/18446744073709551613.manifest",
+      "bytes": 1143,
+      "sha256": "24e05104e6a88cb6d1df21c3922d67f0d11d05e15349ffefb478dd176c12f4a5"
+    },
+    {
+      "path": "evals/experiments/experiment-unified-scaling/data/mixed-codebase/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_versions/18446744073709551614.manifest",
+      "bytes": 1131,
+      "sha256": "0d7f577fedad776e014d13440fb77d554ee7238e4aa747c7efe3f3c2963fcea1"
+    },
+    {
+      "path": "evals/experiments/experiment-unified-scaling/data/mixed-codebase/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_versions/latest_version_hint.json",
+      "bytes": 13,
+      "sha256": "732322c128ed67841ef5aa42c7cd04ffcd74a61b2d17d710cd502b713d62930d"
+    },
+    {
+      "path": "evals/experiments/experiment-unified-scaling/data/mixed-codebase/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/data/101000000001111110010000eeb6954e3d99f0051da147d886.lance",
+      "bytes": 2692914,
+      "sha256": "05c2d91f9cb17da6ae0e2c56fbc9ebd5a132aa546e53418165ed57676cff9796"
+    },
+    {
+      "path": "evals/experiments/experiment-unified-scaling/data/napoleon/Napoleon.pdf",
+      "bytes": 3063342,
+      "sha256": "d95be21cea799bc87f28937940c3b556bcff6540f6815f5bd988fcb6d753c6b5"
+    },
+    {
+      "path": "evals/experiments/experiment-unified-scaling/data/napoleon/lancedb_isolated_0.6b/docs.json",
+      "bytes": 1665403,
+      "sha256": "72096ae64bc7529563577b95cad7bfa2be9a24166a7a51623e6a2ec32260a9d2"
+    },
+    {
+      "path": "evals/experiments/experiment-unified-scaling/data/napoleon/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_indices/344c828b-a047-48c3-b2c7-43b44fbd7e1b/metadata.lance",
+      "bytes": 904,
+      "sha256": "75c47f29550a34cd87c15c4b7272447253add639c320d1cd988224647857dbdb"
+    },
+    {
+      "path": "evals/experiments/experiment-unified-scaling/data/napoleon/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_indices/344c828b-a047-48c3-b2c7-43b44fbd7e1b/part_0_docs.lance",
+      "bytes": 2971,
+      "sha256": "41f2425aebe9fe5866c12d26496b8102d04b591596e61455ce97c74a3441628e"
+    },
+    {
+      "path": "evals/experiments/experiment-unified-scaling/data/napoleon/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_indices/344c828b-a047-48c3-b2c7-43b44fbd7e1b/part_0_invert.lance",
+      "bytes": 347545,
+      "sha256": "dea4a3007e9c3e3a106822408646eccaf3ea925057daf94082e8988855031eaf"
+    },
+    {
+      "path": "evals/experiments/experiment-unified-scaling/data/napoleon/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_indices/344c828b-a047-48c3-b2c7-43b44fbd7e1b/part_0_tokens.lance",
+      "bytes": 45846,
+      "sha256": "89f535f89fad6bf9d159befa92247bab38d38f7952e11043e7e76829265dc183"
+    },
+    {
+      "path": "evals/experiments/experiment-unified-scaling/data/napoleon/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_transactions/0-697708fe-7567-430c-a0fc-4ac1aa93fcb5.txn",
+      "bytes": 527,
+      "sha256": "3de5a24f0bfe99efa9a5c13b73d759ad85ef6447287a5afcacd370783ba062f1"
+    },
+    {
+      "path": "evals/experiments/experiment-unified-scaling/data/napoleon/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_transactions/1-691c2f97-51ce-4f80-ae01-7e487db26de6.txn",
+      "bytes": 288,
+      "sha256": "518ccfaa3ce1225195a6823066ae2235951422c2abaeb17a1ca0d0dc831facc1"
+    },
+    {
+      "path": "evals/experiments/experiment-unified-scaling/data/napoleon/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_versions/18446744073709551613.manifest",
+      "bytes": 1144,
+      "sha256": "915bce0f2593a966b6bdc3b789c96599af3cfb0f180bd7496d1e69c787cea538"
+    },
+    {
+      "path": "evals/experiments/experiment-unified-scaling/data/napoleon/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_versions/18446744073709551614.manifest",
+      "bytes": 1132,
+      "sha256": "b03b3dd2aa61cb8ce1d6e14acfa193005e36aa0ee6f9bcea4d2333c38a4f7a4c"
+    },
+    {
+      "path": "evals/experiments/experiment-unified-scaling/data/napoleon/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/_versions/latest_version_hint.json",
+      "bytes": 13,
+      "sha256": "732322c128ed67841ef5aa42c7cd04ffcd74a61b2d17d710cd502b713d62930d"
+    },
+    {
+      "path": "evals/experiments/experiment-unified-scaling/data/napoleon/lancedb_isolated_0.6b/lancedb_storage/rag_v2_lancedb_isolated_0_6b.lance/data/0111110101000101000001102e8b0c40d6af4dd0a3ce45479a.lance",
+      "bytes": 3867351,
+      "sha256": "ff008e9edcabb1414d5a8c055120da49a708e0fe030e2e0f32f729f3ad94cf6b"
+    },
+    {
+      "path": "evals/experiments/experiment-unified-scaling/experiment.md",
+      "bytes": 4407,
+      "sha256": "f2668b5a6aa855f8bd90a380c821576816ccee6fc28e77c88cd7d8a77c3d7949"
+    },
+    {
+      "path": "evals/experiments/experiment-unified-scaling/run_experiment.py",
+      "bytes": 5514,
+      "sha256": "e800de99169a2a180778c35c7a2ffc9bea7fbd7b5bd87a98203f8f02636c2cd3"
+    },
+    {
+      "path": "rag/bm25.py",
+      "bytes": 4768,
+      "sha256": "8cd20739b22ac6a68948061d9079c56aeebae5b845a222853454129928872fc6"
+    },
+    {
+      "path": "rag/embeddings.py",
+      "bytes": 10994,
+      "sha256": "d00995120f3d04a9053f1f804b61db620f5dfe00b9dc469599c0d1be3c520794"
+    },
+    {
+      "path": "scripts/benchmark_search_materialization.py",
+      "bytes": 1976,
+      "sha256": "95205d4b9fe0f441de03291bf91c74cd604d260609071231e93943d539ab7709"
+    },
+    {
+      "path": "scripts/full_benchmark_results.json",
+      "bytes": 133028,
+      "sha256": "5e4e0d506a75c5c3c75a314d0a61c781c40a58696afbed4fcc958c31cbb07c8f"
+    },
+    {
+      "path": "scripts/run_benchmark_comparison.py",
+      "bytes": 6278,
+      "sha256": "55b9eeec9ccdb3c7af7b393615dc7309080e6b3a1616b241df284d1b4afeb7f9"
+    },
+    {
+      "path": "scripts/run_full_benchmark.py",
+      "bytes": 5575,
+      "sha256": "7c1994b11f8f2a20c72645f1e5fb0ff86253a58eb0770ea5045aef2304a38652"
+    },
+    {
+      "path": "tests/unit/test_api_embedding_contract.py",
+      "bytes": 8322,
+      "sha256": "f47dea88085c61d8673a08dc242a15fcce324ebcc67876956474fb6e76e6d79a"
+    },
+    {
+      "path": "tests/unit/test_bm25_contract.py",
+      "bytes": 3025,
+      "sha256": "c00238ceeb2e4d3c1fcf3c5c544b04cb6efae89226cbe92d99b89ae719e8bc7a"
+    }
+  ],
+  "platform": "Linux-7.0.0-31-generic-x86_64-with-glibc2.39",
+  "python": "Python 3.13.5"
+}
