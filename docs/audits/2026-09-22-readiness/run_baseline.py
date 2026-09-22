@@ -1,5 +1,6 @@
 """Repeat selected existing contracts with external Python sockets blocked."""
 from pathlib import Path
+import argparse
 import hashlib
 import json
 import os
@@ -10,6 +11,10 @@ import time
 
 ROOT = Path(__file__).resolve().parents[3]
 HERE = Path(__file__).resolve().parent
+parser = argparse.ArgumentParser()
+parser.add_argument('--output', type=Path, default=HERE)
+HERE = parser.parse_args().output.resolve()
+HERE.mkdir(parents=True, exist_ok=True)
 TESTS = [
     "tests/unit/test_query_decomposition.py",
     "tests/unit/test_server_settings_contract.py",

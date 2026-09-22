@@ -9,7 +9,7 @@ from types import SimpleNamespace
 import pytest
 
 import server
-from rag import core, fetch
+from rag import core, fetch, openrouter_pipeline
 
 
 class RecordingEmbedder:
@@ -52,10 +52,20 @@ def workspace(tmp_path, monkeypatch):
     for name, passage in PASSAGES.items():
         (folder / name).write_text(passage)
 
+    evidence = []
+
+    def synthesize(query, passages, config):
+        evidence.append(passages)
+        return 'Grounded fixture answer.'
+
+    monkeypatch.setattr(openrouter_pipeline, 'synthesize_answer', synthesize)
+
     def search(query='Meeting'):
+        evidence.clear()
         response = json.loads(server.query_knowledge_base(query, str(folder)))
-        assert 'error' not in response, response
-        return response['result']
+        assert response == {'result': 'Grounded fixture answer.'}
+        assert len(evidence) == 1
+        return evidence[0]
 
     server._validated_scope_cache.clear()
     fetch.reset_pipelines()
