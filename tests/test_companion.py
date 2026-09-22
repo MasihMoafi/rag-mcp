@@ -82,6 +82,17 @@ def test_companion_rejects_unpaired_requests_and_streams_grounded_answers(monkey
             {"type": "done"},
         ]
         assert calls == [payload]
+        with request(f"{base}/v1/dashboard") as response:
+            dashboard = json.load(response)
+        assert dashboard["operations"]["generation"]["requests"] == 1
+        assert dashboard["operations"]["generation"]["successes"] == 1
+        assert dashboard["operations"]["generation"]["failures"] == 0
+        assert dashboard["operations"]["generation"]["average_latency_ms"] >= 0
+        assert dashboard["models"]["generation"] == "gpt-5.6-luna"
+        assert dashboard["usage"] == {"input_tokens": None, "output_tokens": None, "cost_usd": None}
+        assert dashboard["gates"]["native_operation_metrics"] is True
+        assert dashboard["gates"]["durable_run_history"] is False
+        assert dashboard["gates"]["retrieval_stage_traces"] is False
     finally:
         server.shutdown()
         server.server_close()
@@ -115,6 +126,12 @@ def test_companion_embeds_with_the_configured_model():
 
         with request(f"{base}/embed", body={"texts": ["ab"], "kind": "query"}) as response:
             assert json.load(response)["vectors"] == [[2.0, 2.0]]
+
+        with request(f"{base}/v1/dashboard") as response:
+            dashboard = json.load(response)
+        assert dashboard["operations"]["embedding"]["requests"] == 3
+        assert dashboard["operations"]["embedding"]["successes"] == 3
+        assert dashboard["models"]["embedding"] == "fake-embedder"
 
         for bad in ({"texts": []}, {"texts": "not a list"}, {"texts": ["", "ok"]}, {"texts": ["ok"], "kind": "invalid"}, {}):
             try:

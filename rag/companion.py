@@ -5,9 +5,11 @@ import json
 import shutil
 import subprocess
 import tempfile
+import time
 from collections.abc import Callable
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from threading import Lock
 from typing import Any
 
 
@@ -151,6 +153,49 @@ def create_companion_server(
     embedder_factory: Callable[[], Any] = default_embedder,
 ) -> ThreadingHTTPServer:
     loaded: dict[str, Any] = {}
+    metrics_lock = Lock()
+    metrics = {
+        "embedding": {"requests": 0, "successes": 0, "failures": 0, "total_latency_ms": 0.0},
+        "generation": {"requests": 0, "successes": 0, "failures": 0, "total_latency_ms": 0.0},
+    }
+
+    def record(operation: str, started: float, success: bool) -> None:
+        with metrics_lock:
+            current = metrics[operation]
+            current["requests"] += 1
+            current["successes" if success else "failures"] += 1
+            current["total_latency_ms"] += (time.monotonic() - started) * 1_000
+
+    def dashboard(codex_available: bool) -> dict[str, Any]:
+        with metrics_lock:
+            operations = {
+                name: {
+                    "requests": int(values["requests"]),
+                    "successes": int(values["successes"]),
+                    "failures": int(values["failures"]),
+                    "average_latency_ms": round(
+                        values["total_latency_ms"] / values["requests"], 1
+                    ) if values["requests"] else None,
+                }
+                for name, values in metrics.items()
+            }
+        configured_embedding = embedding_status()["model"] or None
+        active_embedding = getattr(loaded.get("embedder"), "model_name", None)
+        return {
+            "operations": operations,
+            "models": {"embedding": active_embedding or configured_embedding, "generation": MODEL},
+            "usage": {"input_tokens": None, "output_tokens": None, "cost_usd": None},
+            "gates": {
+                "companion_connected": True,
+                "embedding_configured": bool(active_embedding or configured_embedding),
+                "generation_available": codex_available,
+                "native_operation_metrics": True,
+                "durable_run_history": False,
+                "retrieval_stage_traces": False,
+                "provider_token_usage": False,
+                "provider_cost": False,
+            },
+        }
 
     def embedder() -> Any:
         # Built on first use: a local model download must not delay `rag studio` startup.
@@ -204,25 +249,31 @@ def create_companion_server(
             self.end_headers()
 
         def do_GET(self) -> None:
-            if self.path != "/health":
+            if self.path not in {"/health", "/v1/dashboard"}:
                 self._send_json(404, {"error": "Not found."})
                 return
             if not self._authorized():
                 self._send_json(403, {"error": "Pairing rejected."})
                 return
             ready = codex_ready()
+            if self.path == "/v1/dashboard":
+                self._send_json(200, dashboard(ready))
+                return
             self._send_json(200, {"ready": ready, "model": MODEL, "embedding": embedding_status()})
 
         def _embed(self, payload: Any) -> None:
             if not _valid_embed_payload(payload):
                 self._send_json(400, {"error": "Embedding request is invalid."})
                 return
+            started = time.monotonic()
             try:
                 model = embedder()
             except Exception as error:
+                record("embedding", started, False)
                 self._send_json(502, {"error": f"The embedding model could not be loaded: {error}"})
                 return
             if model is None:
+                record("embedding", started, False)
                 self._send_json(409, {"error": BM25_ONLY_NOTICE})
                 return
             try:
@@ -232,8 +283,10 @@ def create_companion_server(
                     else model.embed_documents(payload["texts"])
                 )
             except Exception:
+                record("embedding", started, False)
                 self._send_json(502, {"error": "Embedding failed."})
                 return
+            record("embedding", started, True)
             self._send_json(
                 200,
                 {"vectors": vectors, "model": model.model_name, "dimensions": len(vectors[0]) if vectors else 0},
@@ -264,11 +317,14 @@ def create_companion_server(
             if not _valid_payload(payload):
                 self._send_json(400, {"error": "Generation request is invalid."})
                 return
+            started = time.monotonic()
             try:
                 answer = run_codex(payload)
             except Exception:
+                record("generation", started, False)
                 self._send_json(502, {"error": "Codex could not generate an answer."})
                 return
+            record("generation", started, True)
             events = [
                 {"type": "meta", "mode": "provider", "provider": "Codex · Local", "model": MODEL},
                 {"type": "delta", "text": answer},
