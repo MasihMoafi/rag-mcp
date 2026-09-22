@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import hashlib
+import math
 import os
 import urllib.error
 import urllib.request
@@ -97,7 +98,8 @@ class OpenRouterReranker:
                 raise RuntimeError("OpenRouter reranker returned an invalid result.")
             index = result.get("index")
             score = result.get("relevance_score")
-            if type(index) is not int or not 0 <= index < len(scores) or not isinstance(score, (int, float)):
+            if (type(index) is not int or not 0 <= index < len(scores)
+                    or type(score) not in (int, float) or not math.isfinite(score)):
                 raise RuntimeError("OpenRouter reranker returned an invalid score.")
             if scores[index] is not None:
                 raise RuntimeError("OpenRouter reranker returned a duplicate passage.")
@@ -143,7 +145,10 @@ def synthesize_answer(query: str, passages: Sequence[Mapping[str, Any]], config:
         timeout=float(config.get("answer_timeout", 90)),
     )
     try:
-        answer = response["choices"][0]["message"]["content"].strip()
+        choice = response["choices"][0]
+        if choice.get('finish_reason') != 'stop':
+            raise RuntimeError("OpenRouter synthesis did not return a complete answer.")
+        answer = choice["message"]["content"].strip()
     except (KeyError, IndexError, TypeError, AttributeError) as error:
         raise RuntimeError("OpenRouter synthesis returned no answer.") from error
     if not answer:

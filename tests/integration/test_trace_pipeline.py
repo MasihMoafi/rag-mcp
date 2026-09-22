@@ -2,6 +2,7 @@
 import io
 import json
 import urllib.error
+from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 
@@ -38,7 +39,7 @@ def pipeline(tmp_path, monkeypatch):
                 {'index': i, 'relevance_score': 1 / (i + 1)}
                 for i in range(len(payload['documents']))
             ], 'usage': {'search_units': 1, 'cost': 0.002}}).encode())
-        return io.BytesIO(json.dumps({'choices': [{'message': {'content': 'Friday.'}}],
+        return io.BytesIO(json.dumps({'choices': [{'finish_reason': 'stop', 'message': {'content': 'Friday.'}}],
                                     'usage': {'prompt_tokens': 40, 'completion_tokens': 3,
                                               'cost': 0.0001}}).encode())
 
@@ -95,3 +96,22 @@ def test_provider_failure_stays_private_and_marks_root(pipeline, monkeypatch):
     assert provider['status'] == 'error'
     assert provider['attributes']['usage']['cost_usd'] is None
     assert 'private-' not in json.dumps(record) + json.dumps(response)
+
+
+def test_warm_requests_and_parallel_readers_keep_complete_traces(pipeline):
+    source, directory, _ = pipeline
+    def query(_):
+        return json.loads(server.query_knowledge_base('Meeting', str(source)))
+    assert query(0) == {'result': 'Friday.'}
+    sequential = [query(i) for i in range(30)]
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        parallel = list(pool.map(query, range(30)))
+    assert sequential + parallel == [{'result': 'Friday.'}] * 60
+    records = [json.loads(path.read_text()) for path in directory.glob('trace-*.json')]
+    assert len(records) == 61
+    assert len({r['trace_id'] for r in records}) == 61
+    for record in records:
+        assert record['spans'][0]['status'] == 'success'
+        assert record['accounting']['reported_cost_subtotal_usd'] == .0021
+        spans = {s['operation']: s for s in record['spans']}
+        assert spans['selection.rerank']['attributes']['selected'] == spans['synthesis']['attributes']['selected']

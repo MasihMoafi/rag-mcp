@@ -85,6 +85,7 @@ def test_reranking_preserves_payload_order_and_fallback(failure):
 @pytest.mark.parametrize('docs', [[], [{"content": "source"}]])
 def test_reranking_short_results_do_not_call_model(docs):
     pipeline = RAGPipelineV2.__new__(RAGPipelineV2)
+    pipeline.reranker_type = 'cross-encoder'
     pipeline.reranker = Mock()
     assert pipeline._crossencoder_rerank(docs, "query", 2) is docs
     pipeline.reranker.predict.assert_not_called()
