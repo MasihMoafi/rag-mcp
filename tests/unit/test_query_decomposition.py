@@ -8,11 +8,19 @@ def test_explicit_multi_part_question_becomes_focused_facets():
     )
 
     assert decompose_query(query) == [
-        "According to this chapter, why can retrieval metrics look good while the final answer is poor?",
-        "Explain the distinct failure points",
         (
-            "give the practical evaluation approach it recommends. Offline and online production "
-            "lifecycle, CI/CD gates, monitoring, and human feedback."
+            "Failure points across document ingestion (including outdated or improperly parsed "
+            "documents), flawed retrieval, and hallucinated or incomplete answer generation: "
+            "According to this chapter, why can retrieval metrics look good while the final answer "
+            "is poor? Explain the distinct failure points"
+        ),
+        (
+            "Recommended practical offline evaluation lifecycle: fixed golden dataset, CI/CD "
+            "evaluation gates, regression thresholds, and tuning."
+        ),
+        (
+            "Recommended practical online evaluation lifecycle: asynchronous sampled live "
+            "traffic, monitoring, A/B testing, and human feedback."
         ),
     ]
 
