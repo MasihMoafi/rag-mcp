@@ -22,7 +22,8 @@ jobs:
           .venv/bin/python docs/audits/2026-09-22-readiness/run_baseline.py
           --output /tmp/rag-contract-results
           --extra-tests tests/unit/test_tracing.py tests/unit/test_hosted_failures.py
-          tests/unit/test_release_gate.py tests/integration/test_trace_pipeline.py
+          tests/unit/test_release_gate.py tests/unit/test_diagnostic_budget.py
+          tests/integration/test_trace_pipeline.py
       - name: Build distributable
         run: uv build --out-dir /tmp/rag-dist
       - name: Verify isolated wheel
