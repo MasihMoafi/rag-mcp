@@ -1,0 +1,144 @@
+{
+  "schema_version": 1,
+  "split": "development",
+  "source_family": "hands-on-rag-for-production",
+  "source_filename": "4. Deploying RAG to Production _ Hands-On RAG for Production.md",
+  "source_sha256": "2284cc630394f6db619d67e4fd8dfc957b546701f519e395c6a68f9449fb8a12",
+  "review_status": "agent-drafted; not independently adjudicated",
+  "claims": [
+    {
+      "id": "production_gap",
+      "expected_claim": "POC success leaves operational and organizational production demands",
+      "lines_inclusive": [
+        1,
+        19
+      ],
+      "sha256": "680d6e033811250abfbb6c105c2eeaf859a5d50a72c001b4d3ec1cf9c48267fb"
+    },
+    {
+      "id": "quality",
+      "expected_claim": "Response quality and user trust",
+      "lines_inclusive": [
+        21,
+        27
+      ],
+      "sha256": "0c945a805c18e76e4def4afde847184efac4c610054b8e0575800bb1963773fa"
+    },
+    {
+      "id": "latency",
+      "expected_claim": "Production latency and scale",
+      "lines_inclusive": [
+        95,
+        121
+      ],
+      "sha256": "be7c7d60e9738da013552448350ee7608c1cd6e7275970df6bec2e9d6111000c"
+    },
+    {
+      "id": "security",
+      "expected_claim": "Security across ingestion, storage and generation",
+      "lines_inclusive": [
+        270,
+        276
+      ],
+      "sha256": "2e8bdc52fccc923fd86b5ef3c1f69355afdb3deadb73829fe727e40161e5749a"
+    },
+    {
+      "id": "integration",
+      "expected_claim": "Vendor integration complexity",
+      "lines_inclusive": [
+        354,
+        380
+      ],
+      "sha256": "f4785a7a91037447cda7560b20c23ac47c14b9733ddc3d3cb82a9ff5ac01a7d1"
+    },
+    {
+      "id": "team",
+      "expected_claim": "Cross-functional team requirements",
+      "lines_inclusive": [
+        430,
+        447
+      ],
+      "sha256": "4cf52b88deeafafef0a47e9b5cb8f92fb0a04aa8fc39fea5175ee61d8299a8d7"
+    },
+    {
+      "id": "cost",
+      "expected_claim": "Total cost of ownership",
+      "lines_inclusive": [
+        469,
+        477
+      ],
+      "sha256": "e98989ff590e46a184919533b9c9ae5f8354ec0abc43efeaf84b3a767b16ef34"
+    },
+    {
+      "id": "architecture",
+      "expected_claim": "Decoupled ingestion, parallel hybrid retrieval, reranking and guarded generation",
+      "lines_inclusive": [
+        537,
+        569
+      ],
+      "sha256": "b49c0192ad1da5330a4c2aa09ce7fa50843d89ae334d06ec956c0f525f27e3a9"
+    },
+    {
+      "id": "poc_report",
+      "expected_claim": "Document POC findings",
+      "lines_inclusive": [
+        581,
+        601
+      ],
+      "sha256": "205187bfd1f88ea9d88ee097a8958d22977135afac76802c6a2fe5872c460193"
+    },
+    {
+      "id": "numeric_goals",
+      "expected_claim": "Define numeric production requirements against POC results",
+      "lines_inclusive": [
+        603,
+        609
+      ],
+      "sha256": "6503de3c6e7a0b6552dfdff0f18fb2756996fbd3aaa24e8f1138b35902a3da7a"
+    },
+    {
+      "id": "operations",
+      "expected_claim": "Launch, monitor and iterate with feedback",
+      "lines_inclusive": [
+        738,
+        754
+      ],
+      "sha256": "836ba7e2d949feef61fac8751a587929d996142f837f907ce55782dfba7e54d5"
+    }
+  ],
+  "cases": [
+    {
+      "id": "ch4-broad",
+      "question": "According to this chapter, why is a successful RAG proof of concept not automatically production-ready? Explain the main production challenges it identifies, and describe the reference architecture and transition process it recommends.",
+      "required_claims": [
+        "production_gap",
+        "quality",
+        "latency",
+        "security",
+        "integration",
+        "team",
+        "cost",
+        "architecture",
+        "poc_report",
+        "numeric_goals",
+        "operations"
+      ]
+    },
+    {
+      "id": "ch4-architecture",
+      "question": "According to this chapter, describe the reference architecture for a production RAG system.",
+      "required_claims": [
+        "architecture"
+      ]
+    },
+    {
+      "id": "ch4-transition",
+      "question": "According to this chapter, describe the transition process from a RAG proof of concept to production.",
+      "required_claims": [
+        "poc_report",
+        "numeric_goals",
+        "operations"
+      ]
+    }
+  ]
+}

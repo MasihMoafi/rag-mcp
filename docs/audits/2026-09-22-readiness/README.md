@@ -75,3 +75,44 @@ specified 50 candidates. Incremental-index tests capture the real retrieved
 evidence at a fake synthesis boundary and assert the exact public answer envelope;
 all edit/delete/rebuild checks still examine real index output. Runtime unchanged.
 The runner accepts `--output` so subsequent checkpoints do not replace evidence.
+
+## Tracing and package follow-up
+
+Local stage tracing is implemented and documented in
+[observability.md](../../observability.md). The expanded regression run initially
+found three more source-recovery tests at the old passage-list public boundary;
+their privacy/recovery assertions are preserved around a stubbed synthesizer.
+`tracing-final/` preserves that failed run. `tracing-verified/` records the repair:
+**230 passed,422 existing warnings,42.56s**. This includes13 new tracing checks
+and existing lifecycle/refresh/backend contracts, using simulated providers.
+
+`uv build --offline --out-dir /tmp/rag-readiness-package-20260922` built both
+sdist and wheel. A new isolated environment installed that wheel entirely from
+the local cache. `verify_package.py` ran outside the checkout and verified the
+installed module location, CLI help, MCP initialize/tool listing, real lexical
+ingestion and an answer with simulated hosted providers. `package-smoke.log`
+records output. It used LanceDB0.38.0/OpenAI3.13.0 rather than the development
+environment's0.37.1/2.53.0; this small smoke is not a complete dependency matrix.
+
+The new offline CI workflow runs the selected contracts and installed-wheel
+smoke without API credentials. It is only local configuration: no GitHub run or
+branch-protection setting has been performed. It is not a held-out quality gate.
+
+The exact CI selection also passed in an isolated base+dev environment:
+**94 passed, 48 warnings, 14.32s** (`ci-light/`). The three-case development
+[diagnostic protocol](diagnostic-protocol.md), frozen inputs and offline cost
+preflight are prepared; no hosted diagnostic has run. A planning estimate of
+$0.02229014 exceeds the approximately $0.0004 remaining prior allowance. A hard
+spending guard and renewed budget remain prerequisites, not completed controls.
+
+## Environment incident and restoration
+
+An intended isolated `uv sync` was accidentally run against the project's virtual
+environment and removed optional packages. All127 removed PyPI versions and both
+editable project distributions were restored from cache; the spaCy English
+model3.8.0 required a12.2MiB download from its official GitHub release. Its load
+smoke passed. `restoration-and-preservation.json` records matching baseline
+dependency versions and byte-identical preservation of all167 pre-existing dirty
+files. Editable installations still point at this checkout; reinstall metadata
+now refers to the cached wheel. No paid model call or external publication occurred.
+The earlier no-download statement describes the initial baseline only.

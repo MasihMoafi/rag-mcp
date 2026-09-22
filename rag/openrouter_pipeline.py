@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import os
 import urllib.error
 import urllib.request
 from collections.abc import Mapping, Sequence
 from typing import Any
+from . import tracing
 
 
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
@@ -28,6 +30,12 @@ def openrouter_key(config: Mapping[str, Any]) -> str:
 
 
 def _post(path: str, payload: Mapping[str, Any], *, key: str, timeout: float) -> dict[str, Any]:
+    tracing.annotate(provider='openrouter', model=payload.get('model'), retry_count=0, timeout_seconds=timeout)
+    tracing.usage(None)
+    tracing.content('request', payload)
+    if path == '/chat/completions':
+        tracing.annotate(prompt_sha256=hashlib.sha256(payload['messages'][0]['content'].encode()).hexdigest(),
+                         output_token_cap=payload.get('max_tokens'))
     request = urllib.request.Request(
         f"{OPENROUTER_BASE_URL}{path}",
         data=json.dumps(payload).encode("utf-8"),
@@ -42,11 +50,13 @@ def _post(path: str, payload: Mapping[str, Any], *, key: str, timeout: float) ->
         with urllib.request.urlopen(request, timeout=timeout) as response:
             value = json.load(response)
     except urllib.error.HTTPError as error:
+        tracing.annotate(http_status=error.code)
         raise RuntimeError(f"OpenRouter request failed with HTTP {error.code}.") from error
     except (OSError, ValueError) as error:
         raise RuntimeError("OpenRouter request failed before returning a valid response.") from error
     if not isinstance(value, dict):
         raise RuntimeError("OpenRouter returned an invalid response.")
+    tracing.usage(value.get('usage'))
     return value
 
 
@@ -58,6 +68,7 @@ class OpenRouterReranker:
         self._key = openrouter_key(config)
         self._timeout = float(config.get("reranker_timeout", 60))
 
+    @tracing.traced('rerank.provider')
     def predict(self, pairs: Sequence[Sequence[str]]) -> list[float]:
         if not pairs:
             return []
@@ -65,6 +76,7 @@ class OpenRouterReranker:
         if any(len(pair) != 2 or pair[0] != query for pair in pairs):
             raise ValueError("Hosted reranking requires one query paired with every passage.")
         passages = [pair[1] for pair in pairs]
+        tracing.annotate(input_count=len(passages))
         response = _post(
             "/rerank",
             {
@@ -95,9 +107,12 @@ class OpenRouterReranker:
         return [score for score in scores if score is not None]
 
 
+@tracing.traced('synthesis')
 def synthesize_answer(query: str, passages: Sequence[Mapping[str, Any]], config: Mapping[str, Any]) -> str:
     """Return only a grounded answer; never expose retrieval metadata to the caller."""
+    tracing.passages('selected', passages)
     if not passages:
+        tracing.annotate(skipped_reason='no_passages')
         return "The indexed material does not contain enough information to answer that question."
     context = "\n\n".join(
         f"<passage {index}>\n{str(passage.get('content') or '').strip()}\n</passage {index}>"
@@ -133,4 +148,5 @@ def synthesize_answer(query: str, passages: Sequence[Mapping[str, Any]], config:
         raise RuntimeError("OpenRouter synthesis returned no answer.") from error
     if not answer:
         raise RuntimeError("OpenRouter synthesis returned an empty answer.")
+    tracing.content('answer', answer)
     return answer

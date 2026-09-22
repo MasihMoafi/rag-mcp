@@ -1,0 +1,36 @@
+warning: The `fitz` API is deprecated and will be removed in future. Use `import pymupdf` instead.
+[RAG V2] Creating new instance for /tmp/rag-package-smoke-9crbjzrd/fixture.txt...
+[RAG] About to create RAGPipelineV2...
+[RAG V2] Using compute device: cpu
+[RAG V2] No embedding model configured: exact-word (BM25) search only. Run `rag setup` to add meaning-based search.
+[RAG V2] Using backend: lancedb
+[LanceDB] Opening database at: /tmp/rag-package-smoke-9crbjzrd/indexes/fixture.txt_23be9175/generation-tsln3nlm/lancedb_storage
+[RAG V2] Using OpenRouter reranker: cohere/rerank-4-fast
+[RAG V2] Creating new database at /tmp/rag-package-smoke-9crbjzrd/indexes/fixture.txt_23be9175/generation-tsln3nlm...
+[RAG V2] Processing fixture.txt...
+[RAG V2] Indexing 1 chunks...
+[LanceDB] Indexing 1 documents in GPU batches of 512...
+[2026-09-22T16:09:41Z WARN  lance::dataset::write::insert] No existing dataset at /tmp/rag-package-smoke-9crbjzrd/indexes/fixture.txt_23be9175/generation-tsln3nlm/lancedb_storage/rag_v2_generation_tsln3nlm.lance, it will be created
+[LanceDB] Created table 'rag_v2_generation_tsln3nlm' with 1 records.
+[LanceDB] Built FTS indexes on 'content' and 'symbols'.
+[RAG V2] Database created with 1 chunks
+[RAG] V2 initialization complete
+[RAG V2] Searching (backend: lancedb)
+[RAG V2] Step 3: skipped (no embedding model; exact-word search only)
+[RAG V2] Step 4: LanceDB Tantivy FTS search...
+[RAG V2] Step 5: RRF fusion...
+[RAG Core] Reranking 1 fused candidates...
+[RAG V2] Returning 1 unique results
+{
+  "installed_server": "/tmp/rag-readiness-clean-20260922/lib/python3.13/site-packages/server.py",
+  "cli_help": "passed",
+  "mcp_initialize_and_tools": "passed",
+  "real_lexical_index_with_fake_hosted_providers": "passed",
+  "provider_requests": "simulated only",
+  "versions": {
+    "ragmcp": "0.2.0",
+    "lancedb": "0.38.0",
+    "openai": "3.13.0",
+    "filelock": "3.32.5"
+  }
+}

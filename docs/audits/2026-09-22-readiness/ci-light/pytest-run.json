@@ -1,0 +1,27 @@
+{
+  "command": [
+    "/tmp/rag-readiness-ci-20260922/bin/python",
+    "-m",
+    "pytest",
+    "tests/unit/test_query_decomposition.py",
+    "tests/unit/test_server_settings_contract.py",
+    "tests/unit/test_pipeline_config_validation.py",
+    "tests/unit/test_search_contract.py",
+    "tests/unit/test_retrieval_log_privacy.py",
+    "tests/integration/test_rag_mcp_host.py",
+    "tests/integration/test_rag_scope.py",
+    "tests/integration/test_incremental_index.py",
+    "tests/test_companion.py",
+    "tests/unit/test_tracing.py",
+    "tests/integration/test_trace_pipeline.py",
+    "-q",
+    "--tb=short"
+  ],
+  "started_unix": 1790093913.6486661,
+  "elapsed_seconds": 16.040789127349854,
+  "exit_code": 0,
+  "head": "693e99c609268b7560583d8b69757f748989502e",
+  "platform": "Linux-7.0.0-31-generic-x86_64-with-glibc2.39",
+  "log_sha256": "7c8a6b1c1067dc5bc35d51e348b6ac0a7115f614697103e9dac11466a0119a51",
+  "scope": "Existing selected contracts; fake providers and temporary indexes. Not held-out quality or hosted latency."
+}

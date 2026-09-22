@@ -34,6 +34,7 @@ from rag.settings import embedding_config, retrieval_config  # noqa: E402
 from rag import settings as user_settings  # noqa: E402
 from rag.answer_contract import decode_public_answer  # noqa: E402
 from rag.formats import INDEXABLE_EXTENSIONS  # noqa: E402
+from rag import tracing  # noqa: E402
 
 _SERVER_NAME = "rag-mcp"
 _SERVER_VERSION = "0.2.0"
@@ -158,6 +159,7 @@ def _settings_report() -> dict[str, Any]:
         "embedding": {"provider": embedding["embed_provider"], "model": embedding["embed_model"]},
         "retrieval": user_settings.retrieval_config(),
         "detected": detect.detect_all(os.environ, embedding["ollama_url"]),
+        "diagnostics": tracing.health(),
     }
 
 
@@ -326,6 +328,7 @@ def _allowed_extensions(extensions: list[str] | None) -> frozenset[str]:
     return frozenset(allowed)
 
 
+@tracing.traced('scope.discovery')
 def _validate_rag_scope(path: Path, extensions: list[str] | None = None) -> _ScopeManifest | None:
     """Validate a scope and retain its safe file manifest for reuse."""
     allowed_extensions = _allowed_extensions(extensions)
@@ -426,8 +429,11 @@ def _validate_rag_scope(path: Path, extensions: list[str] | None = None) -> _Sco
     return manifest
 
 
+@tracing.trace_query
 def query_knowledge_base(query: str, doc_path: str = "", extensions: list[str] | None = None) -> str:
     """Load and run RAG only after an explicit tool call."""
+    tracing.annotate(server_source_sha256_at_startup=_SERVER_SOURCE_SHA256)
+    tracing.content('query', query)
     query = query.strip() if isinstance(query, str) else ""
     if not query:
         return json.dumps({"error": "query must be a non-empty string"})
@@ -459,6 +465,7 @@ def query_knowledge_base(query: str, doc_path: str = "", extensions: list[str] |
                 from rag.query_decomposition import balanced_passages, decompose_query
 
                 facets = decompose_query(query)
+                tracing.annotate(facet_count=len(facets))
                 if len(facets) == 1:
                     value = fetch(query=query, doc_path=fetch_doc_path, scope=fetch_scope)
                 else:
@@ -471,7 +478,9 @@ def query_knowledge_base(query: str, doc_path: str = "", extensions: list[str] |
                         )
                         if isinstance(facet_value, list):
                             groups.append(facet_value)
-                    value = balanced_passages(groups, limit=5)
+                    with tracing.span('selection.balance'):
+                        value = balanced_passages(groups, limit=5)
+                        tracing.passages('selected', value)
             except Exception as exc:
                 return json.dumps({"error": (
                     f"RAG answer pipeline failed ({type(exc).__name__}). "
@@ -482,6 +491,7 @@ def query_knowledge_base(query: str, doc_path: str = "", extensions: list[str] |
         else:
             from rag.openrouter_pipeline import synthesize_answer
 
+            tracing.passages('synthesis_evidence', value)
             answer = synthesize_answer(
                 query,
                 value,

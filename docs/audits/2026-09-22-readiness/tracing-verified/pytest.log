@@ -1,0 +1,28 @@
+........................................................................ [ 31%]
+........................................................................ [ 62%]
+........................................................................ [ 93%]
+..............                                                           [100%]
+=============================== warnings summary ===============================
+tests/integration/test_incremental_index.py: 9 warnings
+tests/integration/test_trace_pipeline.py: 3 warnings
+tests/integration/test_document_refresh.py: 63 warnings
+tests/integration/test_generation_refresh.py: 53 warnings
+  /home/masih/Desktop/p/rag-mcp/rag/lancedb_backend.py:61: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    table_names = self.db.table_names()
+
+tests/integration/test_incremental_index.py: 9 warnings
+tests/integration/test_trace_pipeline.py: 3 warnings
+tests/integration/test_document_refresh.py: 63 warnings
+tests/integration/test_generation_refresh.py: 53 warnings
+  /home/masih/miniconda3/lib/python3.13/asyncio/events.py:89: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    self._context.run(self._callback, *self._args)
+
+tests/integration/test_incremental_index.py: 18 warnings
+tests/integration/test_trace_pipeline.py: 6 warnings
+tests/integration/test_document_refresh.py: 74 warnings
+tests/integration/test_generation_refresh.py: 68 warnings
+  /home/masih/Desktop/p/rag-mcp/rag/lancedb_backend.py:176: DeprecatedWarning: create_fts_index is deprecated as of 0.25.0. Use create_index() with config=FTS() instead.
+    self.table.create_fts_index(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+230 passed, 422 warnings in 42.56s

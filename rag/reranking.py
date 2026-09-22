@@ -1,4 +1,5 @@
 """Rank fusion and optional passage reranking without storage concerns."""
+from . import tracing
 
 import math
 from pathlib import Path
@@ -166,6 +167,7 @@ def rerank_documents(self, docs: List[Dict], query: str, k: int) -> List[Dict]:
 
         # Sort documents by score (higher is better)
         ranked = sorted(zip(docs, scores), key=lambda x: x[1], reverse=True)
+        tracing.passages('ranked', [dict(doc, score=score) for doc, score in ranked])
 
         return [doc for doc, score in ranked[:k]]
 

@@ -1,8 +1,8 @@
 # Production readiness: evaluation and observability contract
 
-Status: specification and baseline checkpoint, 2026-09-22. Runtime unchanged.
-This defines the next experiments; it does not certify production readiness or
-claim that a held-out dataset, trace exporter, or release gate already exists.
+Status: specification and baseline established, 2026-09-22; local tracing added
+in the implementation follow-up below. This defines the next experiments; it
+does not certify production readiness or claim a held-out dataset or quality gate.
 
 ## Decision and requirements
 
@@ -291,3 +291,13 @@ and provider-reported spend separately. Never automatically refill a budget.
 Production readiness requires all gates and reviewed evidence on the intended
 configuration. Today: held-out quality unknown, hosted observability incomplete,
 selected regression baseline red. The project is **not production-proven**.
+# Implementation follow-up — 2026-09-22
+
+After the initial baseline, stale public-boundary tests were repaired and local
+private tracing was added without changing retrieval/decomposition/model defaults.
+The implementation and its remaining contract gaps are documented in
+[observability.md](observability.md); exact validation, package smoke, environment
+restoration and prepared development inputs are in the
+[readiness audit](audits/2026-09-22-readiness/README.md).
+The held-out dataset is not yet built or independently reviewed, and no hosted
+quality gate has passed. Jev adoption and broad refactoring remain deferred.

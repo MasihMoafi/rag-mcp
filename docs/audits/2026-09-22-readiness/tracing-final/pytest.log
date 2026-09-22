@@ -1,0 +1,111 @@
+........................................................................ [ 31%]
+........................................................................ [ 62%]
+....................FFF................................................. [ 93%]
+..............                                                           [100%]
+=================================== FAILURES ===================================
+_________ test_mcp_source_decode_failure_is_private_and_recovers[txt] __________
+tests/integration/test_document_refresh.py:142: in test_mcp_source_decode_failure_is_private_and_recovers
+    assert 'error' not in repaired
+E   AssertionError: assert 'error' not in {'error': 'RAG query failed: OpenRouter needs OPENROUTER_API_KEY or an OpenRouter key saved by `rag setup`.'}
+----------------------------- Captured stderr call -----------------------------
+[2026-09-22T16:07:16Z WARN  lance::dataset::write::insert] No existing dataset at /tmp/pytest-of-masih/pytest-36/test_mcp_source_decode_failure0/index/source.txt_813ae961/generation-81n6xdrz/lancedb_storage/rag_v2_generation_81n6xdrz.lance, it will be created
+[RAG V2] Creating new instance for /tmp/pytest-of-masih/pytest-36/test_mcp_source_decode_failure0/source.txt...
+[RAG] About to create RAGPipelineV2...
+[RAG V2] Using compute device: cuda
+[RAG V2] No embedding model configured: exact-word (BM25) search only. Run `rag setup` to add meaning-based search.
+[RAG V2] Using backend: lancedb
+[LanceDB] Opening database at: /tmp/pytest-of-masih/pytest-36/test_mcp_source_decode_failure0/index/source.txt_813ae961/generation-81n6xdrz/lancedb_storage
+[RAG V2] Reranker off.
+[RAG V2] Creating new database at /tmp/pytest-of-masih/pytest-36/test_mcp_source_decode_failure0/index/source.txt_813ae961/generation-81n6xdrz...
+[RAG V2] Processing source.txt...
+[RAG V2] Indexing 1 chunks...
+[LanceDB] Indexing 1 documents in GPU batches of 512...
+[LanceDB] Created table 'rag_v2_generation_81n6xdrz' with 1 records.
+[LanceDB] Built FTS indexes on 'content' and 'symbols'.
+[RAG V2] Database created with 1 chunks
+[RAG] V2 initialization complete
+[RAG V2] Searching (backend: lancedb)
+[RAG V2] Step 3: skipped (no embedding model; exact-word search only)
+[RAG V2] Step 4: LanceDB Tantivy FTS search...
+[RAG V2] Step 5: RRF fusion...
+[RAG V2] Returning 1 unique results
+_________ test_mcp_source_decode_failure_is_private_and_recovers[json] _________
+tests/integration/test_document_refresh.py:142: in test_mcp_source_decode_failure_is_private_and_recovers
+    assert 'error' not in repaired
+E   AssertionError: assert 'error' not in {'error': 'RAG query failed: OpenRouter needs OPENROUTER_API_KEY or an OpenRouter key saved by `rag setup`.'}
+----------------------------- Captured stderr call -----------------------------
+[2026-09-22T16:07:16Z WARN  lance::dataset::write::insert] No existing dataset at /tmp/pytest-of-masih/pytest-36/test_mcp_source_decode_failure1/index/source.json_c2cc3818/generation-hootzxnn/lancedb_storage/rag_v2_generation_hootzxnn.lance, it will be created
+[RAG V2] Creating new instance for /tmp/pytest-of-masih/pytest-36/test_mcp_source_decode_failure1/source.json...
+[RAG] About to create RAGPipelineV2...
+[RAG V2] Using compute device: cuda
+[RAG V2] No embedding model configured: exact-word (BM25) search only. Run `rag setup` to add meaning-based search.
+[RAG V2] Using backend: lancedb
+[LanceDB] Opening database at: /tmp/pytest-of-masih/pytest-36/test_mcp_source_decode_failure1/index/source.json_c2cc3818/generation-hootzxnn/lancedb_storage
+[RAG V2] Reranker off.
+[RAG V2] Creating new database at /tmp/pytest-of-masih/pytest-36/test_mcp_source_decode_failure1/index/source.json_c2cc3818/generation-hootzxnn...
+[RAG V2] Processing source.json...
+[RAG V2] Indexing 1 chunks...
+[LanceDB] Indexing 1 documents in GPU batches of 512...
+[LanceDB] Created table 'rag_v2_generation_hootzxnn' with 1 records.
+[LanceDB] Built FTS indexes on 'content' and 'symbols'.
+[RAG V2] Database created with 1 chunks
+[RAG] V2 initialization complete
+[RAG V2] Searching (backend: lancedb)
+[RAG V2] Step 3: skipped (no embedding model; exact-word search only)
+[RAG V2] Step 4: LanceDB Tantivy FTS search...
+[RAG V2] Step 5: RRF fusion...
+[RAG V2] Returning 1 unique results
+________ test_mcp_source_decode_failure_is_private_and_recovers[ipynb] _________
+tests/integration/test_document_refresh.py:142: in test_mcp_source_decode_failure_is_private_and_recovers
+    assert 'error' not in repaired
+E   AssertionError: assert 'error' not in {'error': 'RAG query failed: OpenRouter needs OPENROUTER_API_KEY or an OpenRouter key saved by `rag setup`.'}
+----------------------------- Captured stderr call -----------------------------
+[2026-09-22T16:07:16Z WARN  lance::dataset::write::insert] No existing dataset at /tmp/pytest-of-masih/pytest-36/test_mcp_source_decode_failure2/index/source.ipynb_9457f35e/generation-2p6u1784/lancedb_storage/rag_v2_generation_2p6u1784.lance, it will be created
+[RAG V2] Creating new instance for /tmp/pytest-of-masih/pytest-36/test_mcp_source_decode_failure2/source.ipynb...
+[RAG] About to create RAGPipelineV2...
+[RAG V2] Using compute device: cuda
+[RAG V2] No embedding model configured: exact-word (BM25) search only. Run `rag setup` to add meaning-based search.
+[RAG V2] Using backend: lancedb
+[LanceDB] Opening database at: /tmp/pytest-of-masih/pytest-36/test_mcp_source_decode_failure2/index/source.ipynb_9457f35e/generation-2p6u1784/lancedb_storage
+[RAG V2] Reranker off.
+[RAG V2] Creating new database at /tmp/pytest-of-masih/pytest-36/test_mcp_source_decode_failure2/index/source.ipynb_9457f35e/generation-2p6u1784...
+[RAG V2] Processing source.ipynb...
+[RAG V2] Indexing 1 chunks...
+[LanceDB] Indexing 1 documents in GPU batches of 512...
+[LanceDB] Created table 'rag_v2_generation_2p6u1784' with 1 records.
+[LanceDB] Built FTS indexes on 'content' and 'symbols'.
+[RAG V2] Database created with 1 chunks
+[RAG] V2 initialization complete
+[RAG V2] Searching (backend: lancedb)
+[RAG V2] Step 3: skipped (no embedding model; exact-word search only)
+[RAG V2] Step 4: LanceDB Tantivy FTS search...
+[RAG V2] Step 5: RRF fusion...
+[RAG V2] Returning 1 unique results
+=============================== warnings summary ===============================
+tests/integration/test_incremental_index.py: 9 warnings
+tests/integration/test_trace_pipeline.py: 3 warnings
+tests/integration/test_document_refresh.py: 63 warnings
+tests/integration/test_generation_refresh.py: 53 warnings
+  /home/masih/Desktop/p/rag-mcp/rag/lancedb_backend.py:61: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    table_names = self.db.table_names()
+
+tests/integration/test_incremental_index.py: 9 warnings
+tests/integration/test_trace_pipeline.py: 3 warnings
+tests/integration/test_document_refresh.py: 63 warnings
+tests/integration/test_generation_refresh.py: 53 warnings
+  /home/masih/miniconda3/lib/python3.13/asyncio/events.py:89: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    self._context.run(self._callback, *self._args)
+
+tests/integration/test_incremental_index.py: 18 warnings
+tests/integration/test_trace_pipeline.py: 6 warnings
+tests/integration/test_document_refresh.py: 74 warnings
+tests/integration/test_generation_refresh.py: 68 warnings
+  /home/masih/Desktop/p/rag-mcp/rag/lancedb_backend.py:176: DeprecatedWarning: create_fts_index is deprecated as of 0.25.0. Use create_index() with config=FTS() instead.
+    self.table.create_fts_index(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/integration/test_document_refresh.py::test_mcp_source_decode_failure_is_private_and_recovers[txt]
+FAILED tests/integration/test_document_refresh.py::test_mcp_source_decode_failure_is_private_and_recovers[json]
+FAILED tests/integration/test_document_refresh.py::test_mcp_source_decode_failure_is_private_and_recovers[ipynb]
+3 failed, 227 passed, 422 warnings in 44.47s

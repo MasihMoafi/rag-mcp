@@ -121,8 +121,15 @@ def test_legacy_partial_index_is_revalidated_before_reuse(tmp_path, local_search
 
 
 @pytest.mark.parametrize('extension', ['txt', 'json', 'ipynb'])
-def test_mcp_source_decode_failure_is_private_and_recovers(tmp_path, local_search, capsys, extension):
+def test_mcp_source_decode_failure_is_private_and_recovers(tmp_path, local_search, capsys, extension, monkeypatch):
     import server
+    from rag import openrouter_pipeline
+
+    def synthesize(query, passages, config):
+        assert 'Friday' in passages[0]['content']
+        return 'Friday.'
+
+    monkeypatch.setattr(openrouter_pipeline, 'synthesize_answer', synthesize)
 
     document = tmp_path / f'source.{extension}'
     document.write_bytes(b'private-document-marker\xff')
@@ -139,8 +146,7 @@ def test_mcp_source_decode_failure_is_private_and_recovers(tmp_path, local_searc
         text = json.dumps({'cells': [{'cell_type': 'markdown', 'source': [text]}]})
     document.write_text(text)
     repaired = json.loads(server.query_knowledge_base('Meeting', str(document)))
-    assert 'error' not in repaired
-    assert 'Friday' in repaired['result'][0]['content']
+    assert repaired == {'result': 'Friday.'}
 
 
 def test_emptied_file_cannot_return_old_passages(tmp_path, local_search):
