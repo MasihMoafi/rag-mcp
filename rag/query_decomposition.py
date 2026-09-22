@@ -13,6 +13,24 @@ _FACET_START = (
 )
 
 
+def _expand_evaluation_lifecycle(facet: str, query: str) -> str:
+    """Make operational evaluation requests retrieve lifecycle evidence."""
+    combined = f"{facet} {query}".lower()
+    asks_for_practice = any(
+        term in combined
+        for term in ("practical", "approach", "framework", "strategy", "recommend")
+    )
+    concerns_evaluation = any(
+        term in combined for term in ("evaluat", "assess", "measure", "benchmark")
+    )
+    if asks_for_practice and concerns_evaluation:
+        return (
+            f"{facet} Offline and online production lifecycle, CI/CD gates, "
+            "monitoring, and human feedback."
+        )
+    return facet
+
+
 def decompose_query(query: str, *, max_facets: int = 3) -> list[str]:
     """Split only explicit multi-part questions; leave focused queries unchanged."""
     normalized = " ".join(query.split())
@@ -27,7 +45,9 @@ def decompose_query(query: str, *, max_facets: int = 3) -> list[str]:
         facets.extend(part.strip() for part in parts if len(part.split()) >= 3)
     if len(facets) < 2:
         return [normalized]
-    return facets[:max_facets]
+    facets = facets[:max_facets]
+    facets[-1] = _expand_evaluation_lifecycle(facets[-1], normalized)
+    return facets
 
 
 def _passage_key(passage: Mapping[str, Any]) -> tuple[str, str, str]:

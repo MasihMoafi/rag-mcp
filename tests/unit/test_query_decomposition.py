@@ -10,7 +10,10 @@ def test_explicit_multi_part_question_becomes_focused_facets():
     assert decompose_query(query) == [
         "According to this chapter, why can retrieval metrics look good while the final answer is poor?",
         "Explain the distinct failure points",
-        "give the practical evaluation approach it recommends.",
+        (
+            "give the practical evaluation approach it recommends. Offline and online production "
+            "lifecycle, CI/CD gates, monitoring, and human feedback."
+        ),
     ]
 
 
@@ -18,6 +21,15 @@ def test_focused_question_is_not_decomposed():
     query = "What is reciprocal rank fusion?"
 
     assert decompose_query(query) == [query]
+
+
+def test_unrelated_multipart_question_is_not_expanded_with_evaluation_terms():
+    query = "Which database is used? Explain the practical migration approach."
+
+    assert decompose_query(query) == [
+        "Which database is used?",
+        "Explain the practical migration approach.",
+    ]
 
 
 def test_balanced_passages_represents_every_facet_and_keeps_five():
