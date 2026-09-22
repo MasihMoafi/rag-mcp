@@ -59,10 +59,13 @@ zero because it bills searches; zero token prices must not be read as free.
 
 **Do not execute yet.** The earlier $0.05 allowance was estimated at $0.0496 spent,
 leaving only about $0.0004; this is insufficient even for five rerank calls.
-A renewed budget and a request-level spending guard are still needed. Before
-requesting approval of a paid run, finish the guard, verify billing-unit treatment
-for50 candidates and provider/token limits, refresh prices, and present its
-concrete maximum. The preflight deliberately cannot submit paid requests.
+A renewed budget is required. `evals/run_diagnostic.py SOURCE --budget-usd .03`
+now runs an offline preview. Execution additionally needs `--execute --output NEW_DIR`
+and a dedicated, unused OpenRouter key capped at no more than the supplied budget,
+with no automatic reset and BYOK included. It refuses stale dated pricing, uses
+isolated indexes and private traces, and stops on the first failed case. It does
+not create keys or replenish credit. Provider-enforced key limits supplement the
+planning estimate; they are not a claim that the estimate is exact billing.
 
 No new paid experiment, held-out evaluation, Jev implementation or quality claim
 is authorized by this preparation artifact.
