@@ -456,7 +456,22 @@ def query_knowledge_base(query: str, doc_path: str = "", extensions: list[str] |
             if not callable(fetch):
                 return json.dumps({"error": "rag.fetch has no fetchExternalKnowledge function"})
             try:
-                value = fetch(query=query, doc_path=fetch_doc_path, scope=fetch_scope)
+                from rag.query_decomposition import balanced_passages, decompose_query
+
+                facets = decompose_query(query)
+                if len(facets) == 1:
+                    value = fetch(query=query, doc_path=fetch_doc_path, scope=fetch_scope)
+                else:
+                    groups = []
+                    for facet in facets:
+                        facet_value = fetch(
+                            query=facet,
+                            doc_path=fetch_doc_path,
+                            scope=fetch_scope,
+                        )
+                        if isinstance(facet_value, list):
+                            groups.append(facet_value)
+                    value = balanced_passages(groups, limit=5)
             except Exception as exc:
                 return json.dumps({"error": (
                     f"RAG answer pipeline failed ({type(exc).__name__}). "
