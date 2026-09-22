@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hmac
 import json
+import os
 import shutil
 import subprocess
 import tempfile
@@ -26,6 +27,46 @@ ALLOWED_ORIGINS = {
 }
 MAX_BODY_BYTES = 1_048_576
 MAX_EMBED_TEXTS = 256
+
+
+def _default_metrics_path() -> Path:
+    state_home = Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local" / "state"))
+    return state_home / "ragmcp" / "companion-metrics.json"
+
+
+def _empty_metrics() -> dict[str, dict[str, float | int]]:
+    return {
+        "embedding": {"requests": 0, "successes": 0, "failures": 0, "total_latency_ms": 0.0},
+        "generation": {"requests": 0, "successes": 0, "failures": 0, "total_latency_ms": 0.0},
+    }
+
+
+def _load_metrics(path: Path) -> dict[str, dict[str, float | int]]:
+    try:
+        stored = json.loads(path.read_text())
+        metrics = _empty_metrics()
+        for operation in metrics:
+            values = stored[operation]
+            for field in metrics[operation]:
+                value = values[field]
+                if not isinstance(value, (int, float)) or value < 0:
+                    raise ValueError("invalid metric")
+                metrics[operation][field] = value
+        return metrics
+    except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError):
+        return _empty_metrics()
+
+
+def _save_metrics(path: Path, metrics: dict[str, dict[str, float | int]]) -> None:
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        temporary = path.with_suffix(".tmp")
+        temporary.write_text(json.dumps(metrics, separators=(",", ":")))
+        temporary.chmod(0o600)
+        temporary.replace(path)
+    except OSError:
+        # Metrics must never break embedding or generation.
+        return
 
 
 def default_embedder():
@@ -151,13 +192,12 @@ def create_companion_server(
     codex_ready: Callable[[], bool] = codex_is_ready,
     port: int = 0,
     embedder_factory: Callable[[], Any] = default_embedder,
+    metrics_path: Path | None = None,
 ) -> ThreadingHTTPServer:
     loaded: dict[str, Any] = {}
     metrics_lock = Lock()
-    metrics = {
-        "embedding": {"requests": 0, "successes": 0, "failures": 0, "total_latency_ms": 0.0},
-        "generation": {"requests": 0, "successes": 0, "failures": 0, "total_latency_ms": 0.0},
-    }
+    metrics_path = metrics_path or _default_metrics_path()
+    metrics = _load_metrics(metrics_path)
 
     def record(operation: str, started: float, success: bool) -> None:
         with metrics_lock:
@@ -165,6 +205,7 @@ def create_companion_server(
             current["requests"] += 1
             current["successes" if success else "failures"] += 1
             current["total_latency_ms"] += (time.monotonic() - started) * 1_000
+            _save_metrics(metrics_path, metrics)
 
     def dashboard(codex_available: bool) -> dict[str, Any]:
         with metrics_lock:
@@ -190,10 +231,7 @@ def create_companion_server(
                 "embedding_configured": bool(active_embedding or configured_embedding),
                 "generation_available": codex_available,
                 "native_operation_metrics": True,
-                "durable_run_history": False,
-                "retrieval_stage_traces": False,
-                "provider_token_usage": False,
-                "provider_cost": False,
+                "durable_operation_metrics": True,
             },
         }
 

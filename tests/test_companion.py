@@ -34,6 +34,7 @@ def test_companion_rejects_unpaired_requests_and_streams_grounded_answers(monkey
         run_codex=lambda payload: calls.append(payload) or "Cedar Lantern [1]",
         codex_ready=lambda: True,
         embedder_factory=lambda: None,
+        metrics_path=tmp_path / "metrics.json",
     )
     thread = Thread(target=server.serve_forever, daemon=True)
     thread.start()
@@ -91,22 +92,22 @@ def test_companion_rejects_unpaired_requests_and_streams_grounded_answers(monkey
         assert dashboard["models"]["generation"] == "gpt-5.6-luna"
         assert dashboard["usage"] == {"input_tokens": None, "output_tokens": None, "cost_usd": None}
         assert dashboard["gates"]["native_operation_metrics"] is True
-        assert dashboard["gates"]["durable_run_history"] is False
-        assert dashboard["gates"]["retrieval_stage_traces"] is False
+        assert dashboard["gates"]["durable_operation_metrics"] is True
     finally:
         server.shutdown()
         server.server_close()
         thread.join(timeout=2)
 
 
-def test_companion_embeds_with_the_configured_model():
+def test_companion_embeds_with_the_configured_model(tmp_path):
     built = []
 
     def factory():
         built.append(True)
         return FakeEmbedder()
 
-    server = create_companion_server(token="secret", codex_ready=lambda: False, embedder_factory=factory)
+    metrics_path = tmp_path / "metrics.json"
+    server = create_companion_server(token="secret", codex_ready=lambda: False, embedder_factory=factory, metrics_path=metrics_path)
     thread = Thread(target=server.serve_forever, daemon=True)
     thread.start()
     base = f"http://127.0.0.1:{server.server_port}"
@@ -143,4 +144,17 @@ def test_companion_embeds_with_the_configured_model():
     finally:
         server.shutdown()
         server.server_close()
+        thread.join(timeout=2)
+
+    restarted = create_companion_server(token="secret", codex_ready=lambda: False, embedder_factory=factory, metrics_path=metrics_path)
+    thread = Thread(target=restarted.serve_forever, daemon=True)
+    thread.start()
+    try:
+        with request(f"http://127.0.0.1:{restarted.server_port}/v1/dashboard") as response:
+            dashboard = json.load(response)
+        assert dashboard["operations"]["embedding"]["requests"] == 3
+        assert dashboard["operations"]["embedding"]["successes"] == 3
+    finally:
+        restarted.shutdown()
+        restarted.server_close()
         thread.join(timeout=2)
