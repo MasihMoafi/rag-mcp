@@ -1,7 +1,7 @@
 [project]
 name = "ragmcp"
 version = "0.2.0"
-description = "Local hybrid-RAG CLI and MCP server: exact-word BM25 always on, plus the embedding model you choose"
+description = "Scoped hybrid-RAG CLI and MCP server with BM25, vector retrieval, reranking, and answer synthesis"
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.10"

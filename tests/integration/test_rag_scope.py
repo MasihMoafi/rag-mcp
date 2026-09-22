@@ -13,17 +13,17 @@ import server
 def test_folder_manifest_excludes_linked_files_and_directories(tmp_path):
     scope = tmp_path / 'scope'
     scope.mkdir()
-    local = scope / 'allowed.txt'
+    local = scope / 'allowed.md'
     local.write_text('allowed')
-    outside = tmp_path / 'outside.txt'
+    outside = tmp_path / 'outside.md'
     outside.write_text('private')
-    (scope / 'linked.txt').symlink_to(outside)
+    (scope / 'linked.md').symlink_to(outside)
     (scope / 'cycle').symlink_to(scope, target_is_directory=True)
     manifest = server._validate_rag_scope(scope)
     assert manifest.files == (str(local),)
 
 
-def test_default_workspace_call_uses_workspace_root() -> None:
+def test_query_requires_an_explicit_document_scope() -> None:
     original_workspace = server.workspace_root
     original_import = server.importlib.import_module
     captured = {}
@@ -33,12 +33,14 @@ def test_default_workspace_call_uses_workspace_root() -> None:
             server.importlib.import_module = lambda _name: types.SimpleNamespace(
                 fetchExternalKnowledge=lambda **kwargs: captured.update(kwargs) or "ok"
             )
-            assert json.loads(server.query_knowledge_base("find context"))["result"] == "ok"
+            assert "doc_path must name an explicit supported file" in json.loads(
+                server.query_knowledge_base("find context")
+            )["error"]
     finally:
         server.workspace_root = original_workspace
         server.importlib.import_module = original_import
 
-    assert captured["doc_path"] == str(Path(directory).resolve())
+    assert captured == {}
 
 
 def test_explicit_path_keeps_its_scope() -> None:
@@ -46,11 +48,12 @@ def test_explicit_path_keeps_its_scope() -> None:
     captured = {}
     try:
         with tempfile.TemporaryDirectory() as directory:
+            (Path(directory) / "facts.md").write_text("Scoped evidence.")
             server.importlib.import_module = lambda _name: types.SimpleNamespace(
                 fetchExternalKnowledge=lambda **kwargs: captured.update(kwargs) or "ok"
             )
             server.query_knowledge_base("find context", directory)
-            assert captured["doc_path"] == str(Path(directory).resolve())
+            assert captured["doc_path"] == [str(Path(directory).resolve() / "facts.md")]
     finally:
         server.importlib.import_module = original_import
 
@@ -81,6 +84,23 @@ def test_depth_limit_has_clear_recovery() -> None:
 
     assert "configured 1-folder depth limit" in output
     assert "RAG_MCP_MAX_DEPTH" in output
+
+
+def test_token_limit_prefers_narrowing_to_raising_the_limit() -> None:
+    original = server.os.environ.get("RAG_MCP_MAX_TOKENS")
+    server.os.environ["RAG_MCP_MAX_TOKENS"] = "1"
+    try:
+        with tempfile.TemporaryDirectory() as directory:
+            (Path(directory) / "canonical.md").write_text("enough text", encoding="utf-8")
+            output = server.query_knowledge_base("find context", directory)
+    finally:
+        if original is None:
+            server.os.environ.pop("RAG_MCP_MAX_TOKENS", None)
+        else:
+            server.os.environ["RAG_MCP_MAX_TOKENS"] = original
+
+    assert "Retry with doc_path set to the canonical file or a smaller folder" in output
+    assert "only when the broader corpus is deliberate" in output
 
 
 def test_repeated_scope_queries_reuse_manifest_and_invalidate_on_change() -> None:
