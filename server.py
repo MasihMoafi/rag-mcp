@@ -492,11 +492,17 @@ def query_knowledge_base(query: str, doc_path: str = "", extensions: list[str] |
             from rag.openrouter_pipeline import synthesize_answer
 
             tracing.passages('synthesis_evidence', value)
-            answer = synthesize_answer(
-                query,
-                value,
-                {**embedding_config(), **retrieval_config()},
-            )
+            try:
+                answer = synthesize_answer(
+                    query,
+                    value,
+                    {**embedding_config(), **retrieval_config()},
+                )
+            except Exception as exc:
+                return json.dumps({'error': (
+                    f'RAG answer synthesis failed ({type(exc).__name__}). '
+                    'Check the configured OpenRouter model and availability.'
+                )})
         if not isinstance(answer, str) or not answer.strip():
             raise RuntimeError("Answer synthesis returned invalid output.")
         return json.dumps({"result": answer.strip()})

@@ -40,7 +40,7 @@ with tempfile.TemporaryDirectory(prefix='rag-package-smoke-') as temp:
             value = {'results': [{'index': i, 'relevance_score': 1.0} for i in range(len(payload['documents']))]}
         else:
             assert 'Meeting: Friday.' in payload['messages'][-1]['content']
-            value = {'choices': [{'message': {'content': 'Friday.'}}]}
+            value = {'choices': [{'finish_reason': 'stop', 'message': {'content': 'Friday.'}}]}
         return io.BytesIO(json.dumps(value).encode())
     openrouter_pipeline.urllib.request.urlopen = provider
     source = root / 'fixture.txt'
