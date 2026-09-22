@@ -14,6 +14,7 @@ from .formats import INDEXABLE_EXTENSIONS as _INDEXABLE_EXTENSIONS
 from .settings import contextual_retrieval_enabled, embedding_config, retrieval_config
 from .index_lifecycle import active_directory, open_or_build, source_delta, source_snapshot
 from .query_lifecycle import PipelineClosedError
+from . import tracing
 
 def _env_str(name: str, default: str) -> str:
     value = os.environ.get(name, "").strip()
@@ -135,6 +136,7 @@ def _safe_dir_name(path: str, embedding: Optional[Dict[str, str]] = None) -> str
     base = os.path.basename(abs_path.rstrip(os.sep)) or "root"
     return f"{base}_{h}"
 
+@tracing.traced('index.lookup')
 def get_rag_pipeline_v2(doc_path: Optional[str | list[str]] = None, scope: Optional[str] = None):
 
     # Resolve path
@@ -223,6 +225,11 @@ def _get_scoped_pipeline(key, doc_path):
             },
         }
         config["source_stamp"] = stamp
+        tracing.annotate(manifest_id=tracing.identity(json.dumps(stamp, sort_keys=True)),
+                         source_count=len(config['document_paths']),
+                         embedding_model=config.get('embed_model'), reranker_model=config.get('reranker_model'),
+                         chunk_size=config['chunk_size'], chunk_overlap=config['chunk_overlap'],
+                         candidate_limit=config['candidate_k'], final_limit=config['rerank_top_k'])
         cached = _rag_system_v2_instances.get(key)
         if cached is not None and all(cached.config.get(name) == config[name] for name in (
             "backend", "distance_metric", "rrf_k", "bm25_k1", "bm25_b", "persist_dir",
@@ -237,6 +244,7 @@ def _get_scoped_pipeline(key, doc_path):
             *contextual,
             "source_stamp",
         )):
+            tracing.annotate(cache_state='memory_hit', generation_id=tracing.identity(config['persist_dir']))
             return cached
         manifest = Path(config["persist_dir"]) / "source-manifest.json"
         try:
@@ -258,6 +266,8 @@ def _get_scoped_pipeline(key, doc_path):
         sys.stderr.flush()
         instance = open_or_build(config, lambda build_config: RAGPipelineV2(
             config={**build_config, '_staged_index': True}))
+        tracing.annotate(cache_state='build' if config['force_reindex'] else ('refresh' if delta else 'reopen'),
+                         generation_id=tracing.identity(instance.config['persist_dir']))
         try:
             _retire_cached_pipeline(key)
         except Exception:
@@ -272,6 +282,7 @@ def _get_scoped_pipeline(key, doc_path):
         sys.stderr.flush()
         raise
 
+@tracing.traced('retrieval.facet')
 def query_documents(
     query: str,
     doc_path: Optional[str | list[str]] = None,
@@ -282,6 +293,7 @@ def query_documents(
 
     `scope` names the folder a file manifest came from, so that folder keeps one
     index while files are added and removed."""
+    tracing.content('query', query)
     try:
         if not isinstance(query, str) or not query:
             raise ValueError("Enter a question to search for.")

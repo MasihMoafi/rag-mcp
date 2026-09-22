@@ -1,0 +1,55 @@
+{
+  "source": "https://openrouter.ai/api/v1/models/cohere/rerank-4-fast/endpoints",
+  "data": {
+    "data": {
+      "id": "cohere/rerank-4-fast",
+      "name": "Cohere: Rerank 4 Fast",
+      "created": 1775442269,
+      "description": "Cohere's AI search foundation model for enhancing the relevance of information surfaced within search and RAG systems. Features a 32K context window, multilingual support across 100+ languages, no data pre-processing...",
+      "architecture": {
+        "tokenizer": "Cohere",
+        "instruct_type": null,
+        "modality": "text->rerank",
+        "input_modalities": [
+          "text"
+        ],
+        "output_modalities": [
+          "rerank"
+        ]
+      },
+      "endpoints": [
+        {
+          "name": "Cohere | cohere/rerank-4-fast",
+          "model_id": "cohere/rerank-4-fast",
+          "model_name": "Cohere: Rerank 4 Fast",
+          "context_length": 32768,
+          "pricing": {
+            "prompt": "0",
+            "completion": "0",
+            "discount": 0
+          },
+          "provider_name": "Cohere",
+          "tag": "cohere",
+          "quantization": "unknown",
+          "max_completion_tokens": 29491,
+          "max_prompt_tokens": null,
+          "supported_parameters": [],
+          "supports_tool_choice": {
+            "none": true,
+            "auto": true,
+            "required": true,
+            "function": true
+          },
+          "status": 0,
+          "uptime_last_30m": 100,
+          "uptime_last_5m": 100,
+          "uptime_last_1d": 100,
+          "supports_implicit_caching": false,
+          "supports_voice_cloning": false,
+          "latency_last_30m": null,
+          "throughput_last_30m": null
+        }
+      ]
+    }
+  }
+}

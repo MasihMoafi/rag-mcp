@@ -1,9 +1,13 @@
 """Embedding dispatch shared by the LanceDB and Qdrant adapters."""
 
 import sys
+from . import tracing
 
 
+@tracing.traced('embedding.query')
 def embed_single(self, text):
+    tracing.annotate(model=getattr(self.embedding_fn, 'model_name', None), input_count=1)
+    tracing.usage(None)
     if hasattr(self.embedding_fn, 'embed_query'):
         return self.embedding_fn.embed_query(text)
     if callable(self.embedding_fn):
@@ -11,8 +15,11 @@ def embed_single(self, text):
     raise ValueError(f"Unsupported embedding function type: {type(self.embedding_fn)}")
 
 
+@tracing.traced('embedding.documents')
 def embed_batch(self, texts, failure_label):
     """Prefer batch methods; preserve ordered, bounded fallback for legacy providers."""
+    tracing.annotate(model=getattr(self.embedding_fn, 'model_name', None), input_count=len(texts))
+    tracing.usage(None)
     if hasattr(self.embedding_fn, 'embed_documents'):
         try:
             return self.embedding_fn.embed_documents(texts)

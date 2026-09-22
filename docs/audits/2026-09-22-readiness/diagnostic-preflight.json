@@ -1,0 +1,40 @@
+{
+  "status": "offline_preflight_only",
+  "split": "development",
+  "source_sha256": "2284cc630394f6db619d67e4fd8dfc957b546701f519e395c6a68f9449fb8a12",
+  "chunk_count": 121,
+  "cases": [
+    {
+      "id": "ch4-broad",
+      "facets": [
+        "According to this chapter, why is a successful RAG proof of concept not automatically production-ready?",
+        "Explain the main production challenges it identifies",
+        "describe the reference architecture and transition process it recommends."
+      ]
+    },
+    {
+      "id": "ch4-architecture",
+      "facets": [
+        "According to this chapter, describe the reference architecture for a production RAG system."
+      ]
+    },
+    {
+      "id": "ch4-transition",
+      "facets": [
+        "According to this chapter, describe the transition process from a RAG proof of concept to production."
+      ]
+    }
+  ],
+  "embedding_token_allowance": 135632,
+  "synthesis_input_token_allowance": 17140,
+  "synthesis_output_token_cap_total": 2100,
+  "cost_components": {
+    "embedding_usd": 0.00271264,
+    "rerank_usd": 0.01,
+    "synthesis_usd": 0.0095775
+  },
+  "planning_estimate_usd": 0.02229014,
+  "hard_spend_cap": false,
+  "paid_calls": 0,
+  "limitations": "Byte-based token allowances; provider framing, rerank billing units and price drift need verification before execution. No quality score or causal finding."
+}

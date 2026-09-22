@@ -10,6 +10,7 @@ from .chunking import chunk_document
 from .contextual_retrieval import select_document_context
 from .formats import INDEXABLE_EXTENSIONS
 from .index_lifecycle import RebuildRequired
+from . import tracing
 
 
 def locate_chunk(self, full_text: str, content: str, ext: str, search_from: int) -> tuple:
@@ -91,23 +92,27 @@ def build_documents(self, files_to_process):
         return None
 
     # First pass: extract all document content using ThreadPoolExecutor
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        results = executor.map(process_file, files_to_process)
-        for result in results:
-            if result:
-                file_path, content = result
-                document_contents[file_path] = content
+    with tracing.span('ingestion.parse', input_count=len(files_to_process)):
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            results = executor.map(process_file, files_to_process)
+            for result in results:
+                if result:
+                    file_path, content = result
+                    document_contents[file_path] = content
+        tracing.annotate(output_count=len(document_contents))
 
     # Second pass: chunk and optionally add context
     for file_path, full_content in document_contents.items():
         print(f"[RAG V2] Processing {os.path.basename(file_path)}...")
 
-        chunks = chunk_document(
-            full_content,
-            file_path=file_path,
-            chunk_size=self.config.get("chunk_size"),
-            chunk_overlap=self.config.get("chunk_overlap")
-        )
+        with tracing.span('ingestion.chunk', source_id=tracing.identity(file_path)):
+            chunks = chunk_document(
+                full_content,
+                file_path=file_path,
+                chunk_size=self.config.get("chunk_size"),
+                chunk_overlap=self.config.get("chunk_overlap")
+            )
+            tracing.annotate(output_count=len(chunks))
 
         ext = os.path.splitext(file_path)[1].lower()
         raw_chunks = [item["content"].replace("\f", " ") for item in chunks]
@@ -148,6 +153,7 @@ def build_documents(self, files_to_process):
     return all_docs
 
 
+@tracing.traced('index.build')
 def index_documents(self):
     """Extract, chunk, optionally contextualize, and persist documents."""
     all_docs = build_documents(self, source_files(self))
@@ -172,6 +178,7 @@ def index_documents(self):
     print(f"[RAG V2] Database created with {len(all_docs)} chunks")
 
 
+@tracing.traced('index.refresh')
 def refresh_documents(self, delta):
     """Re-read only the changed sources; keep the stored embeddings of the rest."""
     changed = {os.path.realpath(path) for path in delta["changed"]}
@@ -197,6 +204,7 @@ def refresh_documents(self, delta):
     print(f"[RAG V2] Database refreshed with {len(kept) + len(refreshed)} chunks")
 
 
+@tracing.traced('index.persist_metadata')
 def save_documents(self, docs: List[Dict]):
     """Persist source records for reopen and lexical-index reconstruction."""
     persist_dir = self.config.get("persist_dir")

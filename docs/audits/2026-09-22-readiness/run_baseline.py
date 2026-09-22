@@ -6,6 +6,7 @@ import json
 import os
 import platform
 import subprocess
+import sys
 import tempfile
 import time
 
@@ -13,7 +14,9 @@ ROOT = Path(__file__).resolve().parents[3]
 HERE = Path(__file__).resolve().parent
 parser = argparse.ArgumentParser()
 parser.add_argument('--output', type=Path, default=HERE)
-HERE = parser.parse_args().output.resolve()
+parser.add_argument('--extra-tests', nargs='*', default=[])
+args = parser.parse_args()
+HERE = args.output.resolve()
 HERE.mkdir(parents=True, exist_ok=True)
 TESTS = [
     "tests/unit/test_query_decomposition.py",
@@ -54,7 +57,7 @@ with tempfile.TemporaryDirectory(prefix="rag-readiness-") as temporary:
         XDG_STATE_HOME=str(scratch / "state"),
         HF_HUB_OFFLINE="1", TRANSFORMERS_OFFLINE="1",
     )
-    command = [str(ROOT / ".venv/bin/python"), "-m", "pytest", *TESTS, "-q", "--tb=short"]
+    command = [sys.executable, "-m", "pytest", *TESTS, *args.extra_tests, "-q", "--tb=short"]
     started = time.time()
     with (HERE / "pytest.log").open("w") as output:
         result = subprocess.run(command, cwd=ROOT, env=env, stdout=output, stderr=subprocess.STDOUT)

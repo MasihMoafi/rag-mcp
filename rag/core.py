@@ -16,7 +16,7 @@ strip_socks()
 from .embeddings import build_embedder, probe_dimensions
 from .contextual_retrieval import AnthropicContextualizer
 from .lancedb_backend import LanceDBBackend
-from . import ingestion, parsing, reranking
+from . import ingestion, parsing, reranking, tracing
 from .bm25 import BM25Index
 from .chunking import chunk_text, chunk_document
 from .index_lifecycle import open_or_build
@@ -199,22 +199,34 @@ class RAGPipeline:
                 vector_results = []
                 if self.embedding_fn is not None:
                     print("[RAG V2] Step 3: LanceDB Vector search...")
-                    vector_results_raw = self.vector_db.search_vector(query, top_k=top_k)
+                    with tracing.span('retrieval.dense'):
+                        vector_results_raw = self.vector_db.search_vector(query, top_k=top_k)
+                        tracing.passages('candidates', vector_results_raw)
                     vector_results = [(doc, doc.get("score", 0)) for doc in vector_results_raw]
                 else:
                     print("[RAG V2] Step 3: skipped (no embedding model; exact-word search only)")
+                    with tracing.span('retrieval.dense', skipped_reason='embedding_disabled'):
+                        pass
                 print("[RAG V2] Step 4: LanceDB Tantivy FTS search...")
-                bm25_results_raw = self.vector_db.search_fts(query, top_k=top_k)
+                with tracing.span('retrieval.lexical'):
+                    bm25_results_raw = self.vector_db.search_fts(query, top_k=top_k)
+                    tracing.passages('candidates', bm25_results_raw)
                 bm25_results = [(doc, doc.get("score", 0)) for doc in bm25_results_raw]
             else:
                 print("[RAG V2] Step 3: Vector search...")
-                vector_results_qdrant = self.vector_db.search(query, top_k=top_k)
+                with tracing.span('retrieval.dense'):
+                    vector_results_qdrant = self.vector_db.search(query, top_k=top_k)
+                    tracing.passages('candidates', vector_results_qdrant)
                 # Convert to tuple format for RRF
                 vector_results = [(doc, doc.get("score", 0)) for doc in vector_results_qdrant]
                 print("[RAG V2] Step 4: BM25 search...")
-                bm25_results = self.bm25_index.search(query, k=top_k)
+                with tracing.span('retrieval.lexical'):
+                    bm25_results = self.bm25_index.search(query, k=top_k)
+                    tracing.passages('candidates', [dict(doc, score=score) for doc, score in bm25_results])
             print("[RAG V2] Step 5: RRF fusion...")
-            fused_docs = self._rrf_fusion(vector_results, bm25_results, k=self.config.get("rrf_k", 60))[:candidate_k]
+            with tracing.span('retrieval.rrf', candidate_limit=candidate_k):
+                fused_docs = self._rrf_fusion(vector_results, bm25_results, k=self.config.get("rrf_k", 60))[:candidate_k]
+                tracing.passages('candidates', fused_docs)
             
             if not fused_docs:
                 return "No relevant information found."
@@ -227,7 +239,10 @@ class RAGPipeline:
                 final_docs = fused_docs[:rerank_top_k]
             else:
                 print(f"[RAG Core] Reranking {len(fused_docs)} fused candidates...")
-                final_docs = self._crossencoder_rerank(fused_docs, query, k=rerank_top_k)
+                with tracing.span('selection.rerank', final_limit=rerank_top_k):
+                    final_docs = self._crossencoder_rerank(fused_docs, query, k=rerank_top_k)
+                    tracing.passages('selected', final_docs)
+            tracing.passages('selected', final_docs)
             sys.stderr.write(f"[RAG V2] Returning {len(final_docs)} unique results\n")
             return final_docs
             

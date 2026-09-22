@@ -1,0 +1,33 @@
+........................................................................ [ 88%]
+.........                                                                [100%]
+=============================== warnings summary ===============================
+tests/integration/test_incremental_index.py::test_changed_file_is_the_only_text_embedded_again
+tests/integration/test_incremental_index.py::test_changed_file_is_the_only_text_embedded_again
+tests/integration/test_incremental_index.py::test_changed_file_is_the_only_text_embedded_again
+tests/integration/test_incremental_index.py::test_deleted_file_loses_its_passages_without_embedding_again
+tests/integration/test_incremental_index.py::test_deleted_file_loses_its_passages_without_embedding_again
+tests/integration/test_incremental_index.py::test_ignored_and_unsupported_files_cause_no_work
+tests/integration/test_incremental_index.py::test_incremental_result_matches_a_rebuild_of_the_same_corpus
+tests/integration/test_incremental_index.py::test_incremental_result_matches_a_rebuild_of_the_same_corpus
+tests/integration/test_incremental_index.py::test_incremental_result_matches_a_rebuild_of_the_same_corpus
+  /home/masih/Desktop/p/rag-mcp/rag/lancedb_backend.py:61: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    table_names = self.db.table_names()
+
+tests/integration/test_incremental_index.py::test_changed_file_is_the_only_text_embedded_again
+tests/integration/test_incremental_index.py::test_changed_file_is_the_only_text_embedded_again
+tests/integration/test_incremental_index.py::test_changed_file_is_the_only_text_embedded_again
+tests/integration/test_incremental_index.py::test_deleted_file_loses_its_passages_without_embedding_again
+tests/integration/test_incremental_index.py::test_deleted_file_loses_its_passages_without_embedding_again
+tests/integration/test_incremental_index.py::test_ignored_and_unsupported_files_cause_no_work
+tests/integration/test_incremental_index.py::test_incremental_result_matches_a_rebuild_of_the_same_corpus
+tests/integration/test_incremental_index.py::test_incremental_result_matches_a_rebuild_of_the_same_corpus
+tests/integration/test_incremental_index.py::test_incremental_result_matches_a_rebuild_of_the_same_corpus
+  /home/masih/miniconda3/lib/python3.13/asyncio/events.py:89: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    self._context.run(self._callback, *self._args)
+
+tests/integration/test_incremental_index.py: 18 warnings
+  /home/masih/Desktop/p/rag-mcp/rag/lancedb_backend.py:176: DeprecatedWarning: create_fts_index is deprecated as of 0.25.0. Use create_index() with config=FTS() instead.
+    self.table.create_fts_index(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+81 passed, 36 warnings in 10.26s

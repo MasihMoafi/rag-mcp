@@ -1,0 +1,19 @@
+{
+  "preexisting_dirty_files_verified": 167,
+  "changed_or_missing": [],
+  "restored_exact_pypi_versions": 127,
+  "baseline_dependency_versions": {
+    "pytest": "9.1.1",
+    "lancedb": "0.37.1",
+    "pyarrow": "25.0.1",
+    "tantivy": "0.26.0",
+    "openai": "2.53.0",
+    "torch": "2.5.1",
+    "fastembed": "0.8.0",
+    "pymupdf": "1.28.0"
+  },
+  "spacy_model_version": "3.8.0",
+  "spacy_load_smoke": "passed",
+  "paid_model_calls": 0,
+  "recovery_download": "en_core_web_sm-3.8.0 from official GitHub release; 12.2MiB"
+}

@@ -1,0 +1,37 @@
+name: Offline contracts
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.8.22"
+      - run: uv sync --python 3.13 --group dev
+      - name: Run offline contracts with external Python sockets blocked
+        run: >-
+          .venv/bin/python docs/audits/2026-09-22-readiness/run_baseline.py
+          --output /tmp/rag-contract-results
+          --extra-tests tests/unit/test_tracing.py tests/integration/test_trace_pipeline.py
+      - name: Build distributable
+        run: uv build --out-dir /tmp/rag-dist
+      - name: Verify isolated wheel
+        run: |
+          uv venv --python 3.13 /tmp/rag-installed
+          uv pip install --python /tmp/rag-installed/bin/python /tmp/rag-dist/*.whl
+          cd /tmp
+          env -u PYTHONPATH /tmp/rag-installed/bin/python "$GITHUB_WORKSPACE/docs/audits/2026-09-22-readiness/verify_package.py"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: offline-contract-results
+          path: /tmp/rag-contract-results
