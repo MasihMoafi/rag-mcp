@@ -35,6 +35,53 @@ def test_mcp_retrieval_error_does_not_echo_provider_payload(monkeypatch, tmp_pat
     assert 'private document text' not in output['error']
 
 
+def test_multi_part_question_retrieves_facets_but_synthesizes_once(monkeypatch, tmp_path):
+    import json
+    import types
+    from rag import openrouter_pipeline
+
+    document = tmp_path / 'chapter.md'
+    document.write_text('Evaluation evidence.')
+    calls = []
+
+    def fetch(**kwargs):
+        calls.append(kwargs['query'])
+        marker = len(calls)
+        return [
+            {'content': f'facet {marker} passage {rank}', 'file_path': str(document)}
+            for rank in range(1, 4)
+        ]
+
+    captured = {}
+
+    def synthesize(query, passages, config):
+        captured.update(query=query, passages=passages)
+        return 'Combined answer.'
+
+    monkeypatch.setattr(
+        server.importlib,
+        'import_module',
+        lambda _name: types.SimpleNamespace(fetchExternalKnowledge=fetch),
+    )
+    monkeypatch.setattr(openrouter_pipeline, 'synthesize_answer', synthesize)
+    query = (
+        'Why can retrieval metrics look good while the answer is poor? '
+        'Explain the failure points, and give the practical evaluation approach.'
+    )
+
+    output = json.loads(server.query_knowledge_base(query, str(document)))
+
+    assert output == {'result': 'Combined answer.'}
+    assert calls == [
+        'Why can retrieval metrics look good while the answer is poor?',
+        'Explain the failure points',
+        'give the practical evaluation approach.',
+    ]
+    assert captured['query'] == query
+    assert len(captured['passages']) == 5
+    assert {passage['content'].split()[1] for passage in captured['passages']} == {'1', '2', '3'}
+
+
 @pytest.mark.parametrize('read_fails', [False, True])
 @pytest.mark.parametrize('cleanup_fails', [False, True])
 def test_server_shutdown_releases_pipelines(monkeypatch, read_fails, cleanup_fails, capsys):
