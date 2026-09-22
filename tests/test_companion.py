@@ -1,9 +1,10 @@
 import json
+from types import SimpleNamespace
 from threading import Thread
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
-from rag.companion import create_companion_server
+from rag.companion import GenerationResult, create_companion_server, run_codex_generation
 
 
 def request(url, token="secret", origin="https://rag.masihmoafi.com", body=None):
@@ -25,13 +26,33 @@ class FakeEmbedder:
         return [float(len(text)), 2.0]
 
 
+def test_codex_generation_reads_reported_usage(monkeypatch):
+    monkeypatch.setattr("rag.companion.shutil.which", lambda _name: "/usr/bin/codex")
+
+    def run(command, **_kwargs):
+        assert "--json" in command
+        output = command[command.index("--output-last-message") + 1]
+        with open(output, "w") as stream:
+            stream.write("Grounded answer [1]\n")
+        return SimpleNamespace(
+            returncode=0,
+            stdout='{"type":"turn.completed","usage":{"input_tokens":41,"output_tokens":9}}\n',
+        )
+
+    monkeypatch.setattr("rag.companion.subprocess.run", run)
+    result = run_codex_generation({"question": "What?", "history": [], "chunks": []})
+    assert result == GenerationResult("Grounded answer [1]", 41, 9)
+
+
 def test_companion_rejects_unpaired_requests_and_streams_grounded_answers(monkeypatch, tmp_path):
     monkeypatch.setenv("RAG_MCP_CONFIG", str(tmp_path / "config.json"))
     monkeypatch.delenv("RAG_MCP_EMBED_PROVIDER", raising=False)
     calls = []
     server = create_companion_server(
         token="secret",
-        run_codex=lambda payload: calls.append(payload) or "Cedar Lantern [1]",
+        run_codex=lambda payload: calls.append(payload) or GenerationResult(
+            answer="Cedar Lantern [1]", input_tokens=123, output_tokens=17
+        ),
         codex_ready=lambda: True,
         embedder_factory=lambda: None,
         metrics_path=tmp_path / "metrics.json",
@@ -90,12 +111,30 @@ def test_companion_rejects_unpaired_requests_and_streams_grounded_answers(monkey
         assert dashboard["operations"]["generation"]["failures"] == 0
         assert dashboard["operations"]["generation"]["average_latency_ms"] >= 0
         assert dashboard["models"]["generation"] == "gpt-5.6-luna"
-        assert dashboard["usage"] == {"input_tokens": None, "output_tokens": None, "cost_usd": None}
+        assert dashboard["usage"] == {"input_tokens": 123, "output_tokens": 17, "cost_usd": None}
         assert dashboard["gates"]["native_operation_metrics"] is True
         assert dashboard["gates"]["durable_operation_metrics"] is True
     finally:
         server.shutdown()
         server.server_close()
+        thread.join(timeout=2)
+
+    restarted = create_companion_server(
+        token="secret",
+        codex_ready=lambda: True,
+        embedder_factory=lambda: None,
+        metrics_path=tmp_path / "metrics.json",
+    )
+    thread = Thread(target=restarted.serve_forever, daemon=True)
+    thread.start()
+    try:
+        with request(f"http://127.0.0.1:{restarted.server_port}/v1/dashboard") as response:
+            dashboard = json.load(response)
+        assert dashboard["usage"]["input_tokens"] == 123
+        assert dashboard["usage"]["output_tokens"] == 17
+    finally:
+        restarted.shutdown()
+        restarted.server_close()
         thread.join(timeout=2)
 
 
