@@ -13,9 +13,9 @@ _FACET_START = (
 )
 
 
-def _expand_evaluation_lifecycle(facet: str, query: str) -> str:
-    """Make operational evaluation requests retrieve lifecycle evidence."""
-    combined = f"{facet} {query}".lower()
+def _evaluation_lifecycle_facets(facets: list[str], query: str) -> list[str] | None:
+    """Separate broad evaluation questions into failure, offline, and online evidence."""
+    combined = f"{' '.join(facets)} {query}".lower()
     asks_for_practice = any(
         term in combined
         for term in ("practical", "approach", "framework", "strategy", "recommend")
@@ -24,11 +24,23 @@ def _expand_evaluation_lifecycle(facet: str, query: str) -> str:
         term in combined for term in ("evaluat", "assess", "measure", "benchmark")
     )
     if asks_for_practice and concerns_evaluation:
-        return (
-            f"{facet} Offline and online production lifecycle, CI/CD gates, "
-            "monitoring, and human feedback."
+        failure = (
+            "Failure points across document ingestion (including outdated or improperly parsed "
+            "documents), flawed retrieval, and hallucinated or incomplete answer generation: "
+            f"{' '.join(facets[:-1]).strip()}"
         )
-    return facet
+        return [
+            failure,
+            (
+                "Recommended practical offline evaluation lifecycle: fixed golden dataset, "
+                "CI/CD evaluation gates, regression thresholds, and tuning."
+            ),
+            (
+                "Recommended practical online evaluation lifecycle: asynchronous sampled live "
+                "traffic, monitoring, A/B testing, and human feedback."
+            ),
+        ]
+    return None
 
 
 def decompose_query(query: str, *, max_facets: int = 3) -> list[str]:
@@ -46,8 +58,7 @@ def decompose_query(query: str, *, max_facets: int = 3) -> list[str]:
     if len(facets) < 2:
         return [normalized]
     facets = facets[:max_facets]
-    facets[-1] = _expand_evaluation_lifecycle(facets[-1], normalized)
-    return facets
+    return _evaluation_lifecycle_facets(facets, normalized) or facets
 
 
 def _passage_key(passage: Mapping[str, Any]) -> tuple[str, str, str]:
@@ -66,7 +77,6 @@ def balanced_passages(
     seen: set[tuple[str, str, str]] = set()
     positions = [0] * len(groups)
     order = list(range(len(groups)))
-    first_round = True
     while len(selected) < limit:
         made_progress = False
         for group_index in order:
@@ -85,7 +95,8 @@ def balanced_passages(
                 return selected
         if not made_progress:
             break
-        if first_round:
-            order.reverse()
-            first_round = False
+        if len(selected) >= len(groups):
+            # Later facets usually contain the requested deliverable ("give",
+            # "recommend", "compare"). Split spare slots across them first.
+            order = list(reversed(range(len(groups))))
     return selected

@@ -73,11 +73,18 @@ def test_multi_part_question_retrieves_facets_but_synthesizes_once(monkeypatch, 
 
     assert output == {'result': 'Combined answer.'}
     assert calls == [
-        'Why can retrieval metrics look good while the answer is poor?',
-        'Explain the failure points',
         (
-            'give the practical evaluation approach. Offline and online production '
-            'lifecycle, CI/CD gates, monitoring, and human feedback.'
+            'Failure points across document ingestion (including outdated or improperly parsed '
+            'documents), flawed retrieval, and hallucinated or incomplete answer generation: Why '
+            'can retrieval metrics look good while the answer is poor? Explain the failure points'
+        ),
+        (
+            'Recommended practical offline evaluation lifecycle: fixed golden dataset, CI/CD '
+            'evaluation gates, regression thresholds, and tuning.'
+        ),
+        (
+            'Recommended practical online evaluation lifecycle: asynchronous sampled live '
+            'traffic, monitoring, A/B testing, and human feedback.'
         ),
     ]
     assert captured['query'] == query
