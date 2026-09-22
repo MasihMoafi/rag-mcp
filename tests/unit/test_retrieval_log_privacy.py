@@ -108,7 +108,7 @@ def test_search_logs_omit_payloads_without_changing_results_or_errors(capsys, fa
         assert raised.value is error
     else:
         assert pipeline._search(query) == documents
-    pipeline.vector_db.search_fts.assert_called_once_with(query, top_k=20)
+    pipeline.vector_db.search_fts.assert_called_once_with(query, top_k=50)
     captured = capsys.readouterr()
     logs = captured.out + captured.err
     for marker in (query, str(error), documents[0]["content"]):

@@ -65,3 +65,13 @@ traces against the specified contracts. Build/review/freeze unseen evaluation
 data before any quality claim or paid comparison. Existing historical retrieval
 scores and companion dashboard counters cannot establish hosted answer readiness.
 New spend is $0; no push, deployment, download or remote export occurred.
+
+## Boundary repair follow-up
+
+The same 81 checks now pass (36 existing LanceDB warnings, 11.57 seconds).
+`boundary-repair/pytest.log` and `pytest-run.json` retain the new result; the
+original red baseline remains unchanged. The privacy assertion now expects the
+specified 50 candidates. Incremental-index tests capture the real retrieved
+evidence at a fake synthesis boundary and assert the exact public answer envelope;
+all edit/delete/rebuild checks still examine real index output. Runtime unchanged.
+The runner accepts `--output` so subsequent checkpoints do not replace evidence.
