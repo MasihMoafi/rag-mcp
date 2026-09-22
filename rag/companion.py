@@ -8,6 +8,7 @@ import subprocess
 import tempfile
 import time
 from collections.abc import Callable
+from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from threading import Lock
@@ -29,35 +30,45 @@ MAX_BODY_BYTES = 1_048_576
 MAX_EMBED_TEXTS = 256
 
 
+@dataclass(frozen=True)
+class GenerationResult:
+    answer: str
+    input_tokens: int | None = None
+    output_tokens: int | None = None
+
+
 def _default_metrics_path() -> Path:
     state_home = Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local" / "state"))
     return state_home / "ragmcp" / "companion-metrics.json"
 
 
-def _empty_metrics() -> dict[str, dict[str, float | int]]:
+def _empty_metrics() -> dict[str, Any]:
     return {
         "embedding": {"requests": 0, "successes": 0, "failures": 0, "total_latency_ms": 0.0},
         "generation": {"requests": 0, "successes": 0, "failures": 0, "total_latency_ms": 0.0},
+        "usage": {"input_tokens": 0, "output_tokens": 0, "reported_runs": 0},
     }
 
 
-def _load_metrics(path: Path) -> dict[str, dict[str, float | int]]:
+def _load_metrics(path: Path) -> dict[str, Any]:
     try:
         stored = json.loads(path.read_text())
         metrics = _empty_metrics()
-        for operation in metrics:
-            values = stored[operation]
-            for field in metrics[operation]:
+        for section in metrics:
+            values = stored.get(section, {})
+            for field in metrics[section]:
+                if field not in values:
+                    continue
                 value = values[field]
                 if not isinstance(value, (int, float)) or value < 0:
                     raise ValueError("invalid metric")
-                metrics[operation][field] = value
+                metrics[section][field] = value
         return metrics
     except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError):
         return _empty_metrics()
 
 
-def _save_metrics(path: Path, metrics: dict[str, dict[str, float | int]]) -> None:
+def _save_metrics(path: Path, metrics: dict[str, Any]) -> None:
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
         temporary = path.with_suffix(".tmp")
@@ -120,7 +131,7 @@ def _prompt(payload: dict[str, Any]) -> str:
     )
 
 
-def run_codex_generation(payload: dict[str, Any]) -> str:
+def run_codex_generation(payload: dict[str, Any]) -> GenerationResult:
     executable = shutil.which("codex")
     if executable is None:
         raise RuntimeError("Codex is not installed or is not on PATH.")
@@ -130,6 +141,7 @@ def run_codex_generation(payload: dict[str, Any]) -> str:
             [
                 executable,
                 "exec",
+                "--json",
                 "--ephemeral",
                 "--ignore-user-config",
                 "--ignore-rules",
@@ -154,7 +166,19 @@ def run_codex_generation(payload: dict[str, Any]) -> str:
         answer = output.read_text().strip()
         if not answer:
             raise RuntimeError("Codex returned an empty answer.")
-        return answer
+        input_tokens = None
+        output_tokens = None
+        for line in completed.stdout.splitlines():
+            try:
+                event = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if event.get("type") == "turn.completed" and isinstance(event.get("usage"), dict):
+                usage = event["usage"]
+                if isinstance(usage.get("input_tokens"), int) and isinstance(usage.get("output_tokens"), int):
+                    input_tokens = max(usage["input_tokens"], 0)
+                    output_tokens = max(usage["output_tokens"], 0)
+        return GenerationResult(answer, input_tokens, output_tokens)
 
 
 def _valid_payload(value: Any) -> bool:
@@ -188,7 +212,7 @@ def _valid_payload(value: Any) -> bool:
 
 def create_companion_server(
     token: str,
-    run_codex: Callable[[dict[str, Any]], str] = run_codex_generation,
+    run_codex: Callable[[dict[str, Any]], str | GenerationResult] = run_codex_generation,
     codex_ready: Callable[[], bool] = codex_is_ready,
     port: int = 0,
     embedder_factory: Callable[[], Any] = default_embedder,
@@ -199,12 +223,21 @@ def create_companion_server(
     metrics_path = metrics_path or _default_metrics_path()
     metrics = _load_metrics(metrics_path)
 
-    def record(operation: str, started: float, success: bool) -> None:
+    def record(
+        operation: str,
+        started: float,
+        success: bool,
+        usage: GenerationResult | None = None,
+    ) -> None:
         with metrics_lock:
             current = metrics[operation]
             current["requests"] += 1
             current["successes" if success else "failures"] += 1
             current["total_latency_ms"] += (time.monotonic() - started) * 1_000
+            if usage is not None and usage.input_tokens is not None and usage.output_tokens is not None:
+                metrics["usage"]["input_tokens"] += usage.input_tokens
+                metrics["usage"]["output_tokens"] += usage.output_tokens
+                metrics["usage"]["reported_runs"] += 1
             _save_metrics(metrics_path, metrics)
 
     def dashboard(codex_available: bool) -> dict[str, Any]:
@@ -219,13 +252,20 @@ def create_companion_server(
                     ) if values["requests"] else None,
                 }
                 for name, values in metrics.items()
+                if name in {"embedding", "generation"}
+            }
+            reported_usage = metrics["usage"]["reported_runs"] > 0
+            usage = {
+                "input_tokens": int(metrics["usage"]["input_tokens"]) if reported_usage else None,
+                "output_tokens": int(metrics["usage"]["output_tokens"]) if reported_usage else None,
+                "cost_usd": None,
             }
         configured_embedding = embedding_status()["model"] or None
         active_embedding = getattr(loaded.get("embedder"), "model_name", None)
         return {
             "operations": operations,
             "models": {"embedding": active_embedding or configured_embedding, "generation": MODEL},
-            "usage": {"input_tokens": None, "output_tokens": None, "cost_usd": None},
+            "usage": usage,
             "gates": {
                 "companion_connected": True,
                 "embedding_configured": bool(active_embedding or configured_embedding),
@@ -357,15 +397,17 @@ def create_companion_server(
                 return
             started = time.monotonic()
             try:
-                answer = run_codex(payload)
+                result = run_codex(payload)
             except Exception:
                 record("generation", started, False)
                 self._send_json(502, {"error": "Codex could not generate an answer."})
                 return
-            record("generation", started, True)
+            if isinstance(result, str):
+                result = GenerationResult(result)
+            record("generation", started, True, result)
             events = [
                 {"type": "meta", "mode": "provider", "provider": "Codex · Local", "model": MODEL},
-                {"type": "delta", "text": answer},
+                {"type": "delta", "text": result.answer},
                 {"type": "done"},
             ]
             body = "".join(f"{json.dumps(event)}\n" for event in events).encode()
