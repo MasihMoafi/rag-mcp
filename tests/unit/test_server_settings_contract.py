@@ -26,7 +26,7 @@ def test_mcp_retrieval_error_does_not_echo_provider_payload(monkeypatch, tmp_pat
     import json
 
     failure = RuntimeError('provider body contains sk-private-example and private document text')
-    monkeypatch.setattr(server, '_validate_rag_scope', lambda path: None)
+    monkeypatch.setattr(server, '_validate_rag_scope', lambda path, extensions=None: None)
     monkeypatch.setattr(fetch, 'fetchExternalKnowledge', Mock(side_effect=failure))
     output = json.loads(server.query_knowledge_base('question', str(tmp_path)))
     assert 'error' in output

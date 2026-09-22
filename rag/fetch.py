@@ -34,7 +34,7 @@ RAG_CONFIG_V2 = {
     "document_paths": ["./files/"],
     # embed_* keys come from rag.settings.embedding_config() at pipeline creation:
     # the user's `rag setup` choice, overridable by RAG_MCP_EMBED_* variables.
-    "top_k": _env_int("RAG_MCP_TOP_K", 5),
+    "top_k": _env_int("RAG_MCP_TOP_K", 50),
     "chunk_size": _env_int("RAG_MCP_CHUNK_SIZE", 700),
     "chunk_overlap": _env_int("RAG_MCP_CHUNK_OVERLAP", 100),
     "rrf_k": _env_int("RAG_MCP_RRF_K", 60),  # Reciprocal-rank fusion constant
@@ -170,10 +170,13 @@ def _get_scoped_pipeline(key, doc_path):
         config.update(embedding)
         retrieval = retrieval_config()
         final_count = max(1, int(retrieval["top_k"]))
+        candidate_count = max(final_count, int(retrieval.get("candidate_k", 50)))
         config["rerank_top_k"] = final_count
-        config["top_k"] = max(final_count, int(config["top_k"]))
+        config["candidate_k"] = candidate_count
+        config["top_k"] = max(candidate_count, int(config["top_k"]))
         config["reranker_type"] = retrieval["reranker_type"]
         config["reranker_model"] = retrieval["reranker_model"]
+        config["reranker_timeout"] = retrieval.get("reranker_timeout", "60")
         config["use_contextual"] = contextual_retrieval_enabled(retrieval)
         contextual = {name: retrieval[name] for name in (
             "contextual_model",
@@ -225,9 +228,11 @@ def _get_scoped_pipeline(key, doc_path):
             "backend", "distance_metric", "rrf_k", "bm25_k1", "bm25_b", "persist_dir",
             *embedding,
             "top_k",
+            "candidate_k",
             "rerank_top_k",
             "reranker_type",
             "reranker_model",
+            "reranker_timeout",
             "use_contextual",
             *contextual,
             "source_stamp",

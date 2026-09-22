@@ -25,9 +25,9 @@ def test_query_json_format_is_stable_in_a_tty(tmp_path: Path):
         ["query", "codename?", "--path", str(document), "--format", "json"],
         stdin=TTYStringIO(),
         stdout=output,
-        query_fn=lambda query, path: json.dumps({"result": [{"source": path}]}),
+        query_fn=lambda query, path: json.dumps({"result": "Cedar Lantern."}),
     ) == 0
-    assert json.loads(output.getvalue()) == {"result": [{"source": str(document)}]}
+    assert json.loads(output.getvalue()) == {"result": "Cedar Lantern."}
 
 
 def test_query_text_format_is_stable_without_a_tty(tmp_path: Path):
@@ -38,9 +38,7 @@ def test_query_text_format_is_stable_without_a_tty(tmp_path: Path):
     assert main(
         ["query", "codename?", "--path", str(document), "--format", "text"],
         stdout=output,
-        query_fn=lambda query, path: json.dumps(
-            {"result": [{"content": "The launch codename is Cedar Lantern.", "source": path}]}
-        ),
+        query_fn=lambda query, path: json.dumps({"result": "The launch codename is Cedar Lantern."}),
     ) == 0
     assert "The launch codename is Cedar Lantern." in output.getvalue()
     assert '"result"' not in output.getvalue()
@@ -192,7 +190,7 @@ def test_query_warns_when_only_exact_word_search_is_configured(tmp_path: Path):
         stdout=io.StringIO(),
         stderr=stderr,
         environ={"RAG_MCP_CONFIG": str(tmp_path / "config.json")},
-        query_fn=lambda query, path: json.dumps({"result": []}),
+        query_fn=lambda query, path: json.dumps({"result": "No matching information."}),
     )
 
     assert code == 0
@@ -208,20 +206,11 @@ def test_query_prints_the_real_query_result_contract(tmp_path: Path):
     code = main(
         ["query", "What is the launch codename?", "--path", str(document)],
         stdout=output,
-        query_fn=lambda query, path: json.dumps(
-            {"result": [{"content": document.read_text(), "source": path}]}
-        ),
+        query_fn=lambda query, path: json.dumps({"result": document.read_text()}),
     )
 
     assert code == 0
-    assert json.loads(output.getvalue()) == {
-        "result": [
-            {
-                "content": "The launch codename is Cedar Lantern.",
-                "source": str(document),
-            }
-        ]
-    }
+    assert output.getvalue().strip() == "The launch codename is Cedar Lantern."
 
 
 def test_doctor_reports_missing_and_signed_out_codex(tmp_path: Path):
@@ -349,7 +338,7 @@ def test_query_top_shorthand_sets_the_result_count(tmp_path: Path, monkeypatch):
         environ={"RAG_MCP_CONFIG": str(tmp_path / "config.json")},
         query_fn=lambda query, path: seen.update(
             {"final": __import__("os").environ["RAG_MCP_RERANK_TOP_K"], "candidates": __import__("os").environ["RAG_MCP_TOP_K"]}
-        ) or "{}",
+        ) or json.dumps({"result": "Cedar Lantern."}),
     )
 
     assert code == 0

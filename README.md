@@ -1,6 +1,6 @@
 ---
 name: rag-mcp
-type: local semantic-search MCP server for coding agents and document workflows
+type: scoped hybrid-RAG CLI and MCP server for agents and document workflows
 ---
 
 <div align="center">
@@ -11,7 +11,7 @@ type: local semantic-search MCP server for coding agents and document workflows
 
 [![MCP](https://img.shields.io/badge/protocol-MCP-blue?style=flat-square)](#quick-start)
 [![Live Demo](https://img.shields.io/badge/live%20demo-in--browser%20WASM-blueviolet?style=flat-square)](https://rag.masihmoafi.com)
-[![Local](https://img.shields.io/badge/retrieval-100%25%20local-brightgreen?style=flat-square)](#what-sets-this-apart)
+[![Local index](https://img.shields.io/badge/index-local-brightgreen?style=flat-square)](#what-sets-this-apart)
 [![Hybrid search](https://img.shields.io/badge/search-BM25%20%2B%20vector%20%2B%20rerank-orange?style=flat-square)](#architecture)
 [![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
 
@@ -31,11 +31,12 @@ checkout. Installing `ragmcp` provides the `rag` command; there is no separate
 rag-mcp/
 ├── rag/                                # Retrieval engine and adapters
 │   ├── core.py                         # RAGPipeline composition and search
+│   ├── answer_contract.py              # Fail-closed public answer envelope
 │   ├── fetch.py                        # Scoped pipeline cache and query entry points
 │   ├── discovery.py                    # Path resolution and bounded file discovery
 │   ├── formats.py                      # Shared discovery allowlist
 │   ├── parsing.py                      # Extraction dispatch and legacy method adapters
-│   ├── parsers/                        # Named readers: text, pdf, json, notebook, office/OCR
+│   ├── parsers/                        # Named readers: text, PDF, HTML, JSON, notebook, office
 │   ├── chunking.py                     # Source-preserving chunks and heading labels
 │   ├── ingestion.py                    # Indexing, source locations and persisted documents
 │   ├── bm25.py                         # In-memory lexical ranking for the Qdrant path
@@ -47,7 +48,7 @@ rag-mcp/
 │
 ├── tests/                              # Pytest automated test suite
 │   ├── unit/                           # Chunking logic, breadcrumb generation & GPU guardrail unit tests
-│   ├── integration/                    # LanceDB CRUD, MCP tool contracts, OCR & file scope tests
+│   ├── integration/                    # LanceDB CRUD, MCP tool contracts, parsing & file scope tests
 │   └── benchmarks/                     # GPU empirical throughput sweeps & OOM ladder benchmarks
 │
 ├── evals/                              # Evaluation Datasets & Scaling Experiments
@@ -107,13 +108,33 @@ Evaluated across **5 merged heterogeneous domains (6,314 chunks in a single inde
 
 ## Quick start
 
-Exact-word search (BM25) is always on. `rag setup` first asks where retrieval embeddings should run, then shows only the models that source reports: Ollama models already installed here, a supported local CPU catalog, OpenRouter/OpenAI/Google Gemini catalogs, another compatible endpoint, a local model, or exact words only. The default install is light: no PyTorch. This choice controls retrieval; Studio or the MCP host app chooses the answer LLM.
+The approved hosted profile uses BM25 plus OpenRouter `qwen/qwen3-embedding-4b`, fuses
+the best 50 candidates with RRF, asks `cohere/rerank-4-fast` for the best five,
+then asks `deepseek/deepseek-v4.1-flash` for a concise grounded answer. The CLI
+prints only that answer; the MCP result does not expose chunks, paths, citations,
+scores, or retrieval metadata. A query must name an explicit supported file or a
+narrow directory. Directory queries accept an optional file-type filter.
+
+OpenRouter currently lists Qwen3 Reranker 4B and 0.6B but serves no endpoint for
+either. The configured Cohere fallback was verified live at $0.002 per search;
+the pipeline still fails clearly rather than silently skipping reranking.
+
+The complete hosted profile was exercised live on 2026-09-22 with 60 synthetic
+Markdown chunks: Qwen embedded the corpus and query, RRF supplied 50 candidates,
+Cohere returned all 50 scores, five passages reached DeepSeek, and the public
+result contained only the correct answer. OpenRouter reported a total cost of
+$0.00214904. This is a wiring check, not a retrieval-quality benchmark.
 
 Prerequisite for every path: [`uv`](https://docs.astral.sh/uv/getting-started/installation/), the Python package runner. The npm package is a thin launcher that calls it. The same engine powers the hosted [RAG Studio](https://rag.masihmoafi.com) through `rag studio`.
 
+The configured answer profile sends document chunks and queries to OpenRouter for
+embedding, reranking, and synthesis. Source files and indexes remain local. Do not
+use this hosted profile for material that cannot be sent to the configured provider.
+
 ```bash
 uvx ragmcp setup                                    # pick an embedding model once
-uvx ragmcp query "What changed?" --path ./docs       # any file or folder
+uvx ragmcp query "What changed?" --path ./docs       # explicit document scope
+uvx ragmcp query "What does the book say?" --path ./book --type md  # exclude HTML and other formats
 ```
 
 ```bash
@@ -136,23 +157,24 @@ rag studio                    # pair the hosted Studio; --studio-url http://loca
 
 Run `rag` from any directory after installing the tool. Use ↑/↓ and Enter to select providers, models, settings, apps, and files or folders. Escape goes back; typing is reserved for the final “enter a path/model ID” option. Completed actions return to the main menu. Piped input retains numbered choices for scripts; model-list positions follow discovery, so use explicit command flags for automation.
 
-Folder queries reject scopes with more than 500 discovered indexable files; select
-a smaller folder instead of relying on a silently truncated index. Existing file
+Folder queries consider supported document formats and, by default, reject scopes with more than
+5,000 matching files; select a smaller folder instead of relying on a silently truncated index. Existing file
 type, depth, hidden/generated-file and symlink exclusions still apply.
 Directory-listing and entry metadata-read errors abort discovery
 instead of caching a partial file manifest.
 
 The provider-first picker lists only sources detected on the machine or explicitly supported by the CLI. Selecting Ollama opens the embedding models reported by its `/api/show` capabilities; selecting an API provider loads that provider's live embedding catalog. “Local CPU” opens FastEmbed's supported-model catalog and labels download sizes. Custom server URLs and model identifiers are requested only in their dedicated final-entry flows, with the required format shown in the question.
 
-`--top N` (or `--top3`, `--top-5`) sets how many passages a query returns. `rag connect claude --scope project` writes `.mcp.json` in the current folder instead of the user config. Registration always uses a command that outlives the current process: `rag mcp` when installed, or `uvx --from ragmcp==<version> rag mcp` when launched through npx/uvx.
+`--top N` (or `--top3`, `--top-5`) sets how many reranked passages the internal
+synthesis step may use; those passages are not returned. `rag connect claude --scope project` writes `.mcp.json` in the current folder instead of the user config. Registration always uses a command that outlives the current process: `rag mcp` when installed, or `uvx --from ragmcp==<version> rag mcp` when launched through npx/uvx.
 
 ### Change settings later: CLI, menu, or chat
 
 ```bash
-rag config show                                   # embedding, passages per query, reranker, config file
-rag config top 5                                  # how many passages a query returns (the default for --top)
-rag config reranker off|auto|fastembed|<model>    # fastembed = a small ONNX cross-encoder, no PyTorch
-rag config embedding qwen3-embedding:0.6b         # provider guessed: Ollama here; BAAI/... → local ONNX; text-embedding-3-small → OpenAI key
+rag config show                                   # embedding, candidate/final counts, reranker, answer model
+rag config top 5                                  # passages available only to answer synthesis
+rag config reranker openrouter                    # cohere/rerank-4-fast
+rag config embedding qwen/qwen3-embedding-4b       # approved OpenRouter embedding model
 ```
 
 The same three settings are in the `rag` menu ("Change settings"), and `rag connect claude` / `rag connect codex` install a `/rag` command in the agent (Claude Code: `/rag top5`, `/rag --reranker fastembed`, `/rag embedding bge-m3`, or plain words like `/rag use the ollama model`; Codex: `/prompts:rag …`). The MCP server also exposes `get_rag_settings` and `set_rag_settings`, so any agent can change these when asked in chat. API keys are never taken through chat; `rag setup` in a terminal handles them.
@@ -161,7 +183,7 @@ The same three settings are in the `rag` menu ("Change settings"), and `rag conn
 
 Extras: `ragmcp[full]` adds PyTorch, sentence-transformers and the cross-encoder reranker (GPU); `ragmcp[office]` parses DOCX/PPTX/XLSX/CSV; `ragmcp[qdrant]` adds the Qdrant backend; `ragmcp[anthropic]` enables contextual retrieval. With npm: `RAGMCP_EXTRAS=full npx ragmcp ...`.
 
-`rag studio` starts an authenticated loopback companion and opens the hosted Studio. Keep this terminal open while the browser uses local documents and embeddings. Generation provider/model selection belongs in Studio; an MCP host similarly owns its chat model. `rag query` exercises this repository's Python retrieval engine directly.
+`rag studio` starts an authenticated loopback companion and opens the hosted Studio. Keep this terminal open while the browser uses the local document/index bridge. `rag query` and the MCP answer tool use the configured retrieval, reranking, and synthesis models directly.
 
 ### Before it is on npm and PyPI: test from this checkout
 
@@ -203,20 +225,9 @@ Any MCP client can register the stdio server as the command `rag` with the singl
 claude mcp add rag -s user -- rag mcp
 ```
 
-### Elpis
+### Any MCP client
 
-**Option A: Global Config (`~/.elpis/config.toml`)**
-
-```toml
-[mcp_servers.rag]
-command = "rag"
-args = ["mcp"]
-
-[mcp_servers.rag.env]
-RAG_MCP_WORKSPACE_ROOT = "/absolute/path/to/your/workspace"
-```
-
-**Option B: Standard MCP JSON (`.mcp.json` or `~/.elpis/mcp.json`)**
+Clients that accept standard MCP JSON can use:
 
 ```json
 {
@@ -224,10 +235,7 @@ RAG_MCP_WORKSPACE_ROOT = "/absolute/path/to/your/workspace"
     "rag": {
       "type": "stdio",
       "command": "rag",
-      "args": ["mcp"],
-      "env": {
-        "RAG_MCP_WORKSPACE_ROOT": "/absolute/path/to/your/workspace"
-      }
+      "args": ["mcp"]
     }
   }
 }
@@ -241,13 +249,19 @@ From a checkout, use `/absolute/path/to/rag-mcp/.venv/bin/python /absolute/path/
 rag connect codex
 ```
 
-Expected result: the client discovers `query_knowledge_base`, and a query returns ranked passages with source paths from the requested scope.
+Expected result: the client discovers `query_knowledge_base`, and a query returns
+only a readable answer from the requested document scope.
 
 ## What is rag-mcp
 
-`rag-mcp` is a local hybrid-search MCP server: point it at a file or folder, ask a question in plain language, and get back the passages that actually answer it — with the exact file and location, not a guess.
+`rag-mcp` is an answer-producing hybrid RAG CLI and MCP server. Point it at an
+explicit supported file or narrow directory, ask a question in plain language,
+and receive a grounded answer without retrieval internals in the public result.
 
-Coding agents normally search a codebase by opening files one at a time or dumping an entire repository into the conversation. Both waste time and context. `rag-mcp` replaces that with one tool call: search by meaning, get ranked results with sources, keep going. Embeddings, vector search, and reranking all run locally; the server exposes one read-only MCP tool to compatible clients.
+The source documents and vector index remain local. The configured Qwen embedding,
+Cohere reranking, and DeepSeek synthesis calls use OpenRouter. Only the final answer
+crosses the CLI/MCP boundary; chunks and retrieval metadata do not enter the
+calling model's tool result.
 
 No third-party logo or benchmark — the image above is the actual [retrieval-accuracy evidence](#retrieval-accuracy) this repo ships, not decoration.
 
@@ -289,16 +303,20 @@ retrieval tools.
 
 Coding agents commonly retrieve context by either opening files one by one or loading a large portion of the repository. The first can miss relevant files; the second consumes context with material the current task may not need.
 
-`rag-mcp` moves retrieval into one local tool call so the agent can search by meaning without making the entire tree part of every prompt.
+`rag-mcp` moves retrieval and answer synthesis behind one scoped tool call so the
+agent does not receive the source tree or intermediate chunks in its context.
 
 ## Architecture
 
-<img src="assets/architecture.svg" alt="rag-mcp technical retrieval pipeline architecture" width="100%">
+The public answer pipeline operates across three stages:
 
-The retrieval pipeline operates across two decoupled stages:
+1. **Scoped ingestion**: The caller supplies one supported file or an explicit narrow directory. An optional extension filter can limit a directory—for example, to `.md` while excluding HTML. Chunks are indexed for BM25 and Qwen3 Embedding 4B dense retrieval.
+2. **Precision funnel**: BM25 and dense results are fused with Reciprocal Rank Fusion (`RRF`, `k=60`). At most 50 fused candidates reach Cohere Rerank 4 Fast; it keeps five.
+3. **Answer boundary**: DeepSeek V4.1 Flash answers from those five passages. The public CLI/MCP boundary returns only readable answer text.
 
-1. **Scope Ingestion & Storage**: Discovery selects allowed files; format readers extract text; `chunking.chunk_document` produces source-preserving chunks. Markdown headings establish section boundaries; code symbols receive best-effort regex labels, not AST parsing. PDF page and notebook cell separators support location recovery, but do not guarantee chunk boundaries. HTML extracts static text while excluding scripts, styles, navigation, templates and explicitly hidden elements; physical source lines are retained for citations. It does not execute JavaScript or interpret CSS visibility. Other plain-text formats retain source syntax. Chunks are indexed for exact-word search and, when an embedding model is configured, dense retrieval.
-2. **Retrieval & Precision Funnel**: Each `query_knowledge_base` invocation runs BM25 and, when configured, dense vector search. Candidates are unified via Reciprocal Rank Fusion (`RRF`, `k=60`), then optionally reranked according to the saved retrieval setting before ranked source citations are returned.
+The public boundary accepts exactly one nonempty string field—`result` or
+`error`. Legacy passage arrays, metadata fields, malformed JSON, and empty output
+fail closed instead of being serialized to the caller.
 
 Use `rag.core.RAGPipeline` and `rag.fetch.query_documents` for new Python callers.
 `RAGPipelineV2`, `fetchExternalKnowledge`, and the original core chunk/BM25 imports
@@ -317,21 +335,24 @@ rag-mcp/
 └── utils/proxy.py  # local proxy-environment handling
 ```
 
-Technical boundaries:
+Approved hosted-profile boundaries:
 
-- one MCP tool: `query_knowledge_base(query, doc_path?)`;
-- default embeddings: none until `rag setup` (BM25 remains available immediately);
-- reranking: `auto` (uses a local cross-encoder when the full extra is installed, otherwise off; overridable);
+- one answer tool: `query_knowledge_base(query, doc_path, extensions?)`;
+- embeddings: OpenRouter `qwen/qwen3-embedding-4b` plus always-on BM25;
+- reranking: OpenRouter `cohere/rerank-4-fast`, with no silent fallback;
+- synthesis: OpenRouter `deepseek/deepseek-v4.1-flash`;
 - local embedded/on-disk LanceDB by default, with Qdrant as an optional backend;
-- `doc_path` can scope each call to a file or directory;
+- `doc_path` is required and must scope each call to a supported file or narrow directory;
 - per-path indexes are persisted under the user data directory (`~/.local/share/rag/index`, or `RAG_MCP_DATA_DIR`);
 - common large/build directories such as `.git`, `node_modules`, `.venv`, `dist`, `build`, and `target` are rejected;
 - configurable depth/token limits fail explicitly instead of scanning an unbounded tree.
 
 ### Configuration
 
-Every retrieval knob is an environment variable, not a source edit. Unset means the
-default shown:
+Pipeline settings can be changed without editing source. The table shows source
+defaults; saved settings and `RAG_MCP_*` environment variables override them. The
+approved hosted profile uses Qwen3 Embedding 4B even though a clean installation
+starts with no embedding model until setup is completed.
 
 | Variable | Default | What it controls |
 | --- | --- | --- |
@@ -339,8 +360,10 @@ default shown:
 | `RAG_MCP_EMBED_MODEL` | unset | embedding model name, meaning depends on provider |
 | `RAG_MCP_EMBED_API_KEY` | unset | API key, only used by `openai_compatible` |
 | `RAG_MCP_EMBED_BASE_URL` | unset (official OpenAI endpoint) | override endpoint, only used by `openai_compatible` |
-| `RAG_MCP_RERANKER_TYPE` | `auto` | `auto`, `fastembed`, or `off` |
-| `RAG_MCP_RERANKER_MODEL` | unset | optional model override for the selected reranker |
+| `RAG_MCP_RERANKER_TYPE` | `openrouter` | hosted reranking; provider failures stop the pipeline |
+| `RAG_MCP_RERANKER_MODEL` | `cohere/rerank-4-fast` | required hosted reranker |
+| `RAG_MCP_CANDIDATE_K` | `50` | fused candidates passed to the reranker |
+| `RAG_MCP_ANSWER_MODEL` | `deepseek/deepseek-v4.1-flash` | model that synthesizes the private evidence into an answer |
 | `RAG_MCP_CONTEXTUAL_RETRIEVAL` | `off` | `on` or `off`; enrich chunks with document context before indexing |
 | `RAG_MCP_CONTEXTUAL_MODEL` | `claude-haiku-4-5` | Anthropic model used for contextualization |
 | `RAG_MCP_CONTEXTUAL_MAX_TOKENS` | `128` | maximum generated context per chunk |
@@ -348,8 +371,8 @@ default shown:
 | `RAG_MCP_CONTEXTUAL_SOURCE_MAX_CHARS` | `12000` | use bounded chunk context above this source size |
 | `RAG_MCP_CONTEXTUAL_START_CHUNKS` | `2` | initial chunks included for large sources |
 | `RAG_MCP_CONTEXTUAL_PREV_CHUNKS` | `2` | preceding chunks included for large sources |
-| `RAG_MCP_TOP_K` | `5` | candidates pulled from vector search before fusion |
-| `RAG_MCP_RERANK_TOP_K` | `5` | results kept after reranking |
+| `RAG_MCP_TOP_K` | `50` | candidates pulled from each retrieval channel before fusion |
+| `RAG_MCP_RERANK_TOP_K` | `5` | passages kept for synthesis, never returned publicly |
 | `RAG_MCP_CHUNK_SIZE` | `700` | characters per chunk before overlap |
 | `RAG_MCP_CHUNK_OVERLAP` | `100` | characters shared between adjacent chunks |
 | `RAG_MCP_RRF_K` | `60` | Reciprocal Rank Fusion constant |
@@ -361,7 +384,9 @@ Contextual retrieval is off by default. Enable it with `rag config contextual on
 `ANTHROPIC_API_KEY` before indexing. Turning it off changes the index stamp and rebuilds
 an uncontextualized index.
 
-The shipped defaults use BM25 alone until a provider and embedding model are selected, so first use never downloads a model or sends text anywhere unexpectedly.
+The embedding default is BM25-only until setup. The answer pipeline still requires
+its configured hosted reranker and synthesis model; selecting a local embedding
+model does not make the entire answer pipeline local.
 
 To run the higher-capacity pipeline evaluated in the benchmark suite above, switch to Ollama Qwen embeddings:
 
@@ -381,9 +406,13 @@ Gemini's OpenAI-compatible modes — install the optional `openai` package
 verified, and OpenRouter has live embedding evidence described below; other provider
 endpoints still need verification. The unsupported `reranker_type=llm` setting is rejected
 before resource initialization; it previously returned fusion order without scoring.
-Use `cross-encoder`, `fastembed`, `auto` or `disabled` instead.
+Use `openrouter`, `cross-encoder`, `fastembed`, `auto` or `disabled` instead.
 
 ## Current state
+
+The dated records below document earlier retrieval-only configurations. They are
+retained as historical evidence and do not verify the current Qwen3 Embedding 4B →
+Rerank 4 Fast → DeepSeek answer profile unless a paragraph explicitly says so.
 
 ### Readiness audit — 2026-09-13
 
@@ -415,14 +444,10 @@ preservation/repair checks pass on both local storage backends. PDF extraction c
 still recover through a nonempty fallback; genuinely empty successful extraction
 is distinct from an exception. Direct parser callers must now handle read/decode
 exceptions rather than expect an empty string or list on failure.
-Managed indexes use parser stamp 7, or 8 for scopes containing standalone images,
-and rebuild older generations on next use. Stamp 8 revalidates image scopes that
-could previously swallow an OCR error when fallback extraction returned nothing;
-text-only stamp-7 scopes do not rebuild for this image-specific change.
 API-backed indexes can incur re-embedding costs. Failed rebuilds preserve the
 previous generation but do not silently serve its incomplete results. The complete
 unit suite is included in the combined regression run above, alongside the parser
-failure and legacy-index migration checks; this does not certify OCR model quality.
+failure and legacy-index migration checks.
 
 - CLI/MCP and direct-engine refreshes now share isolated generation builds and publish
   an atomic pointer only after storage, metadata and the source manifest succeed.
@@ -487,9 +512,9 @@ failure and legacy-index migration checks; this does not certify OCR model quali
   LanceDB0.38.0, including streamed vector release and late-failure preservation.
   Other platforms/Python versions, optional model backends and GPU throughput
   remain unverified. Optional
-  DOCX/PPTX/XLSX/CSV and image-OCR fixture tests subsequently passed on this host
-  with socket connections blocked; complex layouts, scanned PDFs and clean
-  installation of these optional dependencies remain unverified.
+  DOCX/PPTX/XLSX/CSV fixture tests subsequently passed on this host with socket
+  connections blocked; complex layouts and clean installation of these optional
+  dependencies remain unverified.
 
 The [public-paper evaluation record](evals/calibration/attention-support-review.json)
 includes a 30-question hybrid retrieval run using Qwen3 API embeddings and a local
@@ -518,7 +543,7 @@ previously supported answer, so neither blanket removal nor deeper candidate
 retrieval is justified as a fix for those particular failures. No defaults were
 changed. A different ranking approach needs validation across existing controls
 and gains, not just the observed failure subset. The single sequential run is
-not sustained-load or private private downstream production validation.
+not sustained-load or private downstream production validation.
 
 Follow-up: predict-based rerankers now receive the source basename alongside the
 passage, without changing stored or returned evidence. On the same reviewed
@@ -528,15 +553,15 @@ This is a bounded, non-blind improvement, not universal filename reliability.
 Qwen's separate prompt path is unchanged. No re-embedding is required; existing
 server processes need restarting to load the code.
 
-### Implemented and verified
+### Implemented
 
 - MCP `initialize` → `tools/list` → `tools/call` protocol path.
 - Read-only `query_knowledge_base` tool.
-- Workspace-root and explicit `doc_path` scoping.
-- Local hybrid retrieval and reranking.
+- Required explicit document scoping; no implicit workspace-root scan.
+- Local BM25/vector storage with OpenRouter embedding, reranking, and synthesis adapters.
 - Guardrails for excluded directories and oversized scopes.
-- Text extraction for PDF and Jupyter notebooks, plus local OCR for common image
-  formats and structured extraction for DOCX, PPTX, XLSX, and CSV files.
+- Text extraction for PDF, HTML, and Jupyter notebooks, plus structured extraction
+  for DOCX, PPTX, XLSX, and CSV files.
 - End-to-end registration was exercised through a real MCP client during development.
 
 ### Provider verification limits
@@ -544,8 +569,12 @@ server processes need restarting to load the code.
 - Ollama and other provider/model combinations are not covered by the readiness
   suite above; do not extrapolate the OpenRouter result to every provider.
 - The `openai_compatible` path has real OpenRouter embedding evidence as described
-  above. Rate-limit, authentication and server-error recovery tests use simulated
-  HTTP responses; they do not establish a live provider's availability or latency.
+  above. A live full-chain wiring check also covers the configured Qwen3 Embedding
+  4B, Cohere Rerank 4 Fast, and DeepSeek V4.1 Flash combination. Rate-limit,
+  authentication and server-error recovery checks use simulated HTTP responses;
+  they do not establish future provider availability or production latency.
+- DeepSeek V4.1 Flash synthesis and Cohere Rerank 4 Fast both have live successful
+  probes. OpenRouter currently returns no endpoint for Qwen3 Reranker 4B or 0.6B.
 
 ### Planned
 
@@ -556,20 +585,21 @@ work. Per-question evidence and unresolved retrieval failures are recorded in
 ### Intentionally unsupported
 
 - Hosted/remote vector databases.
-- File types outside the extension allowlist in `server.py`.
-- Write/mutation tools; this server is retrieval-only.
+- File types outside the supported-format allowlist.
+- Source-document mutation; the answer tool reads and indexes selected sources but never edits them.
 
 ## What sets this apart
 
 These are design choices, not novelty claims:
 
-- **Local storage and search:** source files and vector indexes stay on the machine.
+- **Local storage and configurable inference:** source files and vector indexes stay on the machine.
   Local embedding models keep passage processing local; API embedding providers
   send passage and query text to the configured endpoint. Optional API contextual
   enrichment also sends text externally. Choose providers accordingly for private data.
 - **Small transport layer:** the MCP host uses direct stdio JSON-RPC rather than depending on an MCP SDK.
 - **Per-call scope:** one server can search different files/directories instead of requiring one fixed knowledge base per project.
-- **Evidence in the response:** returned chunks include source paths rather than only synthesized prose.
+- **Private evidence boundary:** returned chunks, paths, scores, and citations stay
+  inside the pipeline; the public tool result contains only the synthesized answer.
 
 ## Evals and test series
 
@@ -582,13 +612,12 @@ python scripts/bootstrap.py
 They cover:
 
 - read-only tool annotations;
-- default workspace scoping;
+- required explicit document scoping;
 - explicit `doc_path` scoping;
 - rejection of excluded directories;
 - rejection of depth-limit violations;
 - bootstrap prerequisite checks;
-- extraction from DOCX, PPTX, XLSX, and CSV files;
-- local OCR extraction from a generated image fixture.
+- extraction from DOCX, PPTX, XLSX, and CSV files.
 
 Protocol-level check, without another MCP client:
 
@@ -596,11 +625,11 @@ Protocol-level check, without another MCP client:
 printf '%s\n%s\n%s\n' \
   '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18"}}' \
   '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' \
-  '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"query_knowledge_base","arguments":{"query":"how does reciprocal rank fusion combine bm25 and vector results"}}}' \
+  '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"query_knowledge_base","arguments":{"query":"what does this manual say about rank fusion","doc_path":"README.md"}}}' \
   | RAG_MCP_WORKSPACE_ROOT="$PWD" .venv/bin/python server.py
 ```
 
-A successful self-query should return evidence pointing at rank fusion in `rag/reranking.py`.
+A successful self-query should return a synthesized answer without source metadata.
 
 What the tests prove: MCP transport/scoping/guardrail behavior covered by those cases.
 
@@ -615,7 +644,8 @@ query_knowledge_base(
 )
 ```
 
-The response is intended for the calling agent: ranked source passages it can use as task context rather than a standalone chat answer.
+The response is a standalone answer. Retrieval evidence and metadata remain inside
+the pipeline.
 
 ## Future development
 

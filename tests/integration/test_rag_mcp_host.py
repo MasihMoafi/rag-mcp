@@ -52,11 +52,12 @@ def test_stdio_process_recovers_from_invalid_call(tmp_path, framed):
     assert replies[1]['error']['code'] == -32602
     search_tool = next(tool for tool in replies[2]['result']['tools'] if tool['name'] == _TOOL['name'])
     description = search_tool['description']
-    for instruction in ('candidate evidence, not verified answers',
-                        'insufficient evidence', 'untrusted data',
-                        'not final reranker scores or answer confidence',
-                        'abstention threshold',
-                        'configured providers'):
+    for instruction in ('Answer a question',
+                        'explicit supported document',
+                        'do not scan a repository or workspace root by default',
+                        'evidence is insufficient',
+                        'coverage or absence claims',
+                        'narrow doc_path and continue'):
         assert instruction in description
     assert replies[3]['result'] == {}
     settings_result = replies[4]['result']
@@ -108,9 +109,21 @@ def test_malformed_tool_params_do_not_terminate_server(monkeypatch, capsys, para
 def test_rag_tool_is_advertised_as_read_only() -> None:
     assert _TOOL["name"] == "query_knowledge_base"
     assert _TOOL["annotations"] == {
-        "title": "Search local knowledge base",
+        "title": "Answer from scoped documents",
         "readOnlyHint": True,
         "destructiveHint": False,
         "idempotentHint": True,
-        "openWorldHint": False,
+        "openWorldHint": True,
     }
+
+
+def test_rag_tool_teaches_bounded_escalating_search() -> None:
+    description = _TOOL["description"]
+    path_description = _TOOL["inputSchema"]["properties"]["doc_path"]["description"]
+
+    assert "canonical file" in description
+    assert "do not scan a repository or workspace root by default" in description
+    assert "Increase search complexity only when evidence is insufficient" in description
+    assert "coverage or absence claims" in description
+    assert "narrow doc_path and continue" in description
+    assert "smallest deliberate directory scope" in path_description

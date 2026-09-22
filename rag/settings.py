@@ -47,18 +47,28 @@ CONTEXTUAL_DEFAULTS = {
 }
 CONTEXTUAL_ENV = {key: f"RAG_MCP_{key.upper()}" for key in CONTEXTUAL_DEFAULTS}
 RETRIEVAL_DEFAULTS = {
+    "candidate_k": "50",
     "top_k": "5",
-    "reranker_type": "auto",
-    "reranker_model": "",
+    "reranker_type": "openrouter",
+    "reranker_model": "cohere/rerank-4-fast",
+    "reranker_timeout": "60",
+    "answer_model": "deepseek/deepseek-v4.1-flash",
+    "answer_max_tokens": "700",
+    "answer_timeout": "90",
     **CONTEXTUAL_DEFAULTS,
 }
 RETRIEVAL_ENV = {
+    "candidate_k": "RAG_MCP_CANDIDATE_K",
     "top_k": "RAG_MCP_RERANK_TOP_K",
     "reranker_type": "RAG_MCP_RERANKER_TYPE",
     "reranker_model": "RAG_MCP_RERANKER_MODEL",
+    "reranker_timeout": "RAG_MCP_RERANKER_TIMEOUT",
+    "answer_model": "RAG_MCP_ANSWER_MODEL",
+    "answer_max_tokens": "RAG_MCP_ANSWER_MAX_TOKENS",
+    "answer_timeout": "RAG_MCP_ANSWER_TIMEOUT",
     **CONTEXTUAL_ENV,
 }
-RERANKER_CHOICES = ("off", "auto", "fastembed")
+RERANKER_CHOICES = ("off", "auto", "fastembed", "openrouter")
 FASTEMBED_RERANKER = "Xenova/ms-marco-MiniLM-L-6-v2"
 ST_RERANKER = "cross-encoder/ms-marco-MiniLM-L-6-v2"
 
@@ -139,6 +149,8 @@ def describe_reranker(config: Mapping[str, str]) -> str:
         return "auto (cross-encoder when sentence-transformers is installed, otherwise off)"
     if kind == "fastembed":
         return f"local ONNX cross-encoder · {model or FASTEMBED_RERANKER}"
+    if kind == "openrouter":
+        return f"OpenRouter · {model}"
     return f"{kind} · {model or ST_RERANKER}"
 
 
@@ -162,8 +174,10 @@ def describe_settings(environ: Mapping[str, str] | None = None) -> list[str]:
     retrieval = retrieval_config(environ)
     return [
         f"Embedding: {describe_embedding(embedding)}",
-        f"Passages per query (top): {retrieval['top_k']}",
+        f"Candidates after RRF: {retrieval['candidate_k']}",
+        f"Passages sent to synthesis: {retrieval['top_k']}",
         f"Reranker: {describe_reranker(retrieval)}",
+        f"Answer model: OpenRouter · {retrieval['answer_model']}",
         f"Contextual retrieval: {describe_contextual_retrieval(retrieval)}",
         f"Config file: {config_path(environ)}",
     ]

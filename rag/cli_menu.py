@@ -9,10 +9,10 @@ from rag import settings as user_settings
 
 
 MENU = (
-    ("Choose a search model", ["setup"]),
-    ("Search a file or folder", None),
+    ("Choose an embedding model", ["setup"]),
+    ("Ask about a file or folder", None),
     ("Connect an app to RAG MCP", None),
-    ("Change search settings", None),
+    ("Change RAG settings", None),
     ("Open live Studio in your browser", ["studio"]),
     ("Check local setup", ["doctor"]),
     ("Quit", None),
@@ -30,8 +30,8 @@ def menu(
     """Run the deliberate interactive UI; never use this path for agents."""
     from rag import prompts
 
-    stdout.write("rag · local document search and MCP bridge\n")
-    stdout.write("Search files, configure retrieval, or connect an MCP app. Studio is the web UI.\n")
+    stdout.write("rag · scoped document answers and MCP bridge\n")
+    stdout.write("Ask documents, configure the RAG pipeline, or connect an MCP app. Studio is the web UI.\n")
     stdout.write("`rag mcp` runs the server; `rag studio` pairs this terminal with Studio.\n\n")
     selected = 0
     while True:
@@ -119,7 +119,7 @@ def _settings_questions(
         selected = prompts.select(
             "Which setting would you like to change?",
             [
-                f"Results per query · {config['top_k']}",
+                f"Passages for answer · {config['top_k']}",
                 f"Reranker · {config['reranker_type']}",
                 "Embedding model",
             ],
@@ -172,7 +172,7 @@ def _menu_action(
     label, command = MENU[selected]
     if label == "Quit":
         return 0
-    if label.startswith("Search"):
+    if label.startswith("Ask"):
         command = _search_questions(stdin=stdin, stdout=stdout, environ=environ)
     elif label.startswith("Change"):
         setting = 0

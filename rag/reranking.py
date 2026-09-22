@@ -20,6 +20,11 @@ def initialize_reranker(self):
             reranker_setting = "disabled"
     if reranker_setting in {"disabled", "none", "off"}:
         print("[RAG V2] Reranker off.")
+    elif reranker_setting == "openrouter":
+        from .openrouter_pipeline import OpenRouterReranker
+        self.reranker_type = "openrouter"
+        self.reranker = OpenRouterReranker(self.config)
+        print(f"[RAG V2] Using OpenRouter reranker: {self.reranker.model_name}")
     elif reranker_setting == "fastembed":
         from .embeddings import FastEmbedReranker
         self.reranker = FastEmbedReranker(reranker_model or "Xenova/ms-marco-MiniLM-L-6-v2")
@@ -89,7 +94,9 @@ def fuse_rankings(self, vector_results: List[Tuple], bm25_results: List[Tuple], 
 
 def rerank_documents(self, docs: List[Dict], query: str, k: int) -> List[Dict]:
     """Rerank bounded passage text, retaining input order if inference fails."""
-    if len(docs) < 2:
+    if not docs:
+        return docs
+    if len(docs) < 2 and self.reranker_type != "openrouter":
         return docs
 
     try:
@@ -163,5 +170,7 @@ def rerank_documents(self, docs: List[Dict], query: str, k: int) -> List[Dict]:
         return [doc for doc, score in ranked[:k]]
 
     except Exception as e:
+        if self.reranker_type == "openrouter":
+            raise
         print(f"[RAG Core] CrossEncoder reranking failed: {type(e).__name__}, falling back to original order")
         return docs[:k]

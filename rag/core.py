@@ -7,12 +7,11 @@ try:
     import torch
 except ImportError:  # light install without PyTorch: CPU only, no sentence-transformers
     torch = None
-# Preserve the existing local-provider proxy behavior during engine import.
-def clear_proxy_settings():
-    for var in ["HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "http_proxy", "https_proxy", "all_proxy"]:
-        if var in os.environ:
-            del os.environ[var]
-clear_proxy_settings()
+
+# HTTP(S) proxies carry cloud-provider traffic; only the unsupported SOCKS
+# catch-all interferes with local clients such as embedded Qdrant and LanceDB.
+from utils.proxy import strip_socks
+strip_socks()
 
 from .embeddings import build_embedder, probe_dimensions
 from .contextual_retrieval import AnthropicContextualizer
@@ -42,9 +41,9 @@ class RAGPipeline:
         reranker_type = str(config.get("reranker_type", "auto")).lower()
         if reranker_type == "llm":
             raise ValueError("LLM reranking is not implemented; choose cross-encoder, fastembed, auto or disabled.")
-        if reranker_type not in {"auto", "cross-encoder", "fastembed", "disabled", "none", "off"}:
-            raise ValueError("Unknown reranker type; choose cross-encoder, fastembed, auto or disabled. Set model names with reranker_model.")
-        for key in ("top_k", "rerank_top_k"):
+        if reranker_type not in {"auto", "cross-encoder", "fastembed", "openrouter", "disabled", "none", "off"}:
+            raise ValueError("Unknown reranker type; choose openrouter, cross-encoder, fastembed, auto or disabled. Set model names with reranker_model.")
+        for key in ("top_k", "candidate_k", "rerank_top_k"):
             if key in config and (type(config[key]) is not int or config[key] <= 0):
                 raise ValueError(f"{key} must be a positive integer")
         self.backend_type = config.get("backend", os.environ.get("RAG_MCP_BACKEND", "lancedb")).lower()
@@ -190,8 +189,9 @@ class RAGPipeline:
     def _search(self, query: str) -> list[dict] | str:
         """Return ranked passages from the configured local retrieval pipeline."""
         try:
-            top_k = self.config.get("top_k", 20)
-            rerank_top_k = self.config.get("rerank_top_k", 3)
+            top_k = self.config.get("top_k", 50)
+            candidate_k = self.config.get("candidate_k", 50)
+            rerank_top_k = self.config.get("rerank_top_k", 5)
             
             print(f"[RAG V2] Searching (backend: {self.backend_type})")
             
@@ -214,7 +214,7 @@ class RAGPipeline:
                 print("[RAG V2] Step 4: BM25 search...")
                 bm25_results = self.bm25_index.search(query, k=top_k)
             print("[RAG V2] Step 5: RRF fusion...")
-            fused_docs = self._rrf_fusion(vector_results, bm25_results, k=self.config.get("rrf_k", 60))
+            fused_docs = self._rrf_fusion(vector_results, bm25_results, k=self.config.get("rrf_k", 60))[:candidate_k]
             
             if not fused_docs:
                 return "No relevant information found."
@@ -226,7 +226,7 @@ class RAGPipeline:
                 # No reranker model is loaded (light install): keep the fusion order.
                 final_docs = fused_docs[:rerank_top_k]
             else:
-                print(f"[RAG Core] Reranking {len(fused_docs)} initial results using CrossEncoder Reranker...")
+                print(f"[RAG Core] Reranking {len(fused_docs)} fused candidates...")
                 final_docs = self._crossencoder_rerank(fused_docs, query, k=rerank_top_k)
             sys.stderr.write(f"[RAG V2] Returning {len(final_docs)} unique results\n")
             return final_docs

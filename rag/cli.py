@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any, TextIO
 
 from rag import settings as user_settings
+from rag.answer_contract import decode_public_answer
 from rag.cli_agents import (
     AGENT_LABELS,
     available_agents as _available_agents,
@@ -138,10 +139,13 @@ def _config_command(args: argparse.Namespace, *, stdout: TextIO, stderr: TextIO,
         user_settings.update_settings({"top_k": value}, environ)
     elif setting == "reranker":
         if not value:
-            print("Give off, auto, fastembed or a model name.", file=stderr)
+            print("Give off, auto, fastembed, openrouter or a model name.", file=stderr)
             return 2
         if value in {"off", "auto"}:
             user_settings.update_settings({"reranker_type": value, "reranker_model": ""}, environ)
+        elif value == "openrouter" or value.startswith(("qwen/qwen3-reranker-", "cohere/rerank-")):
+            model = user_settings.RETRIEVAL_DEFAULTS["reranker_model"] if value == "openrouter" else value
+            user_settings.update_settings({"reranker_type": "openrouter", "reranker_model": model}, environ)
         elif value == "fastembed" or value.startswith(("Xenova/", "jinaai/", "BAAI/bge-reranker")):
             model = user_settings.FASTEMBED_RERANKER if value == "fastembed" else value
             if verify is not None:
@@ -183,7 +187,7 @@ def _config_command(args: argparse.Namespace, *, stdout: TextIO, stderr: TextIO,
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="rag",
-        description="Local hybrid search: exact words (BM25) always on, plus the embedding source you choose. Studio or an MCP app supplies answers.",
+        description="Answer questions from an explicit document scope using hybrid retrieval, reranking, and synthesis.",
     )
     commands = parser.add_subparsers(dest="command", required=True)
 
@@ -206,16 +210,22 @@ def _parser() -> argparse.ArgumentParser:
     doctor = commands.add_parser("doctor", help="Check local RAG, embedding and MCP-app setup")
     doctor.add_argument("--json", action="store_true", dest="as_json")
 
-    query = commands.add_parser("query", help="Query a local file or folder")
+    query = commands.add_parser("query", help="Answer a question from a supported document or folder")
     query.add_argument("question")
     query.add_argument("--path", required=True)
-    query.add_argument("--top", type=int, default=None, metavar="N", help="How many passages to return (also --top5, --top-3); default from `rag config top`")
+    query.add_argument(
+        "--type",
+        dest="extensions",
+        action="append",
+        help="limit a directory to this file type; repeat for more than one (for example --type md --type pdf)",
+    )
+    query.add_argument("--top", type=int, default=None, metavar="N", help="How many reranked passages synthesis may use; default 5")
     query.add_argument(
         "--format",
         dest="output_format",
         choices=("auto", "text", "json"),
         default="auto",
-        help="output format (default: auto-detect terminal)",
+        help="output format (default: answer text; terminals also show progress)",
     )
     connect = commands.add_parser("connect", help="Register the MCP server with an installed MCP app")
     connect.add_argument("agent", choices=["codex", "claude", "copilot", "gemini", "agy"])
@@ -407,44 +417,39 @@ def _main(
             os.environ["RAG_MCP_RERANK_TOP_K"] = str(max(1, args.top))
             os.environ["RAG_MCP_TOP_K"] = str(max(args.top, int(os.environ.get("RAG_MCP_TOP_K") or 5)))
         if human_output:
-            print(f"Searching {path.name}…", file=stdout, flush=True)
+            print(f"Searching {path.name}…", file=stderr, flush=True)
             # Native database diagnostics also write directly to fd 2.
             with tempfile.TemporaryFile(mode="w+") as diagnostics:
                 original_stderr = os.dup(2)
                 try:
                     os.dup2(diagnostics.fileno(), 2)
                     with contextlib.redirect_stderr(diagnostics):
-                        result = query_fn(args.question, str(path))
+                        result = (
+                            query_fn(args.question, str(path), args.extensions)
+                            if args.extensions else query_fn(args.question, str(path))
+                        )
                 finally:
                     os.dup2(original_stderr, 2)
                     os.close(original_stderr)
         else:
-            result = query_fn(args.question, str(path))
+            result = (
+                query_fn(args.question, str(path), args.extensions)
+                if args.extensions else query_fn(args.question, str(path))
+            )
     finally:
         for name, value in previous.items():
             if value is None:
                 os.environ.pop(name, None)
             else:
                 os.environ[name] = value
-    try:
-        payload = json.loads(result)
-    except (ValueError, TypeError):
-        payload = None
-    display = result
-    if human_output and isinstance(payload, dict):
-        display = payload.get("error") or payload.get("result", result)
-        if isinstance(display, list):
-            passages = []
-            for index, passage in enumerate(display, 1):
-                if isinstance(passage, dict):
-                    source = passage.get("source") or passage.get("file_path") or path.name
-                    heading = f" · {passage['heading']}" if passage.get("heading") else ""
-                    passages.append(f"\n{index}. {source}{heading}\n{passage.get('content', '')}")
-                else:
-                    passages.append(str(passage))
-            display = "\n".join(passages) or "No matching passages found."
+    public_text, is_error = decode_public_answer(result)
+    display = (
+        json.dumps({"error" if is_error else "result": public_text}, ensure_ascii=False)
+        if args.output_format == "json"
+        else public_text
+    )
     print(display, file=stdout)
-    if isinstance(payload, dict) and "error" in payload:
+    if is_error:
         return 1
     if not user_settings.has_embedding(user_settings.embedding_config(environ)):
         print(user_settings.BM25_ONLY_NOTICE, file=stderr)
