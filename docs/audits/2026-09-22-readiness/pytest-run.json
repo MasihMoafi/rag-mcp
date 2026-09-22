@@ -1,0 +1,25 @@
+{
+  "command": [
+    "/home/masih/Desktop/p/rag-mcp/.venv/bin/python",
+    "-m",
+    "pytest",
+    "tests/unit/test_query_decomposition.py",
+    "tests/unit/test_server_settings_contract.py",
+    "tests/unit/test_pipeline_config_validation.py",
+    "tests/unit/test_search_contract.py",
+    "tests/unit/test_retrieval_log_privacy.py",
+    "tests/integration/test_rag_mcp_host.py",
+    "tests/integration/test_rag_scope.py",
+    "tests/integration/test_incremental_index.py",
+    "tests/test_companion.py",
+    "-q",
+    "--tb=short"
+  ],
+  "started_unix": 1790091973.050649,
+  "elapsed_seconds": 13.334879398345947,
+  "exit_code": 1,
+  "head": "db7dafcc5cb8e16a8cdb789a9af79253497bffe0",
+  "platform": "Linux-7.0.0-31-generic-x86_64-with-glibc2.39",
+  "log_sha256": "5523c166b87cf2e35edf38925295cb67354bd10dcb689c47b87af984def686e2",
+  "scope": "Existing selected contracts; fake providers and temporary indexes. Not held-out quality or hosted latency."
+}

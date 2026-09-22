@@ -1,0 +1,200 @@
+..............................................FF........................ [ 88%]
+..FFFF...                                                                [100%]
+=================================== FAILURES ===================================
+___ test_search_logs_omit_payloads_without_changing_results_or_errors[False] ___
+tests/unit/test_retrieval_log_privacy.py:111: in test_search_logs_omit_payloads_without_changing_results_or_errors
+    pipeline.vector_db.search_fts.assert_called_once_with(query, top_k=20)
+../../../miniconda3/lib/python3.13/unittest/mock.py:991: in assert_called_once_with
+    return self.assert_called_with(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../../../miniconda3/lib/python3.13/unittest/mock.py:979: in assert_called_with
+    raise AssertionError(_error_message()) from cause
+E   AssertionError: expected call not found.
+E   Expected: search_fts('private-query-marker', top_k=20)
+E     Actual: search_fts('private-query-marker', top_k=50)
+----------------------------- Captured stdout call -----------------------------
+[RAG V2] Searching (backend: lancedb)
+[RAG V2] Step 3: skipped (no embedding model; exact-word search only)
+[RAG V2] Step 4: LanceDB Tantivy FTS search...
+[RAG V2] Step 5: RRF fusion...
+----------------------------- Captured stderr call -----------------------------
+[RAG V2] Returning 1 unique results
+___ test_search_logs_omit_payloads_without_changing_results_or_errors[True] ____
+tests/unit/test_retrieval_log_privacy.py:111: in test_search_logs_omit_payloads_without_changing_results_or_errors
+    pipeline.vector_db.search_fts.assert_called_once_with(query, top_k=20)
+../../../miniconda3/lib/python3.13/unittest/mock.py:991: in assert_called_once_with
+    return self.assert_called_with(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../../../miniconda3/lib/python3.13/unittest/mock.py:979: in assert_called_with
+    raise AssertionError(_error_message()) from cause
+E   AssertionError: expected call not found.
+E   Expected: search_fts('private-query-marker', top_k=20)
+E     Actual: search_fts('private-query-marker', top_k=50)
+----------------------------- Captured stdout call -----------------------------
+[RAG V2] Searching (backend: lancedb)
+[RAG V2] Step 3: skipped (no embedding model; exact-word search only)
+[RAG V2] Step 4: LanceDB Tantivy FTS search...
+----------------------------- Captured stderr call -----------------------------
+[RAG V2] Search error: RuntimeError
+______________ test_changed_file_is_the_only_text_embedded_again _______________
+tests/integration/test_incremental_index.py:76: in test_changed_file_is_the_only_text_embedded_again
+    assert {passage['content'] for passage in workspace.search()} == set(PASSAGES.values())
+                                              ^^^^^^^^^^^^^^^^^^
+tests/integration/test_incremental_index.py:57: in search
+    assert 'error' not in response, response
+E   AssertionError: {'error': 'RAG query failed: OpenRouter needs OPENROUTER_API_KEY or an OpenRouter key saved by `rag setup`.'}
+E   assert 'error' not in {'error': 'RAG query failed: OpenRouter needs OPENROUTER_API_KEY or an OpenRouter key saved by `rag setup`.'}
+----------------------------- Captured stderr call -----------------------------
+[RAG V2] Creating new instance for /tmp/pytest-of-masih/pytest-30/test_changed_file_is_the_only_0/repo...
+[RAG] About to create RAGPipelineV2...
+[RAG V2] Using compute device: cuda
+[RAG V2] Using none embeddings with model: fixture
+[RAG V2] Using backend: lancedb
+[LanceDB] Opening database at: /tmp/pytest-of-masih/pytest-30/test_changed_file_is_the_only_0/index/repo_fb85f8ce/generation-07uu1yw3/lancedb_storage
+[RAG V2] Reranker off.
+[RAG V2] Creating new database at /tmp/pytest-of-masih/pytest-30/test_changed_file_is_the_only_0/index/repo_fb85f8ce/generation-07uu1yw3...
+[RAG V2] Processing third.txt...
+[RAG V2] Processing second.txt...
+[RAG V2] Processing first.txt...
+[RAG V2] Indexing 3 chunks...
+[LanceDB] Indexing 3 documents in GPU batches of 512...
+[2026-09-22T15:46:23Z WARN  lance::dataset::write::insert] No existing dataset at /tmp/pytest-of-masih/pytest-30/test_changed_file_is_the_only_0/index/repo_fb85f8ce/generation-07uu1yw3/lancedb_storage/rag_v2_generation_07uu1yw3.lance, it will be created
+[LanceDB] Created table 'rag_v2_generation_07uu1yw3' with 3 records.
+[LanceDB] Built FTS indexes on 'content' and 'symbols'.
+[RAG V2] Database created with 3 chunks
+[RAG] V2 initialization complete
+[RAG V2] Searching (backend: lancedb)
+[RAG V2] Step 3: LanceDB Vector search...
+[RAG V2] Step 4: LanceDB Tantivy FTS search...
+[RAG V2] Step 5: RRF fusion...
+[RAG V2] Returning 3 unique results
+_________ test_deleted_file_loses_its_passages_without_embedding_again _________
+tests/integration/test_incremental_index.py:96: in test_deleted_file_loses_its_passages_without_embedding_again
+    assert len(workspace.search()) == 3
+               ^^^^^^^^^^^^^^^^^^
+tests/integration/test_incremental_index.py:57: in search
+    assert 'error' not in response, response
+E   AssertionError: {'error': 'RAG query failed: OpenRouter needs OPENROUTER_API_KEY or an OpenRouter key saved by `rag setup`.'}
+E   assert 'error' not in {'error': 'RAG query failed: OpenRouter needs OPENROUTER_API_KEY or an OpenRouter key saved by `rag setup`.'}
+----------------------------- Captured stderr call -----------------------------
+[RAG V2] Creating new instance for /tmp/pytest-of-masih/pytest-30/test_deleted_file_loses_its_pa0/repo...
+[RAG] About to create RAGPipelineV2...
+[RAG V2] Using compute device: cuda
+[RAG V2] Using none embeddings with model: fixture
+[RAG V2] Using backend: lancedb
+[LanceDB] Opening database at: /tmp/pytest-of-masih/pytest-30/test_deleted_file_loses_its_pa0/index/repo_0868f992/generation-xxp_7jit/lancedb_storage
+[RAG V2] Reranker off.
+[RAG V2] Creating new database at /tmp/pytest-of-masih/pytest-30/test_deleted_file_loses_its_pa0/index/repo_0868f992/generation-xxp_7jit...
+[RAG V2] Processing third.txt...
+[RAG V2] Processing second.txt...
+[RAG V2] Processing first.txt...
+[RAG V2] Indexing 3 chunks...
+[LanceDB] Indexing 3 documents in GPU batches of 512...
+[2026-09-22T15:46:23Z WARN  lance::dataset::write::insert] No existing dataset at /tmp/pytest-of-masih/pytest-30/test_deleted_file_loses_its_pa0/index/repo_0868f992/generation-xxp_7jit/lancedb_storage/rag_v2_generation_xxp_7jit.lance, it will be created
+[LanceDB] Created table 'rag_v2_generation_xxp_7jit' with 3 records.
+[LanceDB] Built FTS indexes on 'content' and 'symbols'.
+[RAG V2] Database created with 3 chunks
+[RAG] V2 initialization complete
+[RAG V2] Searching (backend: lancedb)
+[RAG V2] Step 3: LanceDB Vector search...
+[RAG V2] Step 4: LanceDB Tantivy FTS search...
+[RAG V2] Step 5: RRF fusion...
+[RAG V2] Returning 3 unique results
+_______________ test_ignored_and_unsupported_files_cause_no_work _______________
+tests/integration/test_incremental_index.py:108: in test_ignored_and_unsupported_files_cause_no_work
+    assert len(workspace.search()) == 3
+               ^^^^^^^^^^^^^^^^^^
+tests/integration/test_incremental_index.py:57: in search
+    assert 'error' not in response, response
+E   AssertionError: {'error': 'RAG query failed: OpenRouter needs OPENROUTER_API_KEY or an OpenRouter key saved by `rag setup`.'}
+E   assert 'error' not in {'error': 'RAG query failed: OpenRouter needs OPENROUTER_API_KEY or an OpenRouter key saved by `rag setup`.'}
+----------------------------- Captured stderr call -----------------------------
+[RAG V2] Creating new instance for /tmp/pytest-of-masih/pytest-30/test_ignored_and_unsupported_f0/repo...
+[RAG] About to create RAGPipelineV2...
+[RAG V2] Using compute device: cuda
+[RAG V2] Using none embeddings with model: fixture
+[RAG V2] Using backend: lancedb
+[LanceDB] Opening database at: /tmp/pytest-of-masih/pytest-30/test_ignored_and_unsupported_f0/index/repo_cb6f79d0/generation-sexhr_p1/lancedb_storage
+[RAG V2] Reranker off.
+[RAG V2] Creating new database at /tmp/pytest-of-masih/pytest-30/test_ignored_and_unsupported_f0/index/repo_cb6f79d0/generation-sexhr_p1...
+[RAG V2] Processing third.txt...
+[RAG V2] Processing second.txt...
+[RAG V2] Processing first.txt...
+[RAG V2] Indexing 3 chunks...
+[LanceDB] Indexing 3 documents in GPU batches of 512...
+[2026-09-22T15:46:23Z WARN  lance::dataset::write::insert] No existing dataset at /tmp/pytest-of-masih/pytest-30/test_ignored_and_unsupported_f0/index/repo_cb6f79d0/generation-sexhr_p1/lancedb_storage/rag_v2_generation_sexhr_p1.lance, it will be created
+[LanceDB] Created table 'rag_v2_generation_sexhr_p1' with 3 records.
+[LanceDB] Built FTS indexes on 'content' and 'symbols'.
+[RAG V2] Database created with 3 chunks
+[RAG] V2 initialization complete
+[RAG V2] Searching (backend: lancedb)
+[RAG V2] Step 3: LanceDB Vector search...
+[RAG V2] Step 4: LanceDB Tantivy FTS search...
+[RAG V2] Step 5: RRF fusion...
+[RAG V2] Returning 3 unique results
+_________ test_incremental_result_matches_a_rebuild_of_the_same_corpus _________
+tests/integration/test_incremental_index.py:126: in test_incremental_result_matches_a_rebuild_of_the_same_corpus
+    workspace.search()
+tests/integration/test_incremental_index.py:57: in search
+    assert 'error' not in response, response
+E   AssertionError: {'error': 'RAG query failed: OpenRouter needs OPENROUTER_API_KEY or an OpenRouter key saved by `rag setup`.'}
+E   assert 'error' not in {'error': 'RAG query failed: OpenRouter needs OPENROUTER_API_KEY or an OpenRouter key saved by `rag setup`.'}
+----------------------------- Captured stderr call -----------------------------
+[RAG V2] Creating new instance for /tmp/pytest-of-masih/pytest-30/test_incremental_result_matche0/repo...
+[RAG] About to create RAGPipelineV2...
+[RAG V2] Using compute device: cuda
+[RAG V2] Using none embeddings with model: fixture
+[RAG V2] Using backend: lancedb
+[LanceDB] Opening database at: /tmp/pytest-of-masih/pytest-30/test_incremental_result_matche0/index/repo_ea0a0592/generation-bl2mthga/lancedb_storage
+[RAG V2] Reranker off.
+[RAG V2] Creating new database at /tmp/pytest-of-masih/pytest-30/test_incremental_result_matche0/index/repo_ea0a0592/generation-bl2mthga...
+[RAG V2] Processing third.txt...
+[RAG V2] Processing second.txt...
+[RAG V2] Processing first.txt...
+[RAG V2] Indexing 3 chunks...
+[LanceDB] Indexing 3 documents in GPU batches of 512...
+[2026-09-22T15:46:23Z WARN  lance::dataset::write::insert] No existing dataset at /tmp/pytest-of-masih/pytest-30/test_incremental_result_matche0/index/repo_ea0a0592/generation-bl2mthga/lancedb_storage/rag_v2_generation_bl2mthga.lance, it will be created
+[LanceDB] Created table 'rag_v2_generation_bl2mthga' with 3 records.
+[LanceDB] Built FTS indexes on 'content' and 'symbols'.
+[RAG V2] Database created with 3 chunks
+[RAG] V2 initialization complete
+[RAG V2] Searching (backend: lancedb)
+[RAG V2] Step 3: LanceDB Vector search...
+[RAG V2] Step 4: LanceDB Tantivy FTS search...
+[RAG V2] Step 5: RRF fusion...
+[RAG V2] Returning 3 unique results
+=============================== warnings summary ===============================
+tests/integration/test_incremental_index.py::test_changed_file_is_the_only_text_embedded_again
+tests/integration/test_incremental_index.py::test_deleted_file_loses_its_passages_without_embedding_again
+tests/integration/test_incremental_index.py::test_ignored_and_unsupported_files_cause_no_work
+tests/integration/test_incremental_index.py::test_incremental_result_matches_a_rebuild_of_the_same_corpus
+  /home/masih/Desktop/p/rag-mcp/rag/lancedb_backend.py:61: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    table_names = self.db.table_names()
+
+tests/integration/test_incremental_index.py::test_changed_file_is_the_only_text_embedded_again
+tests/integration/test_incremental_index.py::test_deleted_file_loses_its_passages_without_embedding_again
+tests/integration/test_incremental_index.py::test_ignored_and_unsupported_files_cause_no_work
+tests/integration/test_incremental_index.py::test_incremental_result_matches_a_rebuild_of_the_same_corpus
+  /home/masih/miniconda3/lib/python3.13/asyncio/events.py:89: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    self._context.run(self._callback, *self._args)
+
+tests/integration/test_incremental_index.py::test_changed_file_is_the_only_text_embedded_again
+tests/integration/test_incremental_index.py::test_changed_file_is_the_only_text_embedded_again
+tests/integration/test_incremental_index.py::test_deleted_file_loses_its_passages_without_embedding_again
+tests/integration/test_incremental_index.py::test_deleted_file_loses_its_passages_without_embedding_again
+tests/integration/test_incremental_index.py::test_ignored_and_unsupported_files_cause_no_work
+tests/integration/test_incremental_index.py::test_ignored_and_unsupported_files_cause_no_work
+tests/integration/test_incremental_index.py::test_incremental_result_matches_a_rebuild_of_the_same_corpus
+tests/integration/test_incremental_index.py::test_incremental_result_matches_a_rebuild_of_the_same_corpus
+  /home/masih/Desktop/p/rag-mcp/rag/lancedb_backend.py:176: DeprecatedWarning: create_fts_index is deprecated as of 0.25.0. Use create_index() with config=FTS() instead.
+    self.table.create_fts_index(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/unit/test_retrieval_log_privacy.py::test_search_logs_omit_payloads_without_changing_results_or_errors[False]
+FAILED tests/unit/test_retrieval_log_privacy.py::test_search_logs_omit_payloads_without_changing_results_or_errors[True]
+FAILED tests/integration/test_incremental_index.py::test_changed_file_is_the_only_text_embedded_again
+FAILED tests/integration/test_incremental_index.py::test_deleted_file_loses_its_passages_without_embedding_again
+FAILED tests/integration/test_incremental_index.py::test_ignored_and_unsupported_files_cause_no_work
+FAILED tests/integration/test_incremental_index.py::test_incremental_result_matches_a_rebuild_of_the_same_corpus
+6 failed, 75 passed, 16 warnings in 11.19s

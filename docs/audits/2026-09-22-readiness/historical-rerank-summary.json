@@ -1,0 +1,72 @@
+{
+  "raw_path": "/tmp/rag-rerank-ab-r8BKGY/raw-results.json",
+  "raw_sha256": "42831251c58515ee01bc9846b217695ab3e93d925aa0712f8296b519bd0b3fd0",
+  "timestamp_utc": "2026-09-22T13:44:26.256537+00:00",
+  "models": {
+    "cohere": "cohere/rerank-4-fast",
+    "jev": "typesafe/jev-1.13"
+  },
+  "cases": 5,
+  "scope": "Historical five synthetic queries; not held-out evidence or current pricing",
+  "arms": {
+    "cohere": {
+      "hit_at_1": 5,
+      "hit_at_5": 5,
+      "mean_latency_seconds": 0.9053957389987772,
+      "usage": [
+        {
+          "search_units": 1,
+          "cost": 0.002
+        },
+        {
+          "search_units": 1,
+          "cost": 0.002
+        },
+        {
+          "search_units": 1,
+          "cost": 0.002
+        },
+        {
+          "search_units": 1,
+          "cost": 0.002
+        },
+        {
+          "search_units": 1,
+          "cost": 0.002
+        }
+      ]
+    },
+    "jev": {
+      "hit_at_1": 5,
+      "hit_at_5": 5,
+      "mean_latency_seconds": 1.0483294126024703,
+      "usage": [
+        {
+          "input_tokens": 3647,
+          "output_tokens": 904,
+          "cost": 0.000153174
+        },
+        {
+          "input_tokens": 3648,
+          "output_tokens": 904,
+          "cost": 0.000153216
+        },
+        {
+          "input_tokens": 3648,
+          "output_tokens": 904,
+          "cost": 0.000153216
+        },
+        {
+          "input_tokens": 3644,
+          "output_tokens": 904,
+          "cost": 0.000153048
+        },
+        {
+          "input_tokens": 3648,
+          "output_tokens": 904,
+          "cost": 0.000153216
+        }
+      ]
+    }
+  }
+}
