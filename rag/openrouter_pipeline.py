@@ -6,6 +6,7 @@ import json
 import hashlib
 import math
 import os
+import time
 import urllib.error
 import urllib.request
 from collections.abc import Mapping, Sequence
@@ -30,7 +31,22 @@ def openrouter_key(config: Mapping[str, Any]) -> str:
     raise ValueError("OpenRouter needs OPENROUTER_API_KEY or an OpenRouter key saved by `rag setup`.")
 
 
-def _post(path: str, payload: Mapping[str, Any], *, key: str, timeout: float) -> dict[str, Any]:
+# Only the rerank call retries: it is idempotent and cheap, and one dropped connection
+# should not fail a whole search. A synthesized answer is never re-requested.
+RERANK_RETRY_DELAYS = (0.5, 1.5)
+_TRANSIENT_HTTP = {408, 425, 429, 500, 502, 503, 504}
+
+
+def _retry_wait(error: urllib.error.HTTPError, delay: float) -> float:
+    """Honour a short Retry-After from the provider, never sleeping long."""
+    try:
+        return min(max(float(error.headers.get('Retry-After', delay)), delay), 5.0)
+    except (AttributeError, TypeError, ValueError):
+        return delay
+
+
+def _post(path: str, payload: Mapping[str, Any], *, key: str, timeout: float,
+          retry_delays: Sequence[float] = ()) -> dict[str, Any]:
     tracing.annotate(provider='openrouter', model=payload.get('model'), retry_count=0, timeout_seconds=timeout)
     tracing.usage(None)
     tracing.content('request', payload)
@@ -47,14 +63,27 @@ def _post(path: str, payload: Mapping[str, Any], *, key: str, timeout: float) ->
             "X-Title": "rag-mcp",
         },
     )
-    try:
-        with urllib.request.urlopen(request, timeout=timeout) as response:
-            value = json.load(response)
-    except urllib.error.HTTPError as error:
-        tracing.annotate(http_status=error.code)
-        raise RuntimeError(f"OpenRouter request failed with HTTP {error.code}.") from error
-    except (OSError, ValueError) as error:
-        raise RuntimeError("OpenRouter request failed before returning a valid response.") from error
+    delays = iter(retry_delays)
+    retries = 0
+    while True:
+        try:
+            with urllib.request.urlopen(request, timeout=timeout) as response:
+                value = json.load(response)
+            break
+        except urllib.error.HTTPError as error:
+            tracing.annotate(http_status=error.code)
+            delay = next(delays, None)
+            if error.code not in _TRANSIENT_HTTP or delay is None:
+                raise RuntimeError(f"OpenRouter request failed with HTTP {error.code}.") from error
+            wait = _retry_wait(error, delay)
+        except (OSError, ValueError) as error:
+            delay = next(delays, None)
+            if delay is None:
+                raise RuntimeError("OpenRouter request failed before returning a valid response.") from error
+            wait = delay
+        retries += 1
+        tracing.annotate(retry_count=retries)
+        time.sleep(wait)
     if not isinstance(value, dict):
         raise RuntimeError("OpenRouter returned an invalid response.")
     tracing.usage(value.get('usage'))
@@ -88,6 +117,7 @@ class OpenRouterReranker:
             },
             key=self._key,
             timeout=self._timeout,
+            retry_delays=RERANK_RETRY_DELAYS,
         )
         scores: list[float | None] = [None] * len(passages)
         results = response.get("results")
