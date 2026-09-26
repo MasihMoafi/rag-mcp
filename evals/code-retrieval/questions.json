@@ -1,0 +1,146 @@
+[
+ {
+  "id": "q01",
+  "q": "Where does Smart Prune intercept finished tool outputs before they are recorded into history?",
+  "files": [
+   "session/turn.rs"
+  ],
+  "kw": "optimize_pending_outputs"
+ },
+ {
+  "id": "q02",
+  "q": "What minimum token counts and savings percentage decide whether Smart Prune replaces a tool result?",
+  "files": [
+   "smart_prune.rs"
+  ],
+  "kw": "MIN_SOURCE_TOKENS"
+ },
+ {
+  "id": "q03",
+  "q": "What is the default timeout for a shell command execution?",
+  "files": [
+   "exec.rs"
+  ],
+  "kw": "DEFAULT_EXEC_COMMAND_TIMEOUT_MS"
+ },
+ {
+  "id": "q04",
+  "q": "Which function compares token usage against the auto compact limit before a turn?",
+  "files": [
+   "session/context_window.rs"
+  ],
+  "kw": "auto_compact_token_limit"
+ },
+ {
+  "id": "q05",
+  "q": "Where is the run_agent_work_graph tool registered next to the CSV fan-out tool?",
+  "files": [
+   "tools/spec_plan.rs"
+  ],
+  "kw": "RunAgentWorkGraphHandler"
+ },
+ {
+  "id": "q06",
+  "q": "How does the work graph scheduler decide that two tasks conflict on writes?",
+  "files": [
+   "tools/handlers/work_graphs.rs"
+  ],
+  "kw": "tasks_have_write_conflict"
+ },
+ {
+  "id": "q07",
+  "q": "Where do PreToolUse hooks run when a tool call is dispatched?",
+  "files": [
+   "tools/registry.rs"
+  ],
+  "kw": "PreToolUse"
+ },
+ {
+  "id": "q08",
+  "q": "What does save_memory check to avoid overwriting files that changed during the turn?",
+  "files": [
+   "memory_save.rs"
+  ],
+  "kw": "validate_baseline"
+ },
+ {
+  "id": "q09",
+  "q": "How is the Smart Prune audit record published atomically?",
+  "files": [
+   "session/smart_prune_audit.rs"
+  ],
+  "kw": "publish_staging_directory"
+ },
+ {
+  "id": "q10",
+  "q": "What happens to Smart Prune for the rest of a turn after the optimizer batch fails?",
+  "files": [
+   "session/smart_prune.rs"
+  ],
+  "kw": "smart_prune_failed_turn_id"
+ },
+ {
+  "id": "q11",
+  "q": "Where is Context Ledger admission state stored on disk?",
+  "files": [
+   "elpis_context.rs"
+  ],
+  "kw": "admission.toml"
+ },
+ {
+  "id": "q12",
+  "q": "How does local compaction build the replacement history from recent user messages?",
+  "files": [
+   "compact.rs"
+  ],
+  "kw": "build_compacted_history_with_limit"
+ },
+ {
+  "id": "q13",
+  "q": "How does the exec policy turn rule decisions into an approval requirement?",
+  "files": [
+   "exec_policy.rs"
+  ],
+  "kw": "ExecApprovalRequirement"
+ },
+ {
+  "id": "q14",
+  "q": "How does resume rebuild history from the rollout file by scanning newest to oldest?",
+  "files": [
+   "session/rollout_reconstruction.rs"
+  ],
+  "kw": "reconstruct_history_from_rollout"
+ },
+ {
+  "id": "q15",
+  "q": "Where does the model request set store to true only for Azure endpoints?",
+  "files": [
+   "client.rs"
+  ],
+  "kw": "is_azure_responses_endpoint"
+ },
+ {
+  "id": "q16",
+  "q": "What is the capacity of the submission channel?",
+  "files": [
+   "session/mod.rs"
+  ],
+  "kw": "SUBMISSION_CHANNEL_CAPACITY"
+ },
+ {
+  "id": "q17",
+  "q": "How are sandbox denials retried without a sandbox?",
+  "files": [
+   "tools/orchestrator.rs"
+  ],
+  "kw": "SandboxType::None"
+ },
+ {
+  "id": "q18",
+  "q": "How is a model output item converted into a ToolCall payload?",
+  "files": [
+   "tools/router.rs"
+  ],
+  "kw": "build_tool_call"
+ }
+]
