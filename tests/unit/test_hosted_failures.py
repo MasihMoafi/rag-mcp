@@ -1,5 +1,7 @@
 """Malformed or interrupted hosted output must not become a successful answer."""
+import email.message
 import json
+import urllib.error
 from unittest.mock import Mock
 
 import pytest
@@ -35,3 +37,76 @@ def test_synthesis_exception_does_not_leak_private_payload(monkeypatch, tmp_path
     assert set(response) == {'error'}
     assert 'private-key' not in response['error']
     assert 'RuntimeError' in response['error']
+
+
+class _Body:
+    """The context-manager response urlopen returns."""
+    def __init__(self, value):
+        self._raw = json.dumps(value).encode()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+    def read(self, *args):
+        return self._raw
+
+
+def _http_error(code, retry_after=None):
+    headers = email.message.Message()
+    if retry_after is not None:
+        headers['Retry-After'] = str(retry_after)
+    return urllib.error.HTTPError('https://openrouter.ai/api/v1/rerank', code, 'error', headers, None)
+
+
+def _stub_network(monkeypatch, outcomes):
+    """Make urlopen yield each outcome in turn: an exception to raise, or a value to return."""
+    calls, sleeps = [], []
+    def urlopen(request, timeout):
+        outcome = outcomes[min(len(calls), len(outcomes) - 1)]
+        calls.append(request.full_url)
+        if isinstance(outcome, BaseException):
+            raise outcome
+        return _Body(outcome)
+    monkeypatch.setenv('OPENROUTER_API_KEY', 'fake')
+    monkeypatch.setattr(hosted.urllib.request, 'urlopen', urlopen)
+    monkeypatch.setattr(hosted.time, 'sleep', sleeps.append)
+    return calls, sleeps
+
+
+SCORED = {'results': [{'index': 0, 'relevance_score': 0.9}, {'index': 1, 'relevance_score': 0.1}]}
+
+
+def test_reranker_retries_a_dropped_connection_then_scores(monkeypatch):
+    calls, sleeps = _stub_network(monkeypatch, [urllib.error.URLError('connection reset'), TimeoutError(), SCORED])
+    assert hosted.OpenRouterReranker({}).predict([['q', 'a'], ['q', 'b']]) == [0.9, 0.1]
+    assert len(calls) == 3 and sleeps == [0.5, 1.5]
+
+
+def test_reranker_honours_a_short_retry_after_and_caps_a_long_one(monkeypatch):
+    calls, sleeps = _stub_network(monkeypatch, [_http_error(429, retry_after=2), _http_error(503, retry_after=600), SCORED])
+    assert hosted.OpenRouterReranker({}).predict([['q', 'a'], ['q', 'b']]) == [0.9, 0.1]
+    assert sleeps == [2.0, 5.0]
+
+
+def test_reranker_does_not_retry_a_client_error(monkeypatch):
+    calls, sleeps = _stub_network(monkeypatch, [_http_error(401)])
+    with pytest.raises(RuntimeError, match='HTTP 401'):
+        hosted.OpenRouterReranker({}).predict([['q', 'a'], ['q', 'b']])
+    assert len(calls) == 1 and sleeps == []
+
+
+def test_reranker_gives_up_after_its_bounded_retries(monkeypatch):
+    calls, sleeps = _stub_network(monkeypatch, [_http_error(503)])
+    with pytest.raises(RuntimeError, match='HTTP 503'):
+        hosted.OpenRouterReranker({}).predict([['q', 'a'], ['q', 'b']])
+    assert len(calls) == 3 and sleeps == [0.5, 1.5]
+
+
+def test_a_synthesized_answer_is_never_requested_twice(monkeypatch):
+    calls, sleeps = _stub_network(monkeypatch, [_http_error(503)])
+    with pytest.raises(RuntimeError, match='HTTP 503'):
+        hosted._post('/chat/completions', {'model': 'm', 'messages': [{'content': 'question'}]}, key='fake', timeout=1)
+    assert len(calls) == 1 and sleeps == []
