@@ -15,6 +15,7 @@ class BM25Index:
         self._corpus_term_counts: List[Counter] = []
         self._doc_len: List[int] = []
         self._doc_freqs: Dict[str, int] = {}
+        self._postings: Dict[str, List[int]] = {}
         self._avg_doc_len: float = 0.0
         self._idf: Dict[str, float] = {}
         self._index_built: bool = False
@@ -55,6 +56,7 @@ class BM25Index:
         self._doc_len.append(len(doc_tokens))
         for token in self._corpus_term_counts[-1]:
             self._doc_freqs[token] = self._doc_freqs.get(token, 0) + 1
+            self._postings.setdefault(token, []).append(len(self.documents) - 1)
         
         self._index_built = False
 
@@ -87,12 +89,15 @@ class BM25Index:
         if not query_tokens:
             return []
 
-        # Calculate BM25 scores for all documents
+        # Nonmatching documents score zero. Keep document order for stable ties.
+        candidates = set()
+        for token in query_tokens:
+            candidates.update(self._postings.get(token, ()))
         scores = []
-        for i, doc in enumerate(self.documents):
+        for i in sorted(candidates):
             score = self._compute_bm25_score(query_tokens, i)
             if score > 1e-9:  # Only include documents with non-zero scores
-                scores.append((score, doc))
+                scores.append((score, self.documents[i]))
 
         # Sort by score (highest first) and return top k
         scores.sort(key=lambda x: x[0], reverse=True)
