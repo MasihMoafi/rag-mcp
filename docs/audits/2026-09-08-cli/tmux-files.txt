@@ -1,0 +1,32 @@
+◆ Connect a coding agent? Skip
+
+◆ What would you like to do? Choose embedding model
+Looking for embedding models on this machine…
+◆ Which embedding model would you like to use? Choose an API model…
+◆ Which API provider do you use? OpenRouter · key available
+Loading OpenRouter models…
+◆ Which embedding model would you like to use? Back to providers
+◆ Which API provider do you use?
+  ↑/↓ Move   Enter Select   Esc Back
+
+Looking for embedding models on this machine…
+◆ Which embedding model would you like to use? Download a local CPU model…
+Loading the local CPU model catalog…
+◆ Which model would you like to download?
+  ↑/↓ Move   Enter Select   Esc Back
+
+Looking for embedding models on this machine…
+◆ Which embedding model would you like to use?
+  ↑/↓ Move   Enter Select   Esc Back
+
+
+◆ What would you like to do? Search a file or folder
+◆ /tmp/rag-tmux-ifsy2yyv/documents
+  ↑/↓ Move   Enter Select   Esc Back
+
+ ❯ Search this folder
+   ↑ Parent folder
+   project.txt
+   Back to main menu
+   Type a path…
+

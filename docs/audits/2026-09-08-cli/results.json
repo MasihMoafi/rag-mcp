@@ -1,0 +1,245 @@
+{
+  "routes": [
+    {
+      "route": "/",
+      "width": 1440,
+      "status": 200,
+      "overflow": false
+    },
+    {
+      "route": "/fa",
+      "width": 1440,
+      "status": 200,
+      "overflow": false
+    },
+    {
+      "route": "/studio/playground",
+      "width": 1440,
+      "status": 200,
+      "overflow": false
+    },
+    {
+      "route": "/studio/sources",
+      "width": 1440,
+      "status": 200,
+      "overflow": false
+    },
+    {
+      "route": "/studio/chunking",
+      "width": 1440,
+      "status": 200,
+      "overflow": false
+    },
+    {
+      "route": "/studio/retrieval",
+      "width": 1440,
+      "status": 200,
+      "overflow": false
+    },
+    {
+      "route": "/studio/pipeline",
+      "width": 1440,
+      "status": 200,
+      "overflow": false
+    },
+    {
+      "route": "/studio/knowledge",
+      "width": 1440,
+      "status": 200,
+      "overflow": false
+    },
+    {
+      "route": "/studio/analysis",
+      "width": 1440,
+      "status": 200,
+      "overflow": false
+    },
+    {
+      "route": "/studio/evaluations",
+      "width": 1440,
+      "status": 200,
+      "overflow": false
+    },
+    {
+      "route": "/studio/settings",
+      "width": 1440,
+      "status": 200,
+      "overflow": false
+    },
+    {
+      "route": "/fa/studio/playground",
+      "width": 1440,
+      "status": 200,
+      "overflow": false
+    },
+    {
+      "route": "/fa/studio/sources",
+      "width": 1440,
+      "status": 200,
+      "overflow": false
+    },
+    {
+      "route": "/fa/studio/chunking",
+      "width": 1440,
+      "status": 200,
+      "overflow": false
+    },
+    {
+      "route": "/fa/studio/retrieval",
+      "width": 1440,
+      "status": 200,
+      "overflow": false
+    },
+    {
+      "route": "/fa/studio/pipeline",
+      "width": 1440,
+      "status": 200,
+      "overflow": false
+    },
+    {
+      "route": "/fa/studio/knowledge",
+      "width": 1440,
+      "status": 200,
+      "overflow": false
+    },
+    {
+      "route": "/fa/studio/analysis",
+      "width": 1440,
+      "status": 200,
+      "overflow": false
+    },
+    {
+      "route": "/fa/studio/evaluations",
+      "width": 1440,
+      "status": 200,
+      "overflow": false
+    },
+    {
+      "route": "/fa/studio/settings",
+      "width": 1440,
+      "status": 200,
+      "overflow": false
+    },
+    {
+      "route": "/",
+      "width": 390,
+      "status": 200,
+      "overflow": false
+    },
+    {
+      "route": "/fa",
+      "width": 390,
+      "status": 200,
+      "overflow": false
+    },
+    {
+      "route": "/studio/playground",
+      "width": 390,
+      "status": 200,
+      "overflow": false
+    },
+    {
+      "route": "/studio/sources",
+      "width": 390,
+      "status": 200,
+      "overflow": false
+    },
+    {
+      "route": "/studio/chunking",
+      "width": 390,
+      "status": 200,
+      "overflow": false
+    },
+    {
+      "route": "/studio/retrieval",
+      "width": 390,
+      "status": 200,
+      "overflow": false
+    },
+    {
+      "route": "/studio/pipeline",
+      "width": 390,
+      "status": 200,
+      "overflow": false
+    },
+    {
+      "route": "/studio/knowledge",
+      "width": 390,
+      "status": 200,
+      "overflow": false
+    },
+    {
+      "route": "/studio/analysis",
+      "width": 390,
+      "status": 200,
+      "overflow": false
+    },
+    {
+      "route": "/studio/evaluations",
+      "width": 390,
+      "status": 200,
+      "overflow": false
+    },
+    {
+      "route": "/studio/settings",
+      "width": 390,
+      "status": 200,
+      "overflow": false
+    },
+    {
+      "route": "/fa/studio/playground",
+      "width": 390,
+      "status": 200,
+      "overflow": false
+    },
+    {
+      "route": "/fa/studio/sources",
+      "width": 390,
+      "status": 200,
+      "overflow": false
+    },
+    {
+      "route": "/fa/studio/chunking",
+      "width": 390,
+      "status": 200,
+      "overflow": false
+    },
+    {
+      "route": "/fa/studio/retrieval",
+      "width": 390,
+      "status": 200,
+      "overflow": false
+    },
+    {
+      "route": "/fa/studio/pipeline",
+      "width": 390,
+      "status": 200,
+      "overflow": false
+    },
+    {
+      "route": "/fa/studio/knowledge",
+      "width": 390,
+      "status": 200,
+      "overflow": false
+    },
+    {
+      "route": "/fa/studio/analysis",
+      "width": 390,
+      "status": 200,
+      "overflow": false
+    },
+    {
+      "route": "/fa/studio/evaluations",
+      "width": 390,
+      "status": 200,
+      "overflow": false
+    },
+    {
+      "route": "/fa/studio/settings",
+      "width": 390,
+      "status": 200,
+      "overflow": false
+    }
+  ],
+  "pageErrors": []
+}

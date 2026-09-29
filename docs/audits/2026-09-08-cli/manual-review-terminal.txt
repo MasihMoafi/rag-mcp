@@ -1,0 +1,132 @@
+◆ What would you like to do?
+  ↑/↓ Move   Enter Select   Esc Back
+
+ ❯ Choose embedding model
+   Search a file or folder
+   Connect a coding agent (Claude Code or Codex)
+   Change settings
+   Open Studio
+   Check setup
+   Quit
+◆ What would you like to do?
+  ↑/↓ Move   Enter Select   Esc Back
+
+ ❯ Choose embedding model
+   Search a file or folder
+   Connect a coding agent (Claude Code or Codex)
+   Change settings
+   Open Studio
+   Check setup
+   Quit
+◆ What would you like to do? Search a file or folder
+◆ What would you like to do?
+  ↑/↓ Move   Enter Select   Esc Back
+
+ ❯ Choose embedding model
+   Search a file or folder
+   Connect a coding agent (Claude Code or Codex)
+   Change settings
+   Open Studio
+   Check setup
+   Quit
+◆ What would you like to do? Choose embedding model
+Looking for embedding models on this machine…
+◆ Which embedding model would you like to use? qwen3-embedding:0.6b · Ollama
+Checking the embedding model...
+Works: 1024 dimensions.
+Saved to /tmp/rag-manual-fdki60bc/config.json
+Embedding: Ollama · qwen3-embedding:0.6b
+◆ Connect a coding agent? Skip
+
+◆ What would you like to do? Search a file or folder
+◆ Which file or folder?
+  /tmp/rag-manual-fdki60bc/documents Project Notes/
+◆ Which file or folder?
+◆ What would you like to do?
+  ↑/↓ Move   Enter Select   Esc Back
+
+ ❯ Choose embedding model
+   Search a file or folder
+   Connect a coding agent (Claude Code or Codex)
+   Change settings
+   Open Studio
+   Check setup
+   Quit
+◆ What would you like to do?
+  ↑/↓ Move   Enter Select   Esc Back
+
+ ❯ Choose embedding model
+   Search a file or folder
+   Connect a coding agent (Claude Code or Codex)
+   Change settings
+   Open Studio
+   Check setup
+   Quit
+◆ What would you like to do? Search a file or folder
+◆ Which file or folder?
+  /tmp/rag-manual-fdki60bc/documents Search this folder
+◆ What would you like to find? Main topics
+◆ How many results would you like? 1
+Searching documents…
+
+1. /tmp/rag-manual-fdki60bc/documents/Project Notes/deadline.txt
+The Cedar Lantern launch is Friday. Reports are due Thursday.
+
+◆ What would you like to do? Search a file or folder
+◆ Which file or folder?
+  /tmp/rag-manual-fdki60bc/documents Search this folder
+◆ What would you like to find? Main topics
+◆ How many results would you like? 5
+Searching documents…
+
+1. /tmp/rag-manual-fdki60bc/documents/Project Notes/deadline.txt
+The Cedar Lantern launch is Friday. Reports are due Thursday.
+
+◆ What would you like to do? Change settings
+◆ Which setting would you like to change? Results per query · 5
+◆ Which setting would you like to change? Results per query · 5
+◆ How many results would you like? 3
+Embedding: Ollama · qwen3-embedding:0.6b
+Passages per query (top): 3
+Reranker: off
+
+◆ What would you like to do? Search a file or folder
+◆ Which file or folder?
+  /tmp/rag-manual-fdki60bc/documents Type a path…
+◆ Full path to a file or folder  (Esc to go back) /tmp/rag-manual-fdki60bc/documents/Rev
+iew
+◆ What would you like to find? Main topics
+◆ How many results would you like? 1
+Searching Review…
+
+1. /tmp/rag-manual-fdki60bc/documents/Review/beta.txt
+The Cedar Lantern support team reviews customer reports every Monday. The support handbo
+ok must be ready before the Friday launch.
+
+◆ What would you like to do? Search a file or folder
+◆ Which file or folder?
+  /tmp/rag-manual-fdki60bc/documents Review/
+◆ Which file or folder?
+  /tmp/rag-manual-fdki60bc/documents/Review Search this folder
+◆ What would you like to find? Main topics
+◆ How many results would you like? 3
+Searching Review…
+
+1. /tmp/rag-manual-fdki60bc/documents/Review/beta.txt
+The Cedar Lantern support team reviews customer reports every Monday. The support handbo
+ok must be ready before the Friday launch.
+
+2. /tmp/rag-manual-fdki60bc/documents/Review/alpha.txt
+The Cedar Lantern project launches on Friday. Its first milestone is approval of the doc
+umentation and the release checklist.
+
+◆ What would you like to do?
+  ↑/↓ Move   Enter Select   Esc Back
+
+   Choose embedding model
+ ❯ Search a file or folder
+   Connect a coding agent (Claude Code or Codex)
+   Change settings
+   Open Studio
+   Check setup
+   Quit

@@ -1,0 +1,32 @@
+
+◆ What would you like to do? Search a file or folder
+◆ /tmp/rag-tmux-ifsy2yyv/documents project.txt
+◆ What would you like to find? Dates and deadlines
+◆ Results per query 5
+Searching project.txt…
+
+1. /tmp/rag-tmux-ifsy2yyv/documents/project.txt
+The Cedar Lantern project launches on Friday.
+All reports must be submitted by Thursday.
+
+◆ What would you like to do? Choose embedding model
+Looking for embedding models on this machine…
+◆ Which embedding model would you like to use? Other model source…
+◆ Where is your model? Another Ollama server
+◆ Ollama server URL (e.g. http://192.168.1.10:11434)  (Esc to go back) localhost
+Enter a full URL beginning with http:// or https://.
+◆ Ollama server URL (e.g. http://192.168.1.10:11434)  (Esc to go back) http://127.0.0.1:1
+Looking for embedding models…
+No embedding models found. Check that Ollama is running and has an embedding model installed.
+Looking for embedding models on this machine…
+◆ Which embedding model would you like to use?
+  ↑/↓ Move   Enter Select   Esc Back
+
+ ❯ qwen3-embedding:0.6b · Ollama · current
+   bge-m3:latest · Ollama
+   embeddinggemma:latest · Ollama
+   sentence-transformers/all-MiniLM-L6-v2 · local files
+   Choose an API model…
+   Download a local CPU model…
+   Use BM25 only · no model
+   Other model source…
