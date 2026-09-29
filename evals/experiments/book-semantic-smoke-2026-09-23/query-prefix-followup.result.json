@@ -1,0 +1,18 @@
+{
+  "lexical_anchor_rank": 18,
+  "variants": {
+    "raw": {
+      "dense_anchor_rank": null,
+      "fused_anchor_rank": 43,
+      "top_five_offsets": [[15306, 15856], [37805, 38421], [14287, 14903], [10808, 11504], [7697, 8332]]
+    },
+    "prefixed": {
+      "dense_anchor_rank": null,
+      "fused_anchor_rank": 43,
+      "top_five_offsets": [[37805, 38421], [15306, 15856], [14287, 14903], [47236, 47750], [10808, 11504]]
+    }
+  },
+  "elapsed_seconds": 2.69,
+  "max_rss_kib": 336860,
+  "status": "failed_top_five_threshold"
+}

@@ -1,0 +1,36 @@
+{
+  "candidate_limit": 200,
+  "results": [
+    {
+      "chapter": "6.",
+      "anchor_rank_within_dense_200": 18,
+      "anchor_rank_within_lexical_200": 79,
+      "anchor_rank_fused_50": 35,
+      "anchor_rank_fused_200": 14
+    },
+    {
+      "chapter": "2.",
+      "anchor_rank_within_dense_200": 57,
+      "anchor_rank_within_lexical_200": 50,
+      "anchor_rank_fused_50": 92,
+      "anchor_rank_fused_200": 20
+    },
+    {
+      "chapter": "8.",
+      "anchor_rank_within_dense_200": 22,
+      "anchor_rank_within_lexical_200": 1,
+      "anchor_rank_fused_50": 2,
+      "anchor_rank_fused_200": 2
+    },
+    {
+      "chapter": "9.",
+      "anchor_rank_within_dense_200": 1,
+      "anchor_rank_within_lexical_200": 44,
+      "anchor_rank_fused_50": 8,
+      "anchor_rank_fused_200": 8
+    }
+  ],
+  "resource": "elapsed=8.52 maxrss_kb=327796",
+  "provider_query_cost": "not captured by this direct-backend diagnostic",
+  "key_absent_from_process_logs": true
+}
