@@ -1,0 +1,143 @@
+{
+ "judge": "anthropic/claude-sonnet-5.5",
+ "counts": {
+  "correct": 17,
+  "partial": 4,
+  "wrong": 0,
+  "abstained": 1
+ },
+ "rows": [
+  {
+   "id": "1a",
+   "query": "Why is expanding an LLM’s pretraining corpus insufficient for keeping up with private, changing knowledge?",
+   "grade": "correct",
+   "why": "The answer states the passage's key point: the world's information cannot be captured, cleaned, and incorporated into a single training run, so models are incomplete and outdated once training ends. It also correctly notes that private documents are never in the training data."
+  },
+  {
+   "id": "1b",
+   "query": "At what point does a RAG system give fetched facts to the language model?",
+   "grade": "correct",
+   "why": "It says the retrieved facts go to the LLM in the generation step, after retrieval, together with the query, which matches the passage's account of the retrieved information being added to the LLM's prompt for generation."
+  },
+  {
+   "id": "10a",
+   "query": "How does ColBERT retain finer document detail than one vector per passage?",
+   "grade": "correct",
+   "why": "The answer states the passage's key point: ColBERT keeps a vector for every token and delays the final embedding computation until the query phase, rather than compressing a chunk into a single vector."
+  },
+  {
+   "id": "10b",
+   "query": "What can undermine an agent when it searches an external repository in place?",
+   "grade": "correct",
+   "why": "The answer identifies the external system's weak native retrieval (e.g., inaccurate BM25 keyword search returning irrelevant results) as what limits the agent, matching the passage."
+  },
+  {
+   "id": "2a",
+   "query": "Why can a PDF parser struggle to recover the document hierarchy?",
+   "grade": "correct",
+   "why": "It states the key point that PDFs render visual appearance rather than logical structure, so they lack hierarchical content and store characters with coordinates; the extra closing sentence doesn't contradict the passage."
+  },
+  {
+   "id": "2b",
+   "query": "What happens if a text segment is longer than the embedding model can accept?",
+   "grade": "correct",
+   "why": "The answer states that most serving frameworks silently truncate over-long segments, causing information loss and degraded retrieval, which matches the passage's key point without contradicting it."
+  },
+  {
+   "id": "3a",
+   "query": "Why do large-scale retrievers narrow results before a more precise stage?",
+   "grade": "correct",
+   "why": "It captures the passage's key point: a fast, less precise first stage narrows the search space so the more accurate second stage works on a small set, balancing speed and accuracy."
+  },
+  {
+   "id": "3b",
+   "query": "What should a search input interface help a user communicate clearly?",
+   "grade": "correct",
+   "why": "The passage says the user's first step is to express their goal clearly and the interface must optimize for user expression. The answer states this, and its natural-language detail matches the passage."
+  },
+  {
+   "id": "4a",
+   "query": "What response-time expectation matters when moving a prototype into production?",
+   "grade": "correct",
+   "why": "The answer matches the passage: production needs stricter latency thresholds, often a few seconds end-to-end, comparable to ChatGPT, and nothing in it contradicts the passage."
+  },
+  {
+   "id": "4b",
+   "query": "How can live users help identify unsafe or bad answers after launch?",
+   "grade": "partial",
+   "why": "The answer is on topic about user feedback but describes thumbs-up/down ratings and root-cause analysis rather than the passage's key point of letting end users report problematic outputs to catch safety and compliance issues early."
+  },
+  {
+   "id": "5a",
+   "query": "What infrastructure burden does a managed RAG service take over from developers?",
+   "grade": "correct",
+   "why": "It captures the passage's key point that the managed service takes over infrastructure/operational overhead (server provisioning, vector DB optimization, high availability/low latency, security updates), with extra details like monitoring that don't contradict it."
+  },
+  {
+   "id": "5b",
+   "query": "Why should a team verify whether a prebuilt SaaS connector imports complete records?",
+   "grade": "correct",
+   "why": "The answer states the passage's key point, that connectors may import only part of a system (HubSpot CRM, Jira tickets without attachments), so completeness must be verified; the added note about an incomplete knowledge base is a reasonable inference that doesn't contradict the passage."
+  },
+  {
+   "id": "6a",
+   "query": "Which evaluation mode is used to optimize a pipeline before deployment?",
+   "grade": "correct",
+   "why": "The passage says offline evaluation, performed during the development cycle, is used to optimize pipeline settings before deployment, which matches the answer."
+  },
+  {
+   "id": "6b",
+   "query": "Which facts in a nugget-based check must an answer include to count as complete?",
+   "grade": "correct",
+   "why": "The answer identifies the \"vital\" nuggets as the essential facts required for a comprehensive and correct answer, matching the passage without contradiction."
+  },
+  {
+   "id": "8a",
+   "query": "What tooling is suited to extracting text from scans and handwriting?",
+   "grade": "partial",
+   "why": "It correctly names the commercial managed OCR services (Textract, Azure Document Intelligence, Google Cloud Document AI), but it adds Tesseract and Reducto.ai, which the passage never mentions, and it does not say these services are reserved for high-value scanned documents."
+  },
+  {
+   "id": "8b",
+   "query": "Why can retrieving a table row without its header lead to a wrong answer?",
+   "grade": "correct",
+   "why": "It states the key point: a headless row loses the link between values and column names because the header sits in another chunk, so the LLM can't tell what the values mean."
+  },
+  {
+   "id": "9a",
+   "query": "Why can vector similarity confuse a question about a particular historical date?",
+   "grade": "correct",
+   "why": "The answer states the key point that embeddings blur past and present information, and its Twitter CEO example matches the passage without contradicting it."
+  },
+  {
+   "id": "9b",
+   "query": "What should a graph-building pipeline do when an entity match is uncertain?",
+   "grade": "correct",
+   "why": "The answer matches the passage: low-confidence matches are flagged for expert review through human-in-the-loop, focusing effort on the hardest cases."
+  },
+  {
+   "id": "p1",
+   "query": "What does the text say about balancing finding all useful documents against keeping returned documents relevant?",
+   "grade": "correct",
+   "why": "The answer accurately describes the precision-recall tension and trade-off, and says F1-score@k is the balanced score, all consistent with the passage."
+  },
+  {
+   "id": "p2",
+   "query": "Why repeat some material where consecutive text segments meet?",
+   "grade": "abstained",
+   "why": "The system said it lacked enough information, although the passage answers the question: overlapping chunks preserve local context across boundaries."
+  },
+  {
+   "id": "p3",
+   "query": "How do systems turn pictures and speech into material that ordinary text search can use?",
+   "grade": "partial",
+   "why": "The first sentence matches the passage's conversion approach (parsers, ASR, VLMs producing text-based structured representations), but the added claims about OCR and parsing separating information from other modalities are not in the passage and blur the key point."
+  },
+  {
+   "id": "p4",
+   "query": "At what point is the extra engineering burden of graph-based knowledge worthwhile?",
+   "grade": "partial",
+   "why": "The answer is on topic but omits the passage's key point that KGs are justified when complex queries are common and failures materially affect business outcomes, instead pointing to eval results and accuracy gains."
+  }
+ ]
+}
