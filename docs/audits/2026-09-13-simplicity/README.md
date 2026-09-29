@@ -21,7 +21,7 @@ Verification on the existing local environment, without model/API calls:
 - Before this change, the previously stalled cache/LanceDB selection passed
   all 22 checks in 4.41 seconds. The old connection stall did not reproduce
   in the current unrestricted execution environment; its root cause is not proven.
-- The separately maintained downstream records/filter/storage selection passed 37 tests.
+- A separately maintained downstream record/filter/storage selection passed 37 tests.
 
 Logs are adjacent. The source working tree already contained unrelated efficiency
 and experiment edits. They were preserved; the two existing LanceDB result-projection

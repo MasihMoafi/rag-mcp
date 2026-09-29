@@ -76,7 +76,7 @@
     "cuda_allocated_after_close_bytes": 42598400,
     "rss_first_round_bytes": 1502228480,
     "rss_last_round_bytes": 1567338496,
-    "limits": "All searches succeeded and matched saved ordered evidence. GPU in-use memory returns to identical level each round. CPU RSS grows about65MB between rounds0/9; harness retains raw results and allocator effects are not isolated, so no leak-free claim. CUDA reserved memory stays about1.21GB after close. An81second repeated local workload is not long-duration, API or private downstream certification; no quality improvement claimed.",
+    "limits": "All searches succeeded and matched saved ordered evidence. GPU in-use memory returns to identical level each round. CPU RSS grows about65MB between rounds0/9; harness retains raw results and allocator effects are not isolated, so no leak-free claim. CUDA reserved memory stays about1.21GB after close. An81second repeated local workload is not long-duration, API or downstream production certification; no quality improvement claimed.",
     "new_api_spend_usd": 0
   },
   "regression_token_budget_check": {
