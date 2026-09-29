@@ -1,0 +1,12 @@
+{
+  "name": "masihmoafi",
+  "owner": { "name": "Masih Moafi" },
+  "metadata": { "description": "Masih Moafi's Claude Code plugins" },
+  "plugins": [
+    {
+      "name": "rag",
+      "source": "./claude-plugin",
+      "description": "Local hybrid-RAG search over files and folders, as an MCP server with a search skill and a /rag settings command."
+    }
+  ]
+}
