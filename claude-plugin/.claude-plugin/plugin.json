@@ -1,0 +1,10 @@
+{
+  "name": "rag",
+  "version": "0.2.0",
+  "description": "Local hybrid-RAG (BM25 + vector + rerank) over files and folders on your machine. Nothing leaves the device unless you configure a hosted model.",
+  "author": { "name": "Masih Moafi" },
+  "homepage": "https://github.com/MasihMoafi/rag-mcp#readme",
+  "repository": "https://github.com/MasihMoafi/rag-mcp",
+  "license": "MIT",
+  "keywords": ["rag", "mcp", "retrieval", "bm25", "search"]
+}

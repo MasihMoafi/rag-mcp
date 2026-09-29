@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "rag": {
+      "command": "uvx",
+      "args": ["--from", "git+https://github.com/MasihMoafi/rag-mcp", "rag", "mcp"]
+    }
+  }
+}
