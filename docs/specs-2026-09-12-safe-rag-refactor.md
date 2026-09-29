@@ -155,8 +155,8 @@ The coordinator must complete these prerequisites:
 
 Tests use isolated temporary indexes/configuration. Do not modify live data,
 restart MCP, deploy, push, publish, upload, install dependencies or invoke paid
-providers without the relevant permission. private downstream remains internal-only and is
-not needed for this mechanical refactor. No Studio or private-eval worktree changes.
+providers without the relevant permission. Private downstream applications are
+not needed for this mechanical refactor. No Studio or downstream worktree changes.
 
 ## Plan: parallel team, files and agent prompts
 
