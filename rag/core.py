@@ -32,6 +32,14 @@ def select_device() -> str:
     return "mps" if mps and mps.is_available() else "cpu"
 
 
+def device_for_config(config: dict) -> str:
+    if (str(config.get("embed_provider") or "none").lower() == "openai_compatible"
+            and str(config.get("reranker_type") or "auto").lower()
+            in {"off", "none", "disabled", "openrouter"}):
+        return "cpu"
+    return select_device()
+
+
 class RAGPipeline:
     """Hybrid local retrieval with optional contextual indexing and reranking."""
     
@@ -69,7 +77,7 @@ class RAGPipeline:
 
     def _initialize_resources(self, config):
         self.config = config
-        self.device = select_device()
+        self.device = device_for_config(config)
         print(f"[RAG V2] Using compute device: {self.device}")
 
         self.contextualizer = self.config.get("contextualizer")
@@ -194,18 +202,20 @@ class RAGPipeline:
             rerank_top_k = self.config.get("rerank_top_k", 5)
             
             print(f"[RAG V2] Searching (backend: {self.backend_type})")
+            dense_attributes = {'backend': self.backend_type,
+                                'distance_metric': self.config.get('distance_metric', 'cosine')}
             
             if self.backend_type == "lancedb":
                 vector_results = []
                 if self.embedding_fn is not None:
                     print("[RAG V2] Step 3: LanceDB Vector search...")
-                    with tracing.span('retrieval.dense'):
+                    with tracing.span('retrieval.dense', **dense_attributes):
                         vector_results_raw = self.vector_db.search_vector(query, top_k=top_k)
                         tracing.passages('candidates', vector_results_raw)
                     vector_results = [(doc, doc.get("score", 0)) for doc in vector_results_raw]
                 else:
                     print("[RAG V2] Step 3: skipped (no embedding model; exact-word search only)")
-                    with tracing.span('retrieval.dense', skipped_reason='embedding_disabled'):
+                    with tracing.span('retrieval.dense', skipped_reason='embedding_disabled', **dense_attributes):
                         pass
                 print("[RAG V2] Step 4: LanceDB Tantivy FTS search...")
                 with tracing.span('retrieval.lexical'):
@@ -214,7 +224,7 @@ class RAGPipeline:
                 bm25_results = [(doc, doc.get("score", 0)) for doc in bm25_results_raw]
             else:
                 print("[RAG V2] Step 3: Vector search...")
-                with tracing.span('retrieval.dense'):
+                with tracing.span('retrieval.dense', **dense_attributes):
                     vector_results_qdrant = self.vector_db.search(query, top_k=top_k)
                     tracing.passages('candidates', vector_results_qdrant)
                 # Convert to tuple format for RRF
@@ -224,9 +234,13 @@ class RAGPipeline:
                     bm25_results = self.bm25_index.search(query, k=top_k)
                     tracing.passages('candidates', [dict(doc, score=score) for doc, score in bm25_results])
             print("[RAG V2] Step 5: RRF fusion...")
-            with tracing.span('retrieval.rrf', candidate_limit=candidate_k):
-                fused_docs = self._rrf_fusion(vector_results, bm25_results, k=self.config.get("rrf_k", 60))[:candidate_k]
-                tracing.passages('candidates', fused_docs)
+            with tracing.span('retrieval.rrf', candidate_limit=candidate_k, score_kind='rrf'):
+                def record_fusion_scores(ranked):
+                    tracing.passages('candidates', [dict(doc, score=score) for doc, score in ranked[:candidate_k]])
+
+                fused_docs = self._rrf_fusion(vector_results, bm25_results,
+                                              k=self.config.get("rrf_k", 60),
+                                              on_ranked=record_fusion_scores)[:candidate_k]
             
             if not fused_docs:
                 return "No relevant information found."
@@ -241,7 +255,7 @@ class RAGPipeline:
                 print(f"[RAG Core] Reranking {len(fused_docs)} fused candidates...")
                 with tracing.span('selection.rerank', final_limit=rerank_top_k):
                     final_docs = self._crossencoder_rerank(fused_docs, query, k=rerank_top_k)
-                    tracing.passages('selected', final_docs)
+            tracing.annotate(score_kind='retained_source')
             tracing.passages('selected', final_docs)
             sys.stderr.write(f"[RAG V2] Returning {len(final_docs)} unique results\n")
             return final_docs

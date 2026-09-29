@@ -150,7 +150,8 @@ def test_lancedb_record_batches_and_fts_contract(dense, fts_failure, capsys):
     backend.db = SimpleNamespace(create_table=create_table)
     docs = [
         dict(id='source::0', content='Cedar', file_path='source.md', location='L1',
-             heading='Title', start_line=1, end_line=1, original_content='Original'),
+            heading='Title', start_line=1, end_line=1, start_offset=2, end_offset=10,
+            original_content='Original'),
         dict(content='فارسی', source='book.pdf', page_number=2),
         dict(content='Third'),
     ]
@@ -162,13 +163,16 @@ def test_lancedb_record_batches_and_fts_contract(dense, fts_failure, capsys):
     assert batches == ([['Cedar', 'فارسی'], ['Third']] if dense else [])
     expected = [
         dict(id='source::0', content='Cedar', file_path='source.md', source='source.md',
-             heading='Title', location='L1', start_line=1, end_line=1, page_number=0,
+             heading='Title', location='L1', start_line=1, end_line=1,
+             start_offset=2, end_offset=10, page_number=0,
              original_content='Original', symbols='Cedar'),
         dict(id='1', content='فارسی', file_path='', source='book.pdf', heading='',
-             location='', start_line=0, end_line=0, page_number=2, original_content='فارسی',
+             location='', start_line=0, end_line=0, start_offset=-1, end_offset=-1,
+             page_number=2, original_content='فارسی',
              symbols='فارسی'),
         dict(id='2', content='Third', file_path='', source='', heading='', location='',
-             start_line=0, end_line=0, page_number=0, original_content='Third',
+             start_line=0, end_line=0, start_offset=-1, end_offset=-1,
+             page_number=0, original_content='Third',
              symbols='Third'),
     ]
     if dense:

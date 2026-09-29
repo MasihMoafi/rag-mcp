@@ -24,7 +24,7 @@ def server_command(environ: Mapping[str, str]) -> list[str]:
     installed = shutil.which("rag", path=environ.get("PATH"))
     if installed and ".venv" not in installed:
         return [installed, "mcp"]
-    import server
+    from rag import server
 
     return [sys.executable, str(Path(server.__file__).resolve())]
 

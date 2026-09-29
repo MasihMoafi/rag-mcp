@@ -114,6 +114,10 @@ then asks `deepseek/deepseek-v4.1-flash` for a concise grounded answer. The CLI
 prints only that answer; the MCP result does not expose chunks, paths, citations,
 scores, or retrieval metadata. A query must name an explicit supported file or a
 narrow directory. Directory queries accept an optional file-type filter.
+With no OpenRouter key and no explicit reranker choice, a fresh local profile
+keeps reranking off so retrieval-only BM25 search works without provider setup.
+Adding a key enables the hosted reranker default; an explicit reranker choice
+always takes precedence.
 
 OpenRouter currently lists Qwen3 Reranker 4B and 0.6B but serves no endpoint for
 either. The configured Cohere fallback was verified live at $0.002 per search;
@@ -125,7 +129,7 @@ Cohere returned all 50 scores, five passages reached DeepSeek, and the public
 result contained only the correct answer. OpenRouter reported a total cost of
 $0.00214904. This is a wiring check, not a retrieval-quality benchmark.
 
-Prerequisite for every path: [`uv`](https://docs.astral.sh/uv/getting-started/installation/), the Python package runner. The npm package is a thin launcher that calls it. The same engine powers the hosted [RAG Studio](https://rag.masihmoafi.com) through `rag studio`.
+Prerequisite for every path: [`uv`](https://docs.astral.sh/uv/getting-started/installation/), the Python package runner. The npm package is a thin launcher that calls it. `rag studio` also needs Node.js 22 or newer to run the Studio shipped in the Python package.
 
 The configured answer profile sends document chunks and queries to OpenRouter for
 embedding, reranking, and synthesis. Source files and indexes remain local. Do not
@@ -136,6 +140,11 @@ uvx ragmcp setup                                    # pick an embedding model on
 uvx ragmcp query "What changed?" --path ./docs       # explicit document scope
 uvx ragmcp query "What does the book say?" --path ./book --type md  # exclude HTML and other formats
 ```
+
+The CLI checks a path's file types and folder-size limits before first-use model
+setup. For a saved-page folder containing Markdown chapters plus HTML and asset
+copies, use `--type md` deliberately; an oversized mixed folder is rejected
+before any model probe or index build.
 
 ```bash
 npx ragmcp setup                                    # same, from the Node ecosystem
@@ -151,8 +160,11 @@ rag setup                     # choose a provider first, then one of its real em
 rag setup --auto              # take the recommendation without questions
 rag doctor
 rag query "What changed?" --path /absolute/path/to/document-or-folder --top3
+rag workspaces --json          # list local workspaces shared by Studio, CLI, and MCP
+rag search "What changed?" --workspace personal  # retrieve passages without an answer model
+rag query "What changed?" --workspace personal --top 3
 rag connect codex             # or: claude, copilot, gemini or agy (registers the MCP server)
-rag studio                    # pair the hosted Studio; --studio-url http://localhost:3000 for a local checkout
+rag studio                    # start the bundled Studio and companion on loopback
 ```
 
 Run `rag` from any directory after installing the tool. Use ↑/↓ and Enter to select providers, models, settings, apps, and files or folders. Escape goes back; typing is reserved for the final “enter a path/model ID” option. Completed actions return to the main menu. Piped input retains numbered choices for scripts; model-list positions follow discovery, so use explicit command flags for automation.
@@ -173,24 +185,123 @@ synthesis step may use; those passages are not returned. `rag connect claude --s
 ```bash
 rag config show                                   # embedding, candidate/final counts, reranker, answer model
 rag config top 5                                  # passages available only to answer synthesis
+rag config candidates 50                          # candidate count before final selection
+rag config answer deepseek/deepseek-v4.1-flash     # OpenRouter answer model
 rag config reranker openrouter                    # cohere/rerank-4-fast
 rag config embedding qwen/qwen3-embedding-4b       # approved OpenRouter embedding model
+rag config embedding local-embedding --runtime "LM Studio"  # detected local model and loopback endpoint
 ```
 
 The same three settings are in the `rag` menu ("Change settings"), and `rag connect claude` / `rag connect codex` install a `/rag` command in the agent (Claude Code: `/rag top5`, `/rag --reranker fastembed`, `/rag embedding bge-m3`, or plain words like `/rag use the ollama model`; Codex: `/prompts:rag …`). The MCP server also exposes `get_rag_settings` and `set_rag_settings`, so any agent can change these when asked in chat. API keys are never taken through chat; `rag setup` in a terminal handles them.
+
+`rag capabilities` (or `--json`) reports the configured lexical, embedding,
+reranking, and generation stages. Studio's paired Configuration panel and MCP
+`get_rag_capabilities` read the same engine report. `unavailable` means disabled
+or missing a required known API key; `unknown` means the model or runtime has
+not been probed. This read-only report makes no provider request or download
+and never returns keys.
+
+`rag models --json`, MCP `get_rag_models`, and the paired gateway's authenticated
+`GET /v1/models` explicitly discover configured models, installed Ollama and
+local-runtime embedding models, and cached sentence-transformer/FastEmbed models.
+Each source is capped at 20 entries and reports whether discovery was truncated
+or failed. This is an inventory, not a successful model probe; remote provider
+catalogs are not queried, and neither cache paths nor credentials are returned.
+Paired Studio lists the local embedding choices after its **Find local models**
+button is pressed. Discovery does not change the active model. **Verify and use**
+probes a discovered local choice before saving it; `rag config embedding MODEL`
+and MCP `set_rag_settings` use the same engine setting. For a local
+OpenAI-compatible runtime, pass its label with CLI `--runtime` or MCP
+`embedding_runtime`; the engine checks the model is advertised there and uses
+that runtime's loopback endpoint. Use `rag setup` for arbitrary endpoints or
+credential entry.
 
 `rag setup --provider <none|fastembed|ollama|openai_compatible|sentencetransformer> [--model M] [--base-url URL] [--api-key KEY] [--ollama-url URL]` sets the same choice without questions. The saved choice lives in `~/.config/rag/config.json` (owner-readable only); `RAG_MCP_EMBED_*` environment variables override it per process.
 
 Extras: `ragmcp[full]` adds PyTorch, sentence-transformers and the cross-encoder reranker (GPU); `ragmcp[office]` parses DOCX/PPTX/XLSX/CSV; `ragmcp[qdrant]` adds the Qdrant backend; `ragmcp[anthropic]` enables contextual retrieval. With npm: `RAGMCP_EXTRAS=full npx ragmcp ...`.
 
-`rag studio` starts an authenticated loopback companion and opens the hosted Studio. Keep this terminal open while the browser uses the local document/index bridge. `rag query` and the MCP answer tool use the configured retrieval, reranking, and synthesis models directly.
+`rag studio` starts the bundled Studio and its authenticated loopback companion, then opens the
+local pairing URL. Use `--web-port` to change Studio's port, `--port` for the companion, or
+`--studio-url http://localhost:3000` to pair a separately running checkout. Ctrl-C stops both
+bundled processes. These local changes have not been published or deployed. Paired Playground, CLI,
+and MCP use the same Python query path and
+settings. Sources sync bidirectionally into named engine workspaces; `rag workspaces` lists them,
+and `rag query --workspace <id>` or MCP `workspace_id` uses the same documents. Path and workspace
+scopes are mutually exclusive. Keep the terminal open. See [run inspection and privacy](docs/observability.md)
+for saved answers, source locations, and cancellation.
+`rag search "Question?" --workspace <id>` retrieves ranked passages through the same
+engine run as paired Studio, without answer generation. Add `--json` for one JSON
+value, `--no-content` to omit private text and scores, `--source <id>` to narrow
+the saved sources, or `--revision <revision>` to reject a stale workspace.
+MCP `search_workspace` offers the same retrieval; it returns source locations
+and run/revision IDs without passage text or scores unless `include_content: true`
+is set. When an older index cannot verify an exact source position, the passage
+still appears with null offsets and `location_verified: false`; Studio opens
+only verified source positions. Both clients save a local run for inspection.
+`rag sources add <workspace-id> --path ./book --type md` imports a deliberate local
+file set into that shared workspace without indexing or calling a model. It
+preserves existing sources and rejects a concurrent Studio edit; `--json`
+returns source IDs and revision without document text.
+MCP `add_workspace_sources` uses the same import path and requires the revision
+from `get_workspaces` (`null` when creating a workspace). Its response contains
+metadata only; a stale revision fails before parsing the source.
+`rag workspaces <workspace-id> --json` shows its current revision and source IDs without
+source text, stored paths, or hashes; MCP `get_workspaces` provides the same metadata.
+Paired Studio Chunking previews the engine's next-build boundaries for one saved source.
+`rag chunks <workspace-id> <source-id> --json` and MCP `get_workspace_chunks` read the same
+bounded preview. They return offsets and counts without private passage text or headings by
+default; use CLI `--content` or MCP `include_content: true` to request text for that page.
+`--revision <revision>` rejects a stale source, and `--limit`/`--offset` page through at most
+100 chunks at a time. Paired Studio also shows **Published chunks** from the current index
+generation. CLI `rag chunks <workspace-id> <source-id> --view indexed --json` and MCP
+`get_workspace_chunks` with `view: "indexed"` inspect the same published metadata. The
+response reports `not_indexed`, `current`, `stale`, or `unavailable`; older indexes may have
+unlocated chunks. This read does not open a pipeline, load a model, or start indexing. It
+checks the published LanceDB row count against document metadata, but does not verify
+the full vector table or Qdrant storage; a later query can rebuild when it opens the index.
+Studio settings saves include a configuration revision. If a CLI or MCP edit changed
+settings while a Studio form was open, Studio asks you to reload before saving;
+the newer edit is preserved. MCP `get_rag_settings` returns the same revision,
+and `set_rag_settings` accepts it to reject a stale edit.
+In paired Studio, Find local models lists engine-discovered local embedding choices.
+Verify and use probes the selected model before saving it to the same engine
+settings used by CLI and MCP. The first query with a different embedding choice
+may build a new index. Use exact words only returns to BM25 retrieval. Discovery
+does not start a model or change settings; verification is an explicit action.
+
+Evaluation questions also live in the shared workspace. `rag evaluations <workspace-id>` lists them;
+`--add "Question?"`, `--remove <question-id>`, and `--json` edit or inspect the same versioned set
+as Studio. MCP exposes `get_evaluation_questions` and `set_evaluation_questions` with a revision check.
+`rag evaluations <workspace-id> --run` executes retrieval for the saved set; `--runs` and
+`--batch <id>` read the same durable batches shown in Studio. MCP exposes `run_evaluation` and
+`get_evaluation_runs`. Counts are retrieved passages, not judged relevance or answer correctness.
+For a saved batch, `rag labels <workspace-id> <batch-id> --json` reads human passage judgments.
+Use `--set <run-id>:<rank>:relevant` (or `irrelevant`/`clear`) to edit them. MCP exposes
+`get_evaluation_labels` and `set_evaluation_label` with a revision check; Studio reads the same
+labels and shows unmarked passages as unknown. Label records contain provenance, not passage text.
+
+Paired Playground answers now belong to private, revisioned engine conversations.
+`rag conversations <workspace-id>` lists recent threads; add a conversation ID to read its
+questions, saved answers, and evidence. `--append-run <run-id> --question "Question?"`
+attaches an existing successful saved answer to that conversation. MCP exposes
+`get_conversations` and `append_conversation_turn`; the local gateway exposes the
+same records to Studio. Browser-only chats remain on the device. Use
+`rag query "Follow-up?" --workspace <workspace-id> --conversation <conversation-id>`
+to continue and save a CLI answer in that thread. MCP's `query_knowledge_base`
+accepts `workspace_id` and `conversation_id` for the same operation; pass
+`conversation_revision` to reject a stale thread before running the query.
 
 ### Before it is on npm and PyPI: test from this checkout
 
 The launcher and the engine run exactly as they will after publishing, only from the locally built files:
+The Studio staging command records a measured web-source and pnpm-lock
+fingerprint only when it runs a fresh build. `--skip-build` stages existing
+output as explicitly unattested; the Python package build checks the embedded
+build ID and server hash. The build manifest records local env-file names,
+never their contents.
 
 ```bash
-cd rag-mcp && uv build && (cd npm && npm pack)                       # dist/ragmcp-0.2.0-py3-none-any.whl and npm/ragmcp-0.2.0.tgz
+cd rag-mcp && python scripts/build_studio_bundle.py && uv build && (cd npm && npm pack)  # stage the sibling Next app before packaging
 export RAGMCP_UVX_FROM=$PWD/dist/ragmcp-0.2.0-py3-none-any.whl       # tell the launcher where the engine is
 npx --yes file:$PWD/npm/ragmcp-0.2.0.tgz                             # the menu
 npx --yes file:$PWD/npm/ragmcp-0.2.0.tgz setup --auto
@@ -337,7 +448,7 @@ rag-mcp/
 
 Approved hosted-profile boundaries:
 
-- one answer tool: `query_knowledge_base(query, doc_path, extensions?)`;
+- answer tool `query_knowledge_base` and retrieval-only `search_workspace` for a saved workspace;
 - embeddings: OpenRouter `qwen/qwen3-embedding-4b` plus always-on BM25;
 - reranking: OpenRouter `cohere/rerank-4-fast`, with no silent fallback;
 - synthesis: OpenRouter `deepseek/deepseek-v4.1-flash`;
@@ -360,7 +471,7 @@ starts with no embedding model until setup is completed.
 | `RAG_MCP_EMBED_MODEL` | unset | embedding model name, meaning depends on provider |
 | `RAG_MCP_EMBED_API_KEY` | unset | API key, only used by `openai_compatible` |
 | `RAG_MCP_EMBED_BASE_URL` | unset (official OpenAI endpoint) | override endpoint, only used by `openai_compatible` |
-| `RAG_MCP_RERANKER_TYPE` | `openrouter` | hosted reranking; provider failures stop the pipeline |
+| `RAG_MCP_RERANKER_TYPE` | `off` without an OpenRouter key; `openrouter` with one | Effective default when no explicit choice is saved; explicit choices override it, and hosted provider failures stop the pipeline |
 | `RAG_MCP_RERANKER_MODEL` | `cohere/rerank-4-fast` | required hosted reranker |
 | `RAG_MCP_CANDIDATE_K` | `50` | fused candidates passed to the reranker |
 | `RAG_MCP_ANSWER_MODEL` | `deepseek/deepseek-v4.1-flash` | model that synthesizes the private evidence into an answer |

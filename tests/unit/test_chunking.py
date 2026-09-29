@@ -4,6 +4,19 @@ import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from rag.core import chunk_document, chunk_text
+from rag.chunking import chunk_document_spans
+
+
+def test_structural_spans_are_exact_even_when_chunks_repeat():
+    for name, source in [
+        ("repeat.txt", "😀 Cedar Lantern. " * 95),
+        ("chapter.md", "# First\n\n" + "😀 Cedar Lantern. " * 95 + "\n## Second\n\nFinish."),
+        ("book.pdf", "😀 Cedar Lantern. " * 95 + "\n\nSecond page."),
+    ]:
+        spans = chunk_document_spans(source, name)
+        assert [{"content": item["content"], "heading": item["heading"]} for item in spans] == chunk_document(source, name)
+        assert all(source[item["start_offset"]:item["end_offset"]] == item["content"] for item in spans)
+        assert spans[1]["start_offset"] > 500
 
 
 def test_markdown_code_fences_do_not_create_fake_headings():

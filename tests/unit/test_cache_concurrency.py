@@ -251,7 +251,7 @@ def test_reset_waits_for_inflight_initialization_then_retires_it(sources, monkey
 
 def test_failed_lancedb_settings_replacement_keeps_previous_searchable(sources, monkeypatch):
     previous = fetch.get_rag_pipeline_v2(sources[0])
-    monkeypatch.setenv('RAG_MCP_RERANKER_MODEL', 'changed-setting')
+    monkeypatch.setenv('RAG_MCP_CANDIDATE_K', '51')
 
     def fail(config):
         raise RuntimeError('replacement setup failed')

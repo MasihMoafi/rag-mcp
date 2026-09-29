@@ -15,6 +15,7 @@ MENU = (
     ("Change RAG settings", None),
     ("Open live Studio in your browser", ["studio"]),
     ("Check local setup", ["doctor"]),
+    ("Inspect recent runs", ["runs"]),
     ("Quit", None),
 )
 

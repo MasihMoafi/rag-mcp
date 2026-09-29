@@ -16,6 +16,42 @@ def test_bare_cli_prints_help_and_menu_is_explicit():
     assert "usage: rag" in output.getvalue()
 
 
+def test_config_embedding_uses_discovered_local_runtime_endpoint(tmp_path, monkeypatch):
+    from rag import detect, settings
+    environ = {'RAG_MCP_CONFIG': str(tmp_path / 'config.json')}
+    settings.update_settings({'embed_provider': 'openai_compatible', 'embed_model': 'hosted-old',
+                              'embed_base_url': 'https://api.openai.com/v1', 'embed_api_key': 'private-key'}, environ)
+    monkeypatch.setattr(detect, 'detect_all', lambda *_: {'ollama': {'embedding_models': []},
+        'local_runtimes': [{'label': 'LM Studio', 'base_url': 'http://localhost:1234/v1',
+                            'embedding_models': ['local-embedding']}], 'api_keys': []})
+    probed = []
+    code = main(['config', 'embedding', 'local-embedding', '--runtime', 'LM Studio'],
+                stdout=io.StringIO(), stderr=io.StringIO(), environ=environ,
+                embedding_probe=lambda config: probed.append(dict(config)) or 384)
+    assert code == 0
+    assert probed[0]['embed_base_url'] == 'http://localhost:1234/v1'
+    saved = settings.load_settings(environ)
+    assert saved['embed_model'] == 'local-embedding'
+    assert saved['embed_base_url'] == 'http://localhost:1234/v1'
+    assert saved['embed_api_key'] == ''
+
+
+def test_config_embedding_rejects_unknown_runtime_model_without_write(tmp_path, monkeypatch):
+    from rag import detect, settings
+    environ = {'RAG_MCP_CONFIG': str(tmp_path / 'config.json')}
+    settings.update_settings({'top_k': '3'}, environ)
+    original = settings.config_path(environ).read_bytes()
+    monkeypatch.setattr(detect, 'detect_all', lambda *_: {'ollama': {'embedding_models': []},
+        'local_runtimes': [{'label': 'LM Studio', 'base_url': 'http://localhost:1234/v1',
+                            'embedding_models': ['other-embedding']}], 'api_keys': []})
+    stderr = io.StringIO()
+    code = main(['config', 'embedding', 'missing-embedding', '--runtime', 'LM Studio'],
+                stdout=io.StringIO(), stderr=stderr, environ=environ,
+                embedding_probe=lambda _: 384)
+    assert code == 2 and 'not advertised' in stderr.getvalue()
+    assert settings.config_path(environ).read_bytes() == original
+
+
 def test_query_json_format_is_stable_in_a_tty(tmp_path: Path):
     document = tmp_path / "facts.md"
     document.write_text("The launch codename is Cedar Lantern.")
@@ -28,6 +64,41 @@ def test_query_json_format_is_stable_in_a_tty(tmp_path: Path):
         query_fn=lambda query, path: json.dumps({"result": "Cedar Lantern."}),
     ) == 0
     assert json.loads(output.getvalue()) == {"result": "Cedar Lantern."}
+
+
+def test_query_rejects_oversized_scope_before_interactive_model_setup(tmp_path, monkeypatch):
+    folder = tmp_path / 'books'
+    folder.mkdir()
+    (folder / 'chapter.md').write_text('A short chapter that exceeds this test budget.')
+    monkeypatch.setenv('RAG_MCP_MAX_TOKENS', '1')
+    monkeypatch.setattr('rag.cli.user_settings.run_setup', lambda **kwargs: (_ for _ in ()).throw(
+        AssertionError('Model setup must not start for a rejected scope')))
+    error = io.StringIO()
+    code = main(['query', 'question?', '--path', str(folder)],
+                stdin=TTYStringIO(), stdout=io.StringIO(), stderr=error,
+                environ={'RAG_MCP_CONFIG': str(tmp_path / 'settings.json')})
+    assert code == 2
+    assert 'token limit' in error.getvalue()
+    assert '--type md' in error.getvalue()
+
+
+def test_query_json_keeps_pipeline_diagnostics_off_stdout(tmp_path: Path):
+    document = tmp_path / "facts.md"
+    document.write_text("Cedar Lantern")
+    output, diagnostics = io.StringIO(), io.StringIO()
+
+    def query(_question, _path):
+        print("building local index")
+        return json.dumps({"result": "Cedar Lantern."})
+
+    assert main(
+        ["query", "codename?", "--path", str(document), "--format", "json"],
+        stdout=output,
+        stderr=diagnostics,
+        query_fn=query,
+    ) == 0
+    assert json.loads(output.getvalue()) == {"result": "Cedar Lantern."}
+    assert "building local index" in diagnostics.getvalue()
 
 
 def test_query_text_format_is_stable_without_a_tty(tmp_path: Path):
@@ -295,8 +366,18 @@ def test_connect_codex_does_not_replace_a_matching_registration(tmp_path: Path):
     assert not marker.exists()
 
 
-def test_studio_opens_a_session_token_and_serves_on_loopback():
+def test_studio_opens_a_session_token_and_serves_on_loopback(monkeypatch):
+    from contextlib import contextmanager
+
     events = []
+
+    @contextmanager
+    def local_studio(port, *, environ):
+        events.append(("web", port))
+        yield "http://127.0.0.1:3000"
+        events.append("web closed")
+
+    monkeypatch.setattr("rag.studio_bundle.serve_studio", local_studio)
 
     class Server:
         server_port = 47831
@@ -312,16 +393,18 @@ def test_studio_opens_a_session_token_and_serves_on_loopback():
         ["studio"],
         stdout=output,
         token_factory=lambda: "paired-token",
-        server_factory=lambda token, port: events.append((token, port)) or Server(),
+        server_factory=lambda token, port, allowed_origins: events.append((token, port, allowed_origins)) or Server(),
         open_url=lambda url: events.append(url) or True,
     )
 
     assert code == 0
     assert events == [
-        ("paired-token", 47831),
-        "https://rag.masihmoafi.com/studio#local=paired-token",
+        ("web", 3000),
+        ("paired-token", 47831, {"http://127.0.0.1:3000"}),
+        "http://127.0.0.1:3000/studio#local=paired-token",
         "served",
         "closed",
+        "web closed",
     ]
 
 
@@ -383,7 +466,7 @@ def test_studio_can_open_a_local_studio():
         ["studio", "--studio-url", "http://localhost:3000/"],
         stdout=io.StringIO(),
         token_factory=lambda: "paired-token",
-        server_factory=lambda token, port: Server(),
+        server_factory=lambda token, port, allowed_origins: Server(),
         open_url=lambda url: events.append(url) or True,
     )
 

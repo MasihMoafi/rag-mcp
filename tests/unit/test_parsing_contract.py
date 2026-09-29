@@ -89,7 +89,7 @@ def test_pdf_ligatures_expand_without_changing_mathematical_symbols(monkeypatch)
             return iter([SimpleNamespace(get_text=lambda: 'ﬁrst eﬀicient ﬂow ﬃ ﬄ ﬅ ﬆ x² √dk')])
         def close(self):
             pass
-    monkeypatch.setattr(pdf.fitz, 'open', lambda _: Document())
+    monkeypatch.setattr(pdf.pymupdf, 'open', lambda _: Document())
     assert pdf.extract_pdf_text('ligatures.pdf') == 'first efficient flow ffi ffl st st x² √dk'
 
 
@@ -101,7 +101,7 @@ def test_pdf_document_is_closed_when_page_extraction_fails(monkeypatch):
             raise RuntimeError('damaged page')
         def close(self):
             closed.append(True)
-    monkeypatch.setattr(pdf.fitz, 'open', lambda _: BrokenDocument())
+    monkeypatch.setattr(pdf.pymupdf, 'open', lambda _: BrokenDocument())
     with pytest.raises(RuntimeError, match='damaged page'):
         pdf.extract_pdf_text('damaged.pdf')
     assert closed == [True]

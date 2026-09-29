@@ -61,14 +61,21 @@ build-backend = "hatchling.build"
 # Local LanceDB indexes and caches live next to the code; never ship them.
 exclude = ["**/__pycache__", "rag/rag_db_*", "rag/rag_db_v2", "**/*.pyc"]
 
+[tool.hatch.build.hooks.custom]
+path = "hatch_build.py"
+
 [tool.hatch.build.targets.sdist]
-only-include = ["rag", "utils", "server.py", "README.md", "LICENSE", "pyproject.toml"]
+only-include = ["rag", "utils", "server.py", "README.md", "LICENSE", "pyproject.toml", "hatch_build.py"]
+
+[tool.hatch.build.targets.sdist.force-include]
+"rag/studio_dist/bundle.tar.gz" = "rag/studio_dist/bundle.tar.gz"
 
 [tool.hatch.build.targets.wheel]
 packages = ["rag", "utils"]
 
 [tool.hatch.build.targets.wheel.force-include]
 "server.py" = "server.py"
+"rag/studio_dist/bundle.tar.gz" = "rag/studio_dist/bundle.tar.gz"
 
 [dependency-groups]
 dev = ["pytest>=9.0.1"]

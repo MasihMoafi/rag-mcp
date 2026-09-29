@@ -1,7 +1,10 @@
 from types import SimpleNamespace
+import json
 
+import numpy as np
 import pytest
 
+from rag import tracing
 from rag.reranking import rerank_documents
 
 
@@ -23,6 +26,45 @@ def test_reranker_uses_basename_without_mutating_source_records():
     assert docs == original
     assert results[0] is docs[0]
     assert results[1] is docs[1]
+
+
+def test_reranker_trace_selected_scores_follow_model_without_mutating_documents(tmp_path, monkeypatch):
+    monkeypatch.setenv('RAG_MCP_TRACE_DIR', str(tmp_path / 'traces'))
+    docs = [{'id': 'first', 'content': 'private-first', 'score': 12.0},
+            {'id': 'second', 'content': 'private-second', 'score': 3.0}]
+    pipeline = SimpleNamespace(reranker_type='cross-encoder',
+                               reranker=SimpleNamespace(predict=lambda pairs: np.array([0.2, 0.9], dtype=np.float32)))
+    with tracing.request_trace():
+        with tracing.span('selection.rerank'):
+            selected = rerank_documents(pipeline, docs, 'private-question', 2)
+    assert selected == docs[::-1]
+    assert selected[0] is docs[1] and selected[1] is docs[0]
+    assert [doc['score'] for doc in docs] == [12.0, 3.0]
+    raw = next((tmp_path / 'traces').glob('trace-*.json')).read_text()
+    span = next(item for item in json.loads(raw)['spans'] if item['operation'] == 'selection.rerank')
+    assert span['attributes']['score_kind'] == 'reranker'
+    assert [row['score'] for row in span['attributes']['selected']] == pytest.approx([0.9, 0.2])
+    assert 'private-' not in raw
+
+
+def test_local_reranker_failure_marks_retained_scores_as_fallback(tmp_path, monkeypatch):
+    monkeypatch.setenv('RAG_MCP_TRACE_DIR', str(tmp_path / 'traces'))
+    docs = [{'id': 'first', 'content': 'private-first', 'score': 12.0},
+            {'id': 'second', 'content': 'private-second', 'score': 3.0}]
+    def fail(_pairs):
+        raise RuntimeError('private-failure')
+    pipeline = SimpleNamespace(reranker_type='cross-encoder',
+                               reranker=SimpleNamespace(predict=fail))
+    with tracing.request_trace():
+        with tracing.span('selection.rerank'):
+            selected = rerank_documents(pipeline, docs, 'private-question', 2)
+    assert selected == docs
+    span = next(item for item in json.loads(next((tmp_path / 'traces').glob('trace-*.json')).read_text())['spans']
+                if item['operation'] == 'selection.rerank')
+    assert span['status'] == 'skipped'
+    assert span['attributes']['skipped_reason'] == 'reranker_failed'
+    assert span['attributes']['score_kind'] == 'retained_source'
+    assert [row['score'] for row in span['attributes']['selected']] == [12.0, 3.0]
 
 
 @pytest.mark.parametrize('k', [2, 5])

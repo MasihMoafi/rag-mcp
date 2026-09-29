@@ -1,5 +1,6 @@
 """Open published indexes or build complete replacement generations."""
 
+import hashlib
 import json
 from pathlib import Path
 import shutil
@@ -13,6 +14,12 @@ from .formats import INDEXABLE_EXTENSIONS
 
 class RebuildRequired(RuntimeError):
     """Persisted storage cannot be reused; rebuild away from the active index."""
+
+
+def selected_file_scope(root: str, paths: list[str]) -> str:
+    """Name the exact selected-file index shared by Studio, CLI, and MCP."""
+    digest = hashlib.sha256("\n".join(sorted(paths)).encode()).hexdigest()[:16]
+    return f"{root}:{digest}"
 
 
 def source_snapshot(document_paths):

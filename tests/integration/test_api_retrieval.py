@@ -8,7 +8,8 @@ import httpx
 import openai
 import pytest
 
-from rag import core
+from rag import core, tracing
+from rag.trace_reader import read_trace
 
 
 def test_multi_batch_api_failure_preserves_table_and_retry_restores_all_rows(tmp_path, monkeypatch):
@@ -111,6 +112,7 @@ def test_query_provider_failure_is_reported_and_pipeline_can_recover(tmp_path, m
 
 
 def test_api_embeddings_retrieve_semantic_fixture_and_reopen(tmp_path, monkeypatch):
+    monkeypatch.setenv('RAG_MCP_TRACE_DIR', str(tmp_path / 'traces'))
     source = tmp_path / 'facts.md'
     source.write_text('# Transport\nThe bicycle belongs to Cedar.\n\n# Cooking\nSoup needs salt.\n')
     calls = []
@@ -141,7 +143,17 @@ def test_api_embeddings_retrieve_semantic_fixture_and_reopen(tmp_path, monkeypat
             try:
                 query = 'pedal ownership'
                 assert pipeline.vector_db.search_fts(query) == []
-                fused = pipeline.search(query)
+                trace_id = ('e' if reopen else 'd') * 32
+                with tracing.request_trace(trace_id):
+                    fused = pipeline.search(query)
+                dense = next(span for span in read_trace(trace_id)['spans'] if span['operation'] == 'retrieval.dense')
+                assert dense['attributes']['backend'] == 'lancedb'
+                assert dense['attributes']['distance_metric'] == 'cosine'
+                assert dense['attributes']['candidates'][0]['score'] >= 0
+                embedding = next(span for span in read_trace(trace_id)['spans'] if span['operation'] == 'embedding.query')
+                assert embedding['attributes']['usage']['input_tokens'] == 1
+                assert embedding['attributes']['usage']['output_tokens'] is None
+                assert embedding['attributes']['usage']['cost_usd'] is None
                 assert len(fused) == 2
                 assert 'Cedar' in fused[0]['original_content']
                 assert fused[0]['file_path'] == str(source)

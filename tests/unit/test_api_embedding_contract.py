@@ -45,6 +45,68 @@ def test_ollama_valid_batches_preserve_vectors_and_timeouts():
     assert wrapper._verify_gpu.call_count == 2
 
 
+def test_ollama_reports_aggregate_embedding_tokens_without_response_content(monkeypatch, tmp_path):
+    from unittest.mock import Mock
+    from rag import tracing
+    from rag.embeddings import DirectOllamaGPUWrapper
+    from rag.trace_reader import read_trace
+
+    monkeypatch.setenv('RAG_MCP_TRACE_DIR', str(tmp_path))
+    wrapper = DirectOllamaGPUWrapper('fixture', 'http://localhost:11434')
+    wrapper._requests = Mock()
+    wrapper._verify_gpu = Mock()
+    counts = iter((1024, 3, 2))
+
+    def respond(url, *, json, timeout):
+        return SimpleNamespace(status_code=200, json=lambda: {
+            'embeddings': [[1., 0.]] * len(json['input']),
+            'prompt_eval_count': next(counts),
+            'private_marker': 'must-not-appear',
+        })
+
+    wrapper._requests.post.side_effect = respond
+    trace_id = 'b' * 32
+    with tracing.request_trace(trace_id):
+        with tracing.span('embedding.documents'):
+            assert len(wrapper.embed_documents(['document'] * 513)) == 513
+        with tracing.span('embedding.query'):
+            assert wrapper.embed_query('question') == [1., 0.]
+    trace = read_trace(trace_id)
+    usages = [span['attributes']['usage'] for span in trace['spans'][1:]]
+    assert [usage['input_tokens'] for usage in usages] == [1027, 2]
+    assert all(usage['output_tokens'] is None and usage['cost_usd'] is None for usage in usages)
+    assert 'must-not-appear' not in str(trace)
+
+
+@pytest.mark.parametrize('count', [None, True, -1, 2**60])
+def test_ollama_incomplete_or_invalid_usage_stays_unknown(monkeypatch, tmp_path, count):
+    from unittest.mock import Mock
+    from rag import tracing
+    from rag.embeddings import DirectOllamaGPUWrapper
+    from rag.trace_reader import read_trace
+
+    monkeypatch.setenv('RAG_MCP_TRACE_DIR', str(tmp_path))
+    wrapper = DirectOllamaGPUWrapper('fixture', 'http://localhost:11434')
+    wrapper._requests = Mock()
+    wrapper._verify_gpu = Mock()
+    counts = iter((10, count))
+
+    def respond(url, *, json, timeout):
+        reported = next(counts)
+        payload = {'embeddings': [[1., 0.]] * len(json['input'])}
+        if reported is not None:
+            payload['prompt_eval_count'] = reported
+        return SimpleNamespace(status_code=200, json=lambda: payload)
+
+    wrapper._requests.post.side_effect = respond
+    trace_id = 'c' * 32
+    with tracing.request_trace(trace_id):
+        with tracing.span('embedding.documents'):
+            assert len(wrapper.embed_documents(['document'] * 513)) == 513
+    usage = read_trace(trace_id)['spans'][1]['attributes'].get('usage')
+    assert usage is None or usage['input_tokens'] is None
+
+
 def test_ollama_rejects_dimension_change_between_batches():
     from unittest.mock import Mock
     from rag.embeddings import DirectOllamaGPUWrapper
@@ -95,6 +157,30 @@ def test_vectors_follow_input_indices_not_response_order(monkeypatch):
     assert wrapper.embed_documents(["first", "second"]) == [[1., 0.], [0., 1.]]
 
 
+def test_embedding_batch_records_only_provider_reported_usage(monkeypatch, tmp_path):
+    from rag import tracing
+    from rag.trace_reader import read_trace
+    monkeypatch.setenv('RAG_MCP_TRACE_DIR', str(tmp_path))
+    wrapper = OpenAICompatibleWrapper.__new__(OpenAICompatibleWrapper)
+    monkeypatch.setattr(wrapper, '_create_with_retry', lambda texts: SimpleNamespace(
+        data=[item(0, [1., 0.])],
+        usage=SimpleNamespace(prompt_tokens=5, total_tokens=5, cost=0.0002,
+                              prompt_tokens_details=SimpleNamespace(cached_tokens=2),
+                              private_marker='must-not-appear')))
+    trace_id = 'a' * 32
+    with tracing.request_trace(trace_id):
+        with tracing.span('embedding.documents'):
+            assert wrapper.embed_documents(['first']) == [[1., 0.]]
+    trace = read_trace(trace_id)
+    usage = trace['spans'][1]['attributes']['usage']
+    assert usage['input_tokens'] == 5
+    assert usage['output_tokens'] is None
+    assert usage['cost_usd'] == 0.0002
+    assert usage['cached_tokens'] == 2
+    assert trace['accounting']['reported_cost_subtotal_usd'] == 0.0002
+    assert 'must-not-appear' not in str(trace)
+
+
 @pytest.mark.parametrize("items", [
     [item(0, [1., 0.])],
     [item(0, [1., 0.]), item(0, [0., 1.])],
@@ -114,6 +200,20 @@ def test_empty_input_does_not_call_provider(monkeypatch):
     wrapper = wrapper_with_response(monkeypatch, [])
     monkeypatch.setattr(wrapper, "_create_with_retry", lambda _: pytest.fail("Unexpected API call"))
     assert wrapper.embed_documents([]) == []
+
+
+def test_duplicate_inputs_are_embedded_once_without_normalizing(monkeypatch):
+    wrapper = OpenAICompatibleWrapper.__new__(OpenAICompatibleWrapper)
+    calls = []
+    def respond(texts):
+        calls.append(list(texts))
+        return SimpleNamespace(data=[item(i, [float(i), 1.]) for i in reversed(range(len(texts)))])
+    monkeypatch.setattr(wrapper, '_create_with_retry', respond)
+    vectors = wrapper.embed_documents(['کتاب', 'other', 'کتاب', ' کتاب'])
+    assert calls == [['کتاب', 'other', ' کتاب']]
+    assert vectors == [[0., 1.], [1., 1.], [0., 1.], [2., 1.]]
+    vectors[0][0] = 99
+    assert vectors[2] == [0., 1.]
 
 
 def test_query_rejects_empty_vector(monkeypatch):

@@ -5,7 +5,156 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from server import _TOOL
+from server import _TOOL, _TOOLS
+
+
+def test_stdio_imports_a_source_into_the_shared_workspace(tmp_path):
+    import json
+    import os
+    import subprocess
+    from rag.workspaces import WorkspaceStore
+
+    source = tmp_path / 'chapter.md'
+    source.write_text('Private chapter for shared import.')
+    store = WorkspaceStore(tmp_path / 'workspaces')
+    calls = [
+        {'jsonrpc': '2.0', 'id': 1, 'method': 'initialize'},
+        {'jsonrpc': '2.0', 'id': 2, 'method': 'tools/list'},
+        {'jsonrpc': '2.0', 'id': 3, 'method': 'tools/call', 'params': {'name': 'add_workspace_sources',
+            'arguments': {'workspace_id': 'book', 'path': str(source), 'revision': None}}},
+        {'jsonrpc': '2.0', 'id': 4, 'method': 'tools/call', 'params': {'name': 'get_workspaces',
+            'arguments': {'workspace_id': 'book'}}},
+        {'jsonrpc': '2.0', 'id': 5, 'method': 'tools/call', 'params': {'name': 'add_workspace_sources',
+            'arguments': {'workspace_id': 'book', 'path': str(source), 'revision': None}}},
+    ]
+    env = {**os.environ, 'RAG_MCP_WORKSPACE_DIR': str(store.root),
+           'RAG_MCP_CONFIG': str(tmp_path / 'config.json')}
+    result = subprocess.run([sys.executable, str(Path(__file__).resolve().parents[2] / 'server.py')],
+                            input=''.join(json.dumps(call) + '\n' for call in calls).encode(),
+                            capture_output=True, env=env, cwd=tmp_path, timeout=15)
+    assert result.returncode == 0, result.stderr.decode()
+    replies = [json.loads(line) for line in result.stdout.splitlines()]
+    tool = next(item for item in replies[1]['result']['tools'] if item['name'] == 'add_workspace_sources')
+    assert tool['annotations']['readOnlyHint'] is False
+    added = json.loads(replies[2]['result']['content'][0]['text'])
+    listed = json.loads(replies[3]['result']['content'][0]['text'])
+    assert added['document_count'] == listed['document_count'] == 1
+    assert added['revision'] == listed['revision']
+    assert replies[4]['result']['isError'] is True
+    assert store.snapshot('book')['documents'][0]['content'] == 'Private chapter for shared import.'
+    assert 'Private chapter for shared import.' not in result.stdout.decode()
+
+
+def test_stdio_chunk_preview_is_advertised_and_text_is_opt_in(tmp_path):
+    import json
+    import os
+    import subprocess
+    from rag.workspaces import WorkspaceStore
+
+    store = WorkspaceStore(tmp_path / 'workspaces')
+    saved = store.replace('book', 'Book', [
+        {'id': 'chapter', 'name': 'chapter.txt', 'source_type': 'text', 'content': '😀 Cedar Lantern. ' * 95},
+        {'id': 'private', 'name': 'private.txt', 'source_type': 'text', 'content': 'Private passage'},
+    ])
+    calls = [
+        {'jsonrpc': '2.0', 'id': 1, 'method': 'initialize'},
+        {'jsonrpc': '2.0', 'id': 2, 'method': 'tools/list'},
+        {'jsonrpc': '2.0', 'id': 3, 'method': 'tools/call', 'params': {'name': 'get_workspaces', 'arguments': {}}},
+        {'jsonrpc': '2.0', 'id': 4, 'method': 'tools/call', 'params': {'name': 'get_workspaces',
+            'arguments': {'workspace_id': 'book'}}},
+        {'jsonrpc': '2.0', 'id': 5, 'method': 'tools/call', 'params': {'name': 'get_workspace_chunks',
+            'arguments': {'workspace_id': 'book', 'source_id': 'chapter', 'revision': saved['revision'], 'limit': 1, 'offset': 1}}},
+        {'jsonrpc': '2.0', 'id': 6, 'method': 'tools/call', 'params': {'name': 'get_workspace_chunks',
+            'arguments': {'workspace_id': 'book', 'source_id': 'chapter', 'revision': saved['revision'],
+                          'limit': 1, 'offset': 1, 'include_content': True}}},
+    ]
+    env = {**os.environ, 'RAG_MCP_WORKSPACE_DIR': str(store.root), 'RAG_MCP_CONFIG': str(tmp_path / 'config.json')}
+    result = subprocess.run([sys.executable, str(Path(__file__).resolve().parents[2] / 'server.py')],
+                            input=''.join(json.dumps(call) + '\n' for call in calls).encode(),
+                            capture_output=True, env=env, cwd=tmp_path, timeout=15)
+    assert result.returncode == 0, result.stderr.decode()
+    replies = [json.loads(line) for line in result.stdout.splitlines()]
+    tools = replies[1]['result']['tools']
+    assert any(item['name'] == 'get_workspace_chunks' and item['annotations']['readOnlyHint'] for item in tools)
+    assert any(item['name'] == 'get_workspaces' and item['annotations']['readOnlyHint'] for item in tools)
+    listed = json.loads(replies[2]['result']['content'][0]['text'])
+    details = json.loads(replies[3]['result']['content'][0]['text'])
+    assert listed['workspaces'][0]['id'] == details['id'] == 'book'
+    assert details['documents'][0]['id'] == 'chapter' and details['revision'] == saved['revision']
+    assert 'stored_file' not in str(details) and 'content_sha256' not in str(details)
+    metadata = json.loads(replies[4]['result']['content'][0]['text'])
+    content = json.loads(replies[5]['result']['content'][0]['text'])
+    assert metadata['revision'] == content['revision'] == saved['revision']
+    assert metadata['chunks'][0]['start_offset'] > 500
+    assert 'content' not in metadata['chunks'][0] and 'heading' not in metadata['chunks'][0]
+    assert 'source_content' not in metadata
+    assert content['chunks'][0]['content'] in '😀 Cedar Lantern. ' * 95
+    assert 'Private passage' not in result.stdout.decode()
+
+
+def test_stdio_reads_and_updates_shared_evaluation_questions(tmp_path):
+    import json
+    import os
+    import subprocess
+    from rag.workspaces import WorkspaceStore
+
+    workspaces = WorkspaceStore(tmp_path / 'workspaces')
+    workspaces.replace('book', 'Book', [])
+    calls = [
+        {'jsonrpc': '2.0', 'id': 1, 'method': 'initialize'},
+        {'jsonrpc': '2.0', 'id': 2, 'method': 'tools/call', 'params': {'name': 'get_evaluation_questions', 'arguments': {'workspace_id': 'book'}}},
+        {'jsonrpc': '2.0', 'id': 3, 'method': 'tools/call', 'params': {'name': 'set_evaluation_questions', 'arguments': {
+            'workspace_id': 'book', 'revision': None, 'questions': [{'id': 'q1', 'question': 'When?'}]}}},
+        {'jsonrpc': '2.0', 'id': 4, 'method': 'tools/call', 'params': {'name': 'get_evaluation_questions', 'arguments': {'workspace_id': 'book'}}},
+    ]
+    env = {**os.environ, 'RAG_MCP_WORKSPACE_DIR': str(workspaces.root)}
+    result = subprocess.run([sys.executable, str(Path(__file__).resolve().parents[2] / 'server.py')],
+                            input=''.join(json.dumps(call) + '\n' for call in calls).encode(),
+                            capture_output=True, env=env, cwd=tmp_path, timeout=15)
+    assert result.returncode == 0, result.stderr.decode()
+    replies = [json.loads(line) for line in result.stdout.splitlines()]
+    get = lambda reply: json.loads(reply['result']['content'][0]['text'])
+    assert get(replies[1])['revision'] is None
+    assert get(replies[2])['questions'] == [{'id': 'q1', 'question': 'When?'}]
+    assert get(replies[3]) == get(replies[2])
+
+
+def test_stdio_reads_saved_evaluation_batch_without_passages(tmp_path):
+    import json
+    import os
+    import subprocess
+    from rag.evaluation_runs import EvaluationRunStore
+    from rag.workspaces import WorkspaceStore
+
+    workspaces = WorkspaceStore(tmp_path / 'workspaces')
+    workspaces.replace('book', 'Book', [])
+    batch_id, run_id = 'a' * 32, 'b' * 32
+    EvaluationRunStore(workspaces).save({
+        'schema_version': 1, 'workspace_id': 'book', 'batch_id': batch_id,
+        'status': 'success', 'started_unix': 1, 'finished_unix': 2, 'error': None,
+        'question_revision': 'q1', 'workspace_revision': 'w1',
+        'configuration_revision': 'c' * 64, 'source_ids': ['source'],
+        'questions': [{'id': 'q', 'question': 'When?'}],
+        'rows': [{'question_id': 'q', 'run_id': run_id, 'status': 'success',
+                  'passage_count': 1, 'source_count': 1, 'duration_ms': 4, 'error': None}],
+    })
+    calls = [
+        {'jsonrpc': '2.0', 'id': 1, 'method': 'initialize'},
+        {'jsonrpc': '2.0', 'id': 2, 'method': 'tools/call', 'params': {'name': 'get_evaluation_runs', 'arguments': {'workspace_id': 'book'}}},
+        {'jsonrpc': '2.0', 'id': 3, 'method': 'tools/call', 'params': {'name': 'get_evaluation_runs', 'arguments': {'workspace_id': 'book', 'batch_id': batch_id}}},
+    ]
+    env = {**os.environ, 'RAG_MCP_WORKSPACE_DIR': str(workspaces.root), 'RAG_MCP_CONFIG': str(tmp_path / 'config.json')}
+    result = subprocess.run([sys.executable, str(Path(__file__).resolve().parents[2] / 'server.py')],
+                            input=''.join(json.dumps(call) + '\n' for call in calls).encode(),
+                            capture_output=True, env=env, cwd=tmp_path, timeout=15)
+    assert result.returncode == 0, result.stderr.decode()
+    replies = [json.loads(line) for line in result.stdout.splitlines()]
+    listed = json.loads(replies[1]['result']['content'][0]['text'])
+    detail = json.loads(replies[2]['result']['content'][0]['text'])
+    assert listed['batches'][0]['batch_id'] == batch_id
+    assert listed['batches'][0]['completed_count'] == 1
+    assert detail['rows'][0]['run_id'] == run_id
+    assert 'evidence' not in result.stdout.decode() and 'passage' not in detail['rows'][0]
 
 
 @pytest.mark.parametrize('framed', [False, True])
@@ -65,7 +214,8 @@ def test_stdio_process_recovers_from_invalid_call(tmp_path, framed):
     report = json.loads(settings_result['content'][0]['text'])
     assert report['runtime']['pid'] > 0
     assert report['runtime']['pid'] != os.getpid()
-    assert report['runtime']['server_source_sha256_at_startup'] == hashlib.sha256(server_path.read_bytes()).hexdigest()
+    implementation_path = server_path.parent / 'rag' / 'server.py'
+    assert report['runtime']['server_source_sha256_at_startup'] == hashlib.sha256(implementation_path.read_bytes()).hexdigest()
     assert not (tmp_path / 'config.json').exists()
 
 
@@ -106,15 +256,24 @@ def test_malformed_tool_params_do_not_terminate_server(monkeypatch, capsys, para
     assert replies[2]['result'] == {}
 
 
-def test_rag_tool_is_advertised_as_read_only() -> None:
+def test_rag_tool_advertises_saved_run_side_effects() -> None:
     assert _TOOL["name"] == "query_knowledge_base"
     assert _TOOL["annotations"] == {
         "title": "Answer from scoped documents",
-        "readOnlyHint": True,
+        "readOnlyHint": False,
         "destructiveHint": False,
-        "idempotentHint": True,
+        "idempotentHint": False,
         "openWorldHint": True,
     }
+
+
+def test_tool_descriptions_route_content_search_to_query_tool() -> None:
+    # An agent asked to "find X in my files" listed workspaces instead of querying.
+    tools = {tool['name']: tool['description'] for tool in _TOOLS}
+    assert 'files or folders on disk' in tools['query_knowledge_base']
+    assert 'no import' in tools['query_knowledge_base']
+    for name in ('search_workspace', 'get_workspaces'):
+        assert 'query_knowledge_base' in tools[name]
 
 
 def test_rag_tool_teaches_bounded_escalating_search() -> None:

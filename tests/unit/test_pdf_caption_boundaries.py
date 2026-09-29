@@ -13,7 +13,7 @@ def test_pdf_caption_is_separate_without_discarding_diagram_text(label, monkeypa
     class Document(list):
         def close(self):
             pass
-    monkeypatch.setattr(pdf.fitz, 'open', lambda path: Document(document))
+    monkeypatch.setattr(pdf.pymupdf, 'open', lambda path: Document(document))
     text = pdf.extract_pdf_text('example.pdf')
     chunks = chunk_document(text, 'example.pdf', 700, 100)
     assert [c['content'] for c in chunks] == [
@@ -27,7 +27,7 @@ def test_inline_figure_reference_does_not_create_boundary(monkeypatch):
     class Document(list):
         def close(self):
             pass
-    monkeypatch.setattr(pdf.fitz, 'open', lambda path: Document([SimpleNamespace(get_text=lambda: raw)]))
+    monkeypatch.setattr(pdf.pymupdf, 'open', lambda path: Document([SimpleNamespace(get_text=lambda: raw)]))
     assert pdf.extract_pdf_text('example.pdf') == raw
 
 
@@ -37,7 +37,7 @@ def test_caption_does_not_absorb_next_pages_diagram_labels(monkeypatch):
             pass
     pages = [SimpleNamespace(get_text=lambda: 'Figure 4: Caption.\n'),
              SimpleNamespace(get_text=lambda: 'Next diagram labels.\n')]
-    monkeypatch.setattr(pdf.fitz, 'open', lambda path: Document(pages))
+    monkeypatch.setattr(pdf.pymupdf, 'open', lambda path: Document(pages))
     text = pdf.extract_pdf_text('example.pdf')
     assert text.count('\f') == 1
     assert [c['content'] for c in chunk_document(text, 'example.pdf')] == [

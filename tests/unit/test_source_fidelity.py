@@ -8,6 +8,7 @@ import pytest
 from rag.core import RAGPipelineV2, chunk_document
 from rag.lancedb_backend import LanceDBBackend
 from rag import fetch
+from rag.ingestion import build_documents
 
 
 @pytest.mark.parametrize("separator", ["\n\n", "\n\n\n", "\n  \n"])
@@ -118,3 +119,14 @@ def test_repeated_passages_get_their_own_source_location():
     first, cursor = pipeline._locate_chunk(source, "same words", ".txt", 0)
     second, _ = pipeline._locate_chunk(source, "same words", ".txt", cursor)
     assert (first, second) == ("L1", "L3")
+
+
+def test_ingestion_uses_actual_offsets_for_repeated_long_source(tmp_path):
+    source = tmp_path / "repeated.txt"
+    source.write_text("same words\n" * 150)
+    pipeline = RAGPipelineV2.__new__(RAGPipelineV2)
+    pipeline.config = {"chunk_size": 100, "chunk_overlap": 20}
+    documents = build_documents(pipeline, [str(source)])
+    assert len(documents) > 2
+    assert documents[1]["start_line"] > documents[0]["start_line"]
+    assert documents[2]["start_line"] > documents[1]["start_line"]

@@ -43,11 +43,18 @@ def _get_json(url: str, timeout: float = 1.5, payload: dict | None = None) -> An
         return None
 
 
-def detect_ollama(url: str = "http://localhost:11434") -> dict[str, Any]:
+def detect_ollama(url: str = "http://localhost:11434", *, max_models: int | None = None) -> dict[str, Any]:
+    if max_models is not None and (type(max_models) is not int or max_models < 1):
+        raise ValueError('max_models must be a positive integer.')
     payload = _get_json(f"{url.rstrip('/')}/api/tags")
     if not isinstance(payload, dict):
-        return {"running": False, "embedding_models": []}
-    names = [m.get("name", "") for m in payload.get("models", []) if isinstance(m, dict)]
+        result = {"running": False, "embedding_models": []}
+        return {**result, "truncated": False} if max_models is not None else result
+    names = [m["name"] for m in payload.get("models", []) if isinstance(m, dict)
+             and isinstance(m.get("name"), str) and m["name"]]
+    truncated = max_models is not None and len(names) > max_models
+    if max_models is not None:
+        names = names[:max_models]
     def supports_embedding(name: str) -> bool:
         details = _get_json(f"{url.rstrip('/')}/api/show", payload={"model": name})
         return isinstance(details, dict) and "embedding" in (details.get("capabilities") or [])
@@ -55,7 +62,8 @@ def detect_ollama(url: str = "http://localhost:11434") -> dict[str, Any]:
     with ThreadPoolExecutor(max_workers=4) as pool:
         embedding = [name for name, supported in zip(names, pool.map(supports_embedding, names)) if supported]
     embedding.sort(key=lambda name: next((i for i, p in enumerate(OLLAMA_PREFERENCE) if p in name.lower()), len(OLLAMA_PREFERENCE)))
-    return {"running": True, "embedding_models": embedding}
+    result = {"running": True, "embedding_models": embedding}
+    return {**result, "truncated": truncated} if max_models is not None else result
 
 
 def detect_local_runtimes() -> list[dict[str, Any]]:

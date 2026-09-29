@@ -31,6 +31,7 @@ def test_markdown_citations_survive_search_and_reopening(tmp_path):
         assert result["location"] == "L5-L7"
         assert (result["start_line"], result["end_line"]) == (5, 7)
         assert result["original_content"] in source.read_text()
+        assert source.read_text()[result["start_offset"]:result["end_offset"]] == result["original_content"]
         fetch.reset_pipelines()
 
 

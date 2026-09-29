@@ -13,6 +13,8 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
+from . import tracing
+
 FULL_EXTRA_HINT = (
     "Install the full extra (uv tool install 'ragmcp[full]') or pick another option in `rag setup`."
 )
@@ -85,6 +87,11 @@ class DirectOllamaGPUWrapper:
 
     retry_batch_as_queries = False
 
+    @staticmethod
+    def _reported_input_tokens(payload):
+        count = payload.get('prompt_eval_count')
+        return count if type(count) is int and 0 <= count < 2**53 else None
+
     def __init__(self, model, base_url):
         import requests
 
@@ -113,6 +120,8 @@ class DirectOllamaGPUWrapper:
         # Process in GPU batches of 512
         batch_size = 512
         all_embeddings = []
+        input_tokens = 0
+        usage_complete = True
         for i in range(0, len(texts), batch_size):
             batch = texts[i:i + batch_size]
             resp = self._requests.post(
@@ -122,13 +131,21 @@ class DirectOllamaGPUWrapper:
             )
             if resp.status_code != 200:
                 raise RuntimeError(f"Ollama embedding failed ({resp.status_code}).")
-            embeddings = resp.json().get("embeddings", [])
+            payload = resp.json()
+            embeddings = payload.get("embeddings", [])
             if len(embeddings) != len(batch):
                 raise ValueError("Ollama embedding count does not match input count.")
             if all_embeddings and len(embeddings[0]) != len(all_embeddings[0]):
                 raise ValueError("Ollama embedding dimensions changed between batches.")
             all_embeddings.extend(_validate_vectors(embeddings))
+            count = self._reported_input_tokens(payload)
+            if count is None:
+                usage_complete = False
+            else:
+                input_tokens += count
         self._verify_gpu()
+        if usage_complete and input_tokens < 2**53:
+            tracing.usage({'prompt_tokens': input_tokens})
         return all_embeddings
 
     def embed_query(self, text):
@@ -139,11 +156,15 @@ class DirectOllamaGPUWrapper:
         )
         if resp.status_code != 200:
             raise RuntimeError(f"Ollama query embedding failed ({resp.status_code}).")
-        embeddings = resp.json().get("embeddings", [])
+        payload = resp.json()
+        embeddings = payload.get("embeddings", [])
         if len(embeddings) != 1:
             raise ValueError("Ollama embedding count does not match input count.")
         _validate_vectors(embeddings)
         self._verify_gpu()
+        count = self._reported_input_tokens(payload)
+        if count is not None:
+            tracing.usage({'prompt_tokens': count})
         return embeddings[0]
 
 
@@ -175,11 +196,23 @@ class OpenAICompatibleWrapper:
     def embed_documents(self, texts):
         if not texts:
             return []
-        resp = self._create_with_retry(texts)
+        positions = {text: i for i, text in enumerate(dict.fromkeys(texts))}
+        resp = self._create_with_retry(list(positions))
+        usage = getattr(resp, 'usage', None)
+        if usage is not None:
+            field = usage.get if isinstance(usage, Mapping) else lambda name: getattr(usage, name, None)
+            reported = {name: field(name) for name in (
+                'prompt_tokens', 'completion_tokens', 'cost', 'search_units')}
+            details = field('prompt_tokens_details')
+            if details is not None:
+                cached = details.get('cached_tokens') if isinstance(details, Mapping) else getattr(details, 'cached_tokens', None)
+                reported['prompt_tokens_details'] = {'cached_tokens': cached}
+            tracing.usage(reported)
         items = sorted(resp.data, key=lambda item: item.index)
-        if [item.index for item in items] != list(range(len(texts))):
+        if [item.index for item in items] != list(range(len(positions))):
             raise ValueError("Invalid embedding response: missing or duplicate input indices.")
-        return _validate_vectors([item.embedding for item in items])
+        vectors = _validate_vectors([item.embedding for item in items])
+        return [list(vectors[positions[text]]) for text in texts]
 
     def embed_query(self, text):
         return self.embed_documents([text])[0]
@@ -225,7 +258,10 @@ class FastEmbedReranker:
 
 def api_key_from_environment(base_url: str | None) -> str | None:
     """Keys never have to be copied into the config file: match the endpoint to its usual variable."""
+    from urllib.parse import urlsplit
     host = (base_url or "").lower()
+    if urlsplit(host).hostname in {'localhost', '127.0.0.1', '::1'}:
+        return None
     names = (
         ("OPENROUTER_API_KEY",) if "openrouter" in host
         else ("GEMINI_API_KEY", "GOOGLE_API_KEY") if "googleapis" in host
@@ -250,9 +286,11 @@ def build_embedder(config: Mapping[str, Any], device: str = "cpu"):
         return DirectOllamaGPUWrapper(model_name or "nomic-embed-text", config.get("ollama_url") or "http://localhost:11434")
     if provider == "openai_compatible":
         base_url = config.get("embed_base_url") or None
+        from urllib.parse import urlsplit
+        local = urlsplit(base_url or '').hostname in {'localhost', '127.0.0.1', '::1'}
         return OpenAICompatibleWrapper(
             model_name or "text-embedding-3-small",
-            api_key=config.get("embed_api_key") or api_key_from_environment(base_url),
+            api_key='local' if local else config.get("embed_api_key") or api_key_from_environment(base_url),
             base_url=base_url,
         )
     if provider == "sentencetransformer":
