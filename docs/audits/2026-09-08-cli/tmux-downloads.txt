@@ -1,0 +1,32 @@
+◆ What would you like to do? Choose embedding model
+Looking for embedding models on this machine…
+◆ Which embedding model would you like to use? qwen3-embedding:0.6b · Ollama
+Checking the embedding model...
+Works: 1024 dimensions.
+Saved to /tmp/rag-tmux-ifsy2yyv/config.json
+Embedding: Ollama · qwen3-embedding:0.6b
+◆ Connect a coding agent? Skip
+
+◆ What would you like to do? Choose embedding model
+Looking for embedding models on this machine…
+◆ Which embedding model would you like to use? Choose an API model…
+◆ Which API provider do you use? OpenRouter · key available
+Loading OpenRouter models…
+◆ Which embedding model would you like to use? Back to providers
+◆ Which API provider do you use?
+  ↑/↓ Move   Enter Select   Esc Back
+
+Looking for embedding models on this machine…
+◆ Which embedding model would you like to use? Download a local CPU model…
+Loading the local CPU model catalog…
+◆ Which model would you like to download?
+  ↑/↓ Move   Enter Select   Esc Back
+
+ ❯ BAAI/bge-base-en · download ~0.42 GB                                                                      ^
+   BAAI/bge-base-en-v1.5 · download ~0.21 GB
+   BAAI/bge-large-en-v1.5 · download ~1.2 GB
+   BAAI/bge-small-en · download ~0.13 GB
+   BAAI/bge-small-en-v1.5 · download ~0.067 GB
+   BAAI/bge-small-zh-v1.5 · download ~0.09 GB
+   intfloat/multilingual-e5-large · download ~2.24 GB
+   jinaai/jina-clip-v1 · download ~0.55 GB                                                                   v

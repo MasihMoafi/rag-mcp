@@ -1,0 +1,32 @@
+◆ What would you like to do? Choose embedding model
+Looking for embedding models on this machine…
+◆ Which embedding model would you like to use? qwen3-embedding:0.6b · Ollama
+Checking the embedding model...
+Works: 1024 dimensions.
+Saved to /tmp/rag-tmux-ifsy2yyv/config.json
+Embedding: Ollama · qwen3-embedding:0.6b
+◆ Connect a coding agent? Skip
+
+◆ What would you like to do? Choose embedding model
+Looking for embedding models on this machine…
+◆ Which embedding model would you like to use? Choose an API model…
+◆ Which API provider do you use? OpenRouter · key available
+Loading OpenRouter models…
+◆ Which embedding model would you like to use?
+  ↑/↓ Move   Enter Select   Esc Back
+
+   thenlper/gte-base                                                                                         ^
+   thenlper/gte-large
+   voyageai/voyage-4
+   voyageai/voyage-4-large
+   voyageai/voyage-4-lite
+   voyageai/voyage-code-4
+   voyageai/voyage-multimodal-3.5
+ ❯ Back to providers                                                                                         v
+
+
+
+
+
+
+

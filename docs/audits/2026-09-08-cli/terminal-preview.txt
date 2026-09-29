@@ -1,0 +1,34 @@
+rag · local search for your documents and code
+
+  1) Choose embedding model
+  2) Search a file or folder
+  3) Connect a coding agent (Claude Code or Codex)
+  4) Change settings
+  5) Open Studio
+  6) Check setup
+  7) Quit
+
+Choice [1]: Choose an embedding model
+
+  1) BGE small · English · local CPU
+     BAAI/bge-small-en-v1.5 · downloads about 70 MB
+  2) Multilingual MiniLM · Persian and other languages · local CPU
+     sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2 · about 220 MB
+  3) qwen3-embedding:0.6b · Ollama · already installed  (recommended)
+     Use this model or choose another installed model.
+  4) API · OpenAI, Gemini, OpenRouter or custom endpoint
+     Requires an API key; sends document text to that endpoint.
+  5) Custom local model · sentence-transformers
+     Advanced · requires ragmcp[full] with PyTorch.
+  6) BM25 only · no embedding model
+     No download or account; matches words in your query.
+
+Choice [3]:   1) qwen3-embedding:0.6b
+  2) bge-m3:latest
+  3) embeddinggemma:latest
+  4) Other model or Ollama server
+Model [1]: Checking the embedding model...
+Works: 1024 dimensions.
+Saved to /tmp/rag-cli-audit/terminal-config.json
+Embedding: Ollama · qwen3-embedding:0.6b
+Connect the MCP server to a coding agent now? [codex/claude/skip] [skip]: 

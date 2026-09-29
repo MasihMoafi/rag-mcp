@@ -1,0 +1,102 @@
+[?12l[?25h[?2004h[?1l[?25l[0m[?7l[0m[J[0;1m rag [0m↑/↓ choose · Enter select · Esc back[0m
+[0m › [0;7mChoose embedding model[0m
+[0m   Search a file or folder[0m
+[0m   Connect a coding agent (Claude Code or Codex)[0m
+[0m   Change settings[0m
+[0m   Open Studio[0m
+[0m   Check setup[0m
+[0m   Quit[7D[7A[41C[?7h[0m[?7l[41D[0m[J[0;1m rag [0;1mChoose embedding model[27D[0m
+[J[?7h[0m[?2004l[?12l[?25h[?12l[?25h[?2004h[?1l[?25l[0m[?7l[0m[J[0;1m Embedding model [0m↑/↓ choose · Enter select · Esc back[0m
+[0m   BGE small · English · local CPU[0m
+[0m   Multilingual MiniLM · Persian and other languages · local CPU[0m
+[0m › [0;7mqwen3-embedding:0.6b · Ollama · already installed  (recommended)[0m
+[0m   API · OpenAI, Gemini, OpenRouter or custom endpoint[0m
+[0m   Custom local model · sentence-transformers[0m
+[0m   BM25 only · no embedding model[33D[6A[53C[?7h[0m[?7l[53D[0m[J[0;1m Embedding model [0;1mqwen3-embedding:0.6b · Ollama · already installed  (recommended)[81D[0m
+[J[?7h[0m[?2004l[?12l[?25h[?12l[?25h[?2004h[?1l[?25l[0m[?7l[0m[J[0;1m Ollama model [0m↑/↓ choose · Enter select · Esc back[0m
+[0m › [0;7mqwen3-embedding:0.6b[0m
+[0m   bge-m3:latest[0m
+[0m   embeddinggemma:latest[0m
+[0m   Other · type a model or server…[34D[4A[50C[?7h[0m[?7l[50D[0m[J[0;1m Ollama model [0;1mqwen3-embedding:0.6b[34D[0m
+[J[?7h[0m[?2004l[?12l[?25hChecking the embedding model...
+Works: 1024 dimensions.
+Saved to /tmp/rag-tui-u9m_g4g8/config.json
+Embedding: Ollama · qwen3-embedding:0.6b
+[?12l[?25h[?2004h[?1l[?25l[0m[?7l[0m[J[0;1m Connect a coding agent? [0m↑/↓ choose · Enter select · Esc back[0m
+[0m   Codex[0m
+[0m   Claude Code[0m
+[0m › [0;7mSkip[7D[3A[61C[?7h[0m[?7l[61D[0m[J[0;1m Connect a coding agent? [0;1mSkip[29D[0m
+[J[?7h[0m[?2004l[?12l[?25h
+[?12l[?25h[?2004h[?1l[?25l[0m[?7l[0m[J[0;1m rag [0m↑/↓ choose · Enter select · Esc back[0m
+[0m › [0;7mChoose embedding model[0m
+[0m   Search a file or folder[0m
+[0m   Connect a coding agent (Claude Code or Codex)[0m
+[0m   Change settings[0m
+[0m   Open Studio[0m
+[0m   Check setup[0m
+[0m   Quit[7D[7A[41C[?7h[0m[?7l[41D[0m[J[0;1m rag [0;1mChange settings[20D[0m
+[J[?7h[0m[?2004l[?12l[?25h  Embedding: Ollama · qwen3-embedding:0.6b
+  Passages per query (top): 5
+  Reranker: auto (cross-encoder when sentence-transformers is installed, otherwise off)
+[?12l[?25h[?2004h[?1l[?25l[0m[?7l[0m[J[0;1m Change setting [0m↑/↓ choose · Enter select · Esc back[0m
+[0m › [0;7mResults per query[0m
+[0m   Reranker[0m
+[0m   Embedding model[18D[3A[52C[?7h[0m[?7l[52D[0m[J[0;1m Change setting [0;1mResults per query[33D[0m
+[J[?7h[0m[?2004l[?12l[?25h[?12l[?25h[?2004h[?1l[?25l[0m[?7l[0m[J[0;1m Results per query [0m↑/↓ choose · Enter select · Esc back[0m
+[0m   1[0m
+[0m   3[0m
+[0m › [0;7m5[0m
+[0m   10[0m
+[0m   20[0m
+[0m   Type your own…[17D[6A[55C[?7h[0m[?7l[55D[0m[J[0;1m Results per query [0;1m1[20D[0m
+[J[?7h[0m[?2004l[?12l[?25hEmbedding: Ollama · qwen3-embedding:0.6b
+Passages per query (top): 1
+Reranker: auto (cross-encoder when sentence-transformers is installed, otherwise off)
+
+[?12l[?25h[?2004h[?1l[?25l[0m[?7l[0m[J[0;1m rag [0m↑/↓ choose · Enter select · Esc back[0m
+[0m › [0;7mChoose embedding model[0m
+[0m   Search a file or folder[0m
+[0m   Connect a coding agent (Claude Code or Codex)[0m
+[0m   Change settings[0m
+[0m   Open Studio[0m
+[0m   Check setup[0m
+[0m   Quit[7D[7A[41C[?7h[0m[?7l[41D[0m[J[0;1m rag [0;1mSearch a file or folder[28D[0m
+[J[?7h[0m[?2004l[?12l[?25h[?12l[?25h[?2004h[?1l[?25l[0m[?7l[0m[J[0;1m /tmp/rag-tui-u9m_g4g8 [0m↑/↓ choose · Enter select · Esc back[0m
+[0m › [0;7mSearch this folder[0m
+[0m   ↑ Parent folder[0m
+[0m   config.json[0m
+[0m   notes.txt[0m
+[0m   Back to main menu[0m
+[0m   Type a path…[15D[6A[59C[?7h[0m[?7l[59D[0m[J[0;1m /tmp/rag-tui-u9m_g4g8 [0;1mSearch this folder[41D[0m
+[J[?7h[0m[?2004l[?12l[?25h[?12l[?25h[?2004h[?1l[?25l[0m[?7l[0m[J[0;1m What would you like to find? [0m↑/↓ choose · Enter select · Esc back[0m
+[0m › [0;7mMain topics[0m
+[0m   Dates and deadlines[0m
+[0m   Requirements and obligations[0m
+[0m   Type your own…[17D[4A[66C[?7h[0m[?7l[66D[0m[J[0;1m What would you like to find? [0;1mType your own…[44D[0m
+[J[?7h[0m[?2004l[?12l[?25h[?12l[?25h[?2004h[?1l[?25l[0m[?7l[0m[J[0m?[0;1m What would you like to find?[30D[31C[?7h[0m[?12l[?25h[?25l[?7l[31D[0m[J[0m?[0;1m What would you like to find?[30D[0m
+[J[?7h[0m[?12l[?25h[?2004l[?12l[?25h[?2004h[?1l[?25l[0m[?7l[0m[J[0;1m What would you like to find? [0m↑/↓ choose · Enter select · Esc back[0m
+[0m   Main topics[0m
+[0m   Dates and deadlines[0m
+[0m   Requirements and obligations[0m
+[0m › [0;7mType your own…[17D[4A[66C[?7h[0m[?7l[66D[0m[J[0;1m What would you like to find? [0m↑/↓ choose · Enter select · Esc back[66D[0m
+[J[?7h[0m[?2004l[?12l[?25h
+[?12l[?25h[?2004h[?1l[?25l[0m[?7l[0m[J[0;1m rag [0m↑/↓ choose · Enter select · Esc back[0m
+[0m › [0;7mChoose embedding model[0m
+[0m   Search a file or folder[0m
+[0m   Connect a coding agent (Claude Code or Codex)[0m
+[0m   Change settings[0m
+[0m   Open Studio[0m
+[0m   Check setup[0m
+[0m   Quit[7D[7A[41C[?7h[0m[?7l[41D[0m[J[0;1m rag [0;1mConnect a coding agent (Claude Code or Codex)[50D[0m
+[J[?7h[0m[?2004l[?12l[?25h[?12l[?25h[?2004h[?1l[?25l[0m[?7l[0m[J[0;1m Coding agent [0m↑/↓ choose · Enter select · Esc back[0m
+[0m › [0;7mClaude Code[0m
+[0m   Codex[8D[2A[50C[?7h[0m[?7l[50D[0m[J[0;1m Coding agent [0m↑/↓ choose · Enter select · Esc back[50D[0m
+[J[?7h[0m[?2004l[?12l[?25h
+[?12l[?25h[?2004h[?1l[?25l[0m[?7l[0m[J[0;1m rag [0m↑/↓ choose · Enter select · Esc back[0m
+[0m › [0;7mChoose embedding model[0m
+[0m   Search a file or folder[0m
+[0m   Connect a coding agent (Claude Code or Codex)[0m
+[0m   Change settings[0m
+[0m   Open Studio[0m
+[0m   Check setup[0m
+[0m   Quit[7D[7A[41C[?7h[0m

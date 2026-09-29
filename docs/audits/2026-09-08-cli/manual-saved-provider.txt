@@ -1,0 +1,40 @@
+◆ What would you like to do?
+  ↑/↓ Move   Enter Select   Esc Back
+
+ ❯ Choose embedding model
+   Search a file or folder
+   Connect a coding agent (Claude Code or Codex)
+   Change settings
+   Open Studio
+   Check setup
+   Quit
+◆ What would you like to do? Choose embedding model
+Looking for embedding models on this machine…
+◆ Which embedding model would you like to use? Choose an API model…
+◆ Which API provider do you use? Saved endpoint · http://127.0.0.1:18089/v1
+Loading server models…
+◆ Which API provider do you use? Saved endpoint · http://127.0.0.1:18089/v1
+Loading server models…
+◆ Which embedding model would you like to use? mock-embed-interactive
+Checking the embedding model...
+Works: 8 dimensions.
+Saved to /tmp/rag-manual-fdki60bc/api-config.json
+Embedding: API · mock-embed-interactive
+◆ Connect a coding agent? Skip
+
+◆ What would you like to do? Check setup
+Python 3.13.5 · Codex signed in · Embedding: API · mock-embed-interactive
+Detected: Ollama is running with embedding models: qwen3-embedding:0.6b, bge-m3:latest,
+embeddinggemma:latest
+Detected: API keys in the environment: OpenRouter
+
+◆ What would you like to do?
+  ↑/↓ Move   Enter Select   Esc Back
+
+   Choose embedding model
+   Search a file or folder
+   Connect a coding agent (Claude Code or Codex)
+   Change settings
+   Open Studio
+ ❯ Check setup
+   Quit

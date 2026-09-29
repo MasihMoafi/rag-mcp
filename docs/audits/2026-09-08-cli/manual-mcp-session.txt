@@ -1,0 +1,109 @@
+{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clie
+ntInfo":{"name":"manual-review","version":"1"}}}
+{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2025-06-18","capabilities":{"tools":{"listChanged":false}
+},"serverInfo":{"name":"rag-mcp","version":"0.2.0"}}}
+{"jsonrpc":"2.0","id":2,"method":"tools/list"}
+{"jsonrpc":"2.0","id":2,"result":{"tools":[{"name":"query_knowledge_base","description":"Run local hybrid RAG
+(BM25 + vector + reranking) over a workspace or a supplied file/directory. Use this for broad semantic discove
+ry instead of loading many files into context. Follow retrieved source paths with exact search or file reads t
+o get current line positions.","inputSchema":{"type":"object","properties":{"query":{"type":"string","descript
+ion":"The search query for the knowledge base"},"doc_path":{"type":"string","default":"","description":"Option
+al file or directory to search. Empty uses the configured workspace root."}},"required":["query"],"additionalP
+roperties":false},"annotations":{"title":"Search local knowledge base","readOnlyHint":true,"destructiveHint":f
+alse,"idempotentHint":true,"openWorldHint":false}},{"name":"get_rag_settings","description":"Show the local ra
+g search setup: embedding model, passages per query (top N), reranker, and what this machine has (Ollama model
+s, local runtimes, API keys).","inputSchema":{"type":"object","properties":{},"additionalProperties":false},"a
+nnotations":{"title":"Show rag settings","readOnlyHint":true,"destructiveHint":false,"idempotentHint":true,"op
+enWorldHint":false}},{"name":"set_rag_settings","description":"Change the local rag search setup from plain wo
+rds: passages per query (top), the reranker (off, auto, fastembed or a model name), or the embedding model (gu
+essing where it runs: Ollama, a small local ONNX model, or an API whose key is already in the environment). Ne
+ver pass API keys here; the user enters keys with `rag setup` in a terminal. The next query uses the new setti
+ngs.","inputSchema":{"type":"object","properties":{"top":{"type":"integer","minimum":1,"description":"How many
+ passages a query returns"},"reranker":{"type":"string","description":"off | auto | fastembed | a reranker mod
+el name"},"embedding_model":{"type":"string","description":"Embedding model name, e.g. qwen3-embedding:0.6b or
+ BAAI/bge-small-en-v1.5"},"embedding_provider":{"type":"string","enum":["fastembed","ollama","openai_compatibl
+e","sentencetransformer","none"],"description":"Where the embedding model runs; guessed when omitted"}},"addit
+ionalProperties":false},"annotations":{"title":"Change rag settings","readOnlyHint":false,"destructiveHint":fa
+lse,"idempotentHint":true,"openWorldHint":false}}]}}
+{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"query_knowledge_base","arguments":{"query":"Me
+eting","doc_path":"/tmp/rag-manual-fdki60bc/documents/tiny.txt"}}}
+[RAG V2] Creating new instance for /tmp/rag-manual-fdki60bc/documents/tiny.txt...
+[RAG] About to create RAGPipelineV2...
+[RAG V2] Using compute device: cuda
+[RAG V2] Using ollama embeddings with model: qwen3-embedding:0.6b
+[RAG V2] Using backend: lancedb
+[LanceDB] Opening database at: /tmp/rag-manual-fdki60bc/index/tiny.txt_28d5ab04/lancedb_storage
+[LanceDB] Opened existing table: rag_v2_tiny_txt_28d5ab04 (1 rows)
+[RAG V2] Reranker off.
+[RAG V2] Loading existing database from /tmp/rag-manual-fdki60bc/index/tiny.txt_28d5ab04...
+[RAG V2] Loaded 1 chunks from existing database (lancedb: 1)
+[RAG] V2 initialization complete
+[RAG V2] Searching with query: 'Meeting...' (backend: lancedb)
+[RAG V2] Step 3: LanceDB Vector search...
+[RAG V2] Step 4: LanceDB Tantivy FTS search...
+[RAG V2] Step 5: RRF fusion...
+[RAG V2] Returning 1 unique results
+{"jsonrpc":"2.0","id":3,"result":{"content":[{"type":"text","text":"{\"result\": [{\"id\": \"0\", \"content\":
+ \"Meeting: Sunday.\", \"file_path\": \"\", \"source\": \"/tmp/rag-manual-fdki60bc/documents/tiny.txt\", \"hea
+ding\": \"\", \"start_line\": 0, \"end_line\": 0, \"page_number\": 0, \"original_content\": \"Meeting: Sunday.
+\", \"score\": 0.7601707577705383}]}"}],"isError":false}}
+{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"query_knowledge_base","arguments":{"query":"Me
+eting","doc_path":"/tmp/rag-manual-fdki60bc/documents/tiny.txt"}}}
+[RAG V2] Creating new instance for /tmp/rag-manual-fdki60bc/documents/tiny.txt...
+[RAG] About to create RAGPipelineV2...
+[RAG V2] Using compute device: cuda
+[RAG V2] Using ollama embeddings with model: qwen3-embedding:0.6b
+[RAG V2] Using backend: lancedb
+[LanceDB] Opening database at: /tmp/rag-manual-fdki60bc/index/tiny.txt_28d5ab04/lancedb_storage
+[LanceDB] Opened existing table: rag_v2_tiny_txt_28d5ab04 (1 rows)
+[RAG V2] Reranker off.
+[RAG V2] Creating new database at /tmp/rag-manual-fdki60bc/index/tiny.txt_28d5ab04...
+[LanceDB] Dropped table: rag_v2_tiny_txt_28d5ab04
+[RAG V2] Processing tiny.txt...
+[RAG V2] Indexing 1 chunks...
+[LanceDB] Indexing 1 documents in GPU batches of 512...
+[2026-09-08T10:46:30Z WARN  lance::dataset::write::insert] No existing dataset at /tmp/rag-manual-fdki60bc/ind
+ex/tiny.txt_28d5ab04/lancedb_storage/rag_v2_tiny_txt_28d5ab04.lance, it will be created
+[LanceDB] Created table 'rag_v2_tiny_txt_28d5ab04' with 1 records.
+[LanceDB] Built Tantivy FTS index on 'content' column.
+[RAG V2] Database created with 1 chunks
+[RAG] V2 initialization complete
+[RAG V2] Searching with query: 'Meeting...' (backend: lancedb)
+[RAG V2] Step 3: LanceDB Vector search...
+[RAG V2] Step 4: LanceDB Tantivy FTS search...
+[RAG V2] Step 5: RRF fusion...
+[RAG V2] Returning 1 unique results
+{"jsonrpc":"2.0","id":4,"result":{"content":[{"type":"text","text":"{\"result\": [{\"id\": \"0\", \"content\":
+ \"Meeting: Tuesday.\", \"file_path\": \"\", \"source\": \"/tmp/rag-manual-fdki60bc/documents/tiny.txt\", \"he
+ading\": \"\", \"start_line\": 0, \"end_line\": 0, \"page_number\": 0, \"original_content\": \"Meeting: Tuesda
+y.\", \"score\": 0.747495174407959}]}"}],"isError":false}}
+{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"query_knowledge_base","arguments":{"query":"Me
+eting","doc_path":"/tmp/rag-manual-fdki60bc/documents/empty.txt"}}}
+[RAG V2] Creating new instance for /tmp/rag-manual-fdki60bc/documents/empty.txt...
+[RAG] About to create RAGPipelineV2...
+[RAG V2] Using compute device: cuda
+[RAG V2] Using ollama embeddings with model: qwen3-embedding:0.6b
+[RAG V2] Using backend: lancedb
+[LanceDB] Opening database at: /tmp/rag-manual-fdki60bc/index/empty.txt_0ec037ba/lancedb_storage
+[RAG V2] Reranker off.
+[RAG V2] Creating new database at /tmp/rag-manual-fdki60bc/index/empty.txt_0ec037ba...
+[LanceDB] Clear notice: Table 'rag_v2_empty_txt_0ec037ba' was not found
+[RAG V2] Processing empty.txt...
+[RAG] FATAL ERROR: No readable text found in the selected files.
+Traceback (most recent call last):
+  File "/home/masih/Desktop/p/rag-mcp/rag/fetch.py", line 354, in fetchExternalKnowledgeV2
+    pipeline = get_rag_pipeline_v2(doc_path=doc_path)
+  File "/home/masih/Desktop/p/rag-mcp/rag/fetch.py", line 172, in get_rag_pipeline_v2
+    instance = RAGPipelineV2(config=config)
+  File "/home/masih/Desktop/p/rag-mcp/rag/core.py", line 417, in __init__
+    self._load_or_create_database()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/home/masih/Desktop/p/rag-mcp/rag/core.py", line 483, in _load_or_create_database
+    self._index_documents()
+    ~~~~~~~~~~~~~~~~~~~~~^^
+  File "/home/masih/Desktop/p/rag-mcp/rag/core.py", line 565, in _index_documents
+    raise ValueError("No readable text found in the selected files.")
+ValueError: No readable text found in the selected files.
+{"jsonrpc":"2.0","id":5,"result":{"content":[{"type":"text","text":"{\"error\": \"RAG query failed: No readabl
+e text found in the selected files.\"}"}],"isError":true}}
+

@@ -1,0 +1,32 @@
+
+Looking for embedding models on this machine…
+◆ Which embedding model would you like to use? Download a local CPU model…
+Loading the local CPU model catalog…
+◆ Which model would you like to download?
+  ↑/↓ Move   Enter Select   Esc Back
+
+Looking for embedding models on this machine…
+◆ Which embedding model would you like to use?
+  ↑/↓ Move   Enter Select   Esc Back
+
+
+◆ What would you like to do? Search a file or folder
+◆ /tmp/rag-tmux-ifsy2yyv/documents project.txt
+◆ What would you like to find? Dates and deadlines
+◆ Results per query 5
+Searching project.txt…
+
+1. /tmp/rag-tmux-ifsy2yyv/documents/project.txt
+The Cedar Lantern project launches on Friday.
+All reports must be submitted by Thursday.
+
+◆ What would you like to do?
+  ↑/↓ Move   Enter Select   Esc Back
+
+ ❯ Choose embedding model
+   Search a file or folder
+   Connect a coding agent (Claude Code or Codex)
+   Change settings
+   Open Studio
+   Check setup
+   Quit

@@ -1,0 +1,32 @@
+◆ What would you like to do? Choose embedding model
+Looking for embedding models on this machine…
+◆ Which embedding model would you like to use? qwen3-embedding:0.6b · Ollama
+Checking the embedding model...
+Works: 1024 dimensions.
+Saved to /tmp/rag-tmux-ifsy2yyv/config.json
+Embedding: Ollama · qwen3-embedding:0.6b
+◆ Connect a coding agent?
+  ↑/↓ Move   Enter Select   Esc Back
+
+   Codex
+   Claude Code
+ ❯ Skip
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

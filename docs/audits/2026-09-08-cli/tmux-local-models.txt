@@ -1,0 +1,32 @@
+◆ What would you like to do? Choose embedding model
+Looking for embedding models on this machine…
+◆ Which embedding model would you like to use?
+  ↑/↓ Move   Enter Select   Esc Back
+
+ ❯ qwen3-embedding:0.6b · Ollama
+   bge-m3:latest · Ollama
+   embeddinggemma:latest · Ollama
+   sentence-transformers/all-MiniLM-L6-v2 · local files
+   Choose an API model…
+   Download a local CPU model…
+   Use BM25 only · no model
+   Other model source…
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
