@@ -32,12 +32,11 @@ def run_unified_experiment():
     print("✓ Dedicated NVIDIA GPU Active (CUDA).")
 
     exp_dir = os.path.dirname(os.path.abspath(__file__))
-    data_dir = os.path.join(exp_dir, "data")
-    corpus_dir = os.path.join(data_dir, "corpus")
-    db_dir = os.path.join(data_dir, "lancedb_unified_storage")
-    queries_file = os.path.join(data_dir, "queries_unified.csv")
-    stage1_file = os.path.join(data_dir, "stage1_candidates.json")
-    results_file = os.path.join(data_dir, "results_unified_benchmark.csv")
+    corpus_dir = os.path.join(exp_dir, "corpus")
+    db_dir = os.path.join(exp_dir, "lancedb_unified_storage")
+    queries_file = os.path.join(exp_dir, "queries_unified.csv")
+    stage1_file = os.path.join(exp_dir, "stage1_candidates.json")
+    results_file = os.path.join(exp_dir, "results_unified_benchmark.csv")
 
     doc_files = []
     for root, _, files in os.walk(corpus_dir):
