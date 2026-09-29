@@ -134,6 +134,8 @@ class LanceDBBackend:
                             "location": str(doc.get("location", "")),
                             "start_line": int(doc.get("start_line", 0)),
                             "end_line": int(doc.get("end_line", 0)),
+                            "start_offset": int(doc.get("start_offset", -1)),
+                            "end_offset": int(doc.get("end_offset", -1)),
                             "page_number": int(doc.get("page_number", 0)),
                             "original_content": str(doc.get("original_content", doc.get("content", ""))),
                             "symbols": self._identifier_words(doc.get("content", "")),
@@ -143,7 +145,7 @@ class LanceDBBackend:
                         records.append(record)
                     if schema is None:
                         schema = pa.schema([
-                            (key, pa.int64() if key in {"start_line", "end_line", "page_number"} else pa.string())
+                            (key, pa.int64() if key in {"start_line", "end_line", "start_offset", "end_offset", "page_number"} else pa.string())
                             for key in records[0] if key != "vector"
                         ])
                         if self.embedding_fn is not None:

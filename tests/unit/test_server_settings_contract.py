@@ -6,6 +6,7 @@ import pytest
 
 import server
 from rag import cli, fetch
+from rag.workspaces import WorkspaceStore
 
 
 def test_settings_report_uses_captured_server_identity(monkeypatch):
@@ -33,6 +34,29 @@ def test_mcp_retrieval_error_does_not_echo_provider_payload(monkeypatch, tmp_pat
     assert 'RuntimeError' in output['error']
     assert 'sk-private-example' not in output['error']
     assert 'private document text' not in output['error']
+
+
+def test_mcp_workspace_id_resolves_the_shared_engine_workspace(monkeypatch, tmp_path):
+    import json
+    import types
+
+    root = tmp_path / "workspaces"
+    store = WorkspaceStore(root)
+    store.replace("book", "RAG book", [{
+        "id": "chapter", "name": "chapter.md", "source_type": "markdown", "content": "Cedar Lantern",
+    }])
+    monkeypatch.setenv("RAG_MCP_WORKSPACE_DIR", str(root))
+    paths = []
+    monkeypatch.setattr(server, "_validate_rag_scope", lambda path, extensions=None: paths.append(path) or None)
+    monkeypatch.setattr(
+        server.importlib,
+        "import_module",
+        lambda _name: types.SimpleNamespace(fetchExternalKnowledge=lambda **_kwargs: "Shared answer"),
+    )
+
+    assert json.loads(server.query_knowledge_base("codename?", workspace_id="book")) == {"result": "Shared answer"}
+    assert paths == [store.resolve("book")]
+    assert "error" in json.loads(server.query_knowledge_base("codename?", doc_path=str(tmp_path), workspace_id="book"))
 
 
 def test_multi_part_question_retrieves_facets_but_synthesizes_once(monkeypatch, tmp_path):
@@ -156,6 +180,20 @@ def test_successful_request_publishes_all_settings(monkeypatch, tmp_path):
     reset.assert_called_once_with()
 
 
+def test_staged_mcp_edit_does_not_overwrite_interleaved_cli_change(monkeypatch, tmp_path):
+    monkeypatch.setenv('RAG_MCP_CONFIG', str(tmp_path / 'config.json'))
+    server.user_settings.save_settings({'top_k': '5', 'answer_model': 'old/model'})
+    configure = cli._config_command
+    def interleaved(args, **kwargs):
+        result = configure(args, **kwargs)
+        server.user_settings.update_settings({'answer_model': 'new/cli-model'})
+        return result
+    monkeypatch.setattr(cli, '_config_command', interleaved)
+    with pytest.raises(server.user_settings.SettingsConflict):
+        server._apply_settings({'top': 9})
+    assert server.user_settings.load_settings() == {'top_k': '5', 'answer_model': 'new/cli-model'}
+
+
 def test_setting_order_and_alias_are_preserved(delegation):
     calls, reset = delegation
     result = server._apply_settings({'contextual_retrieval': 'on', 'reranker': 'off', 'top': 3})
@@ -199,3 +237,19 @@ def test_embedding_keeps_probe_and_runs_after_retrieval(delegation):
     assert calls == [('top', '2', None, True, None),
                      ('embedding', 'test', 'ollama', False, cli._probe_embedding)]
     reset.assert_called_once_with()
+
+
+def test_mcp_local_runtime_setting_uses_detected_endpoint(monkeypatch, tmp_path):
+    from rag import detect, settings
+    monkeypatch.setenv('RAG_MCP_CONFIG', str(tmp_path / 'config.json'))
+    settings.update_settings({'embed_api_key': 'private-hosted-key'})
+    monkeypatch.setattr(detect, 'detect_all', lambda *_: {'ollama': {'embedding_models': []},
+        'local_runtimes': [{'label': 'vLLM', 'base_url': 'http://localhost:8000/v1',
+                            'embedding_models': ['local-embedding']}], 'api_keys': []})
+    monkeypatch.setattr(cli, '_probe_embedding', lambda _: 384)
+    result = server._apply_settings({'embedding_model': 'local-embedding',
+                                     'embedding_provider': 'openai_compatible',
+                                     'embedding_runtime': 'vLLM'})
+    assert result['changed'] == ['embedding']
+    assert settings.load_settings()['embed_base_url'] == 'http://localhost:8000/v1'
+    assert settings.load_settings()['embed_api_key'] == ''

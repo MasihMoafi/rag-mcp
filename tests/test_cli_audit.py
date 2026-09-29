@@ -7,16 +7,16 @@ import pytest
 from rag import cli, detect, settings, model_catalog
 
 
-def test_terminal_query_shows_passages_without_transport_json(tmp_path, monkeypatch):
+def test_terminal_query_shows_answer_without_private_evidence_or_transport_json(tmp_path, monkeypatch):
     monkeypatch.setattr("rag.prompts.interactive", lambda *_: True)
     document = tmp_path / "notes.txt"
     document.write_text("The deadline is Friday.")
-    result = json.dumps({"result": [{"content": "The deadline is Friday.", "source": str(document), "score": 0.8}]})
+    result = json.dumps({"result": "The deadline is Friday."})
     output = io.StringIO()
     assert cli.main(["query", "deadline", "--path", str(document)], stdin=io.StringIO(), stdout=output,
                     stderr=io.StringIO(), environ={"RAG_MCP_CONFIG": str(tmp_path / "config.json")},
                     query_fn=lambda *_: result) == 0
-    assert "1. " + str(document) in output.getvalue()
+    assert str(document) not in output.getvalue()
     assert "The deadline is Friday." in output.getvalue()
     assert '"result"' not in output.getvalue()
     assert "score" not in output.getvalue()
@@ -29,15 +29,16 @@ def test_cli_query_errors_have_a_failure_exit_code(tmp_path):
 
 
 def test_mcp_tool_errors_are_reported_as_errors(monkeypatch):
-    import json
     import server
+
+    monkeypatch.setenv("RAG_MCP_TRACE_DIR", "off")
 
     replies = []
     monkeypatch.setattr(server, "_initialized", True)
     monkeypatch.setattr(server, "_result", lambda request_id, result: replies.append(result))
     server._handle_request({"id": 1, "method": "tools/call", "params": {"name": "query_knowledge_base", "arguments": {"query": ""}}})
     assert replies[0]["isError"] is True
-    assert "query must be" in json.loads(replies[0]["content"][0]["text"])["error"]
+    assert replies[0]["content"][0]["text"] == "query must be a non-empty string"
 
 
 @pytest.mark.parametrize("answer", ["0", "-1", "7", "nonsense"])
@@ -102,7 +103,8 @@ def test_companion_startup_links_the_actual_port(command, port):
     server, out, opened = Server(), io.StringIO(), []
     assert cli.main([command, "--port", str(port)], stdout=out, stderr=io.StringIO(), token_factory=lambda: "test-token", server_factory=lambda **_: server, open_url=opened.append) == 0
     suffix = f"&port={port}" if port != 47831 else ""
-    url = f"https://rag.masihmoafi.com/studio#local=test-token{suffix}"
+    studio_origin = "http://127.0.0.1:3000" if command == "studio" else "https://rag.masihmoafi.com"
+    url = f"{studio_origin}/studio#local=test-token{suffix}"
     assert url in out.getvalue()
     assert server.closed
     assert opened == ([url] if command == "studio" else [])
@@ -131,3 +133,25 @@ def test_menu_command_dispatches_to_the_human_ui(monkeypatch):
 def test_cli_keeps_human_ui_and_agent_integrations_out_of_the_dispatcher():
     assert cli._menu.__module__ == "rag.cli_menu"
     assert cli._connect_agent.__module__ == "rag.cli_agents"
+
+
+def test_cli_lists_and_queries_the_same_engine_workspace(tmp_path):
+    from rag.workspaces import WorkspaceStore
+
+    workspace_root = tmp_path / "workspaces"
+    WorkspaceStore(workspace_root).replace("book", "RAG book", [{
+        "id": "chapter", "name": "chapter.md", "source_type": "markdown", "content": "Cedar Lantern",
+    }])
+    environ = {"RAG_MCP_WORKSPACE_DIR": str(workspace_root), "RAG_MCP_CONFIG": str(tmp_path / "config.json")}
+    output = io.StringIO()
+    assert cli.main(["workspaces", "--json"], stdout=output, stderr=io.StringIO(), environ=environ) == 0
+    assert json.loads(output.getvalue())["workspaces"][0]["id"] == "book"
+
+    calls = []
+    assert cli.main(
+        ["query", "codename?", "--workspace", "book", "--format", "json"],
+        stdout=io.StringIO(), stderr=io.StringIO(), environ=environ,
+        query_fn=lambda query, path: calls.append((query, path)) or json.dumps({"result": "Cedar Lantern"}),
+    ) == 0
+    assert calls[0][0] == "codename?"
+    assert Path(calls[0][1]) == WorkspaceStore(workspace_root).resolve("book")

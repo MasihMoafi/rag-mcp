@@ -3,7 +3,7 @@ from . import tracing
 
 import math
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Callable, Dict, List, Tuple
 
 
 def initialize_reranker(self):
@@ -62,7 +62,8 @@ def initialize_reranker(self):
                 print(f"[RAG V2] Using CrossEncoder reranking with model: {reranker_model}")
 
 
-def fuse_rankings(self, vector_results: List[Tuple], bm25_results: List[Tuple], k: int = 60) -> List[Dict]:
+def fuse_rankings(self, vector_results: List[Tuple], bm25_results: List[Tuple], k: int = 60,
+                  on_ranked: Callable[[List[Tuple[Dict, float]]], None] | None = None) -> List[Dict]:
     """Combine ranked evidence using weighted reciprocal rank fusion.
 
     Retain the first document for an ID and its last rank in each input list.
@@ -91,6 +92,8 @@ def fuse_rankings(self, vector_results: List[Tuple], bm25_results: List[Tuple], 
 
     # Sort by RRF score (higher is better)
     rrf_results.sort(key=lambda x: x[1], reverse=True)
+    if on_ranked is not None:
+        on_ranked(rrf_results)
     return [doc for doc, score in rrf_results]
 
 def rerank_documents(self, docs: List[Dict], query: str, k: int) -> List[Dict]:
@@ -98,6 +101,8 @@ def rerank_documents(self, docs: List[Dict], query: str, k: int) -> List[Dict]:
     if not docs:
         return docs
     if len(docs) < 2 and self.reranker_type != "openrouter":
+        tracing.annotate(skipped_reason='too_few_candidates', score_kind='retained_source')
+        tracing.passages('selected', docs)
         return docs
 
     try:
@@ -164,10 +169,13 @@ def rerank_documents(self, docs: List[Dict], query: str, k: int) -> List[Dict]:
 
         if len(scores) != len(docs) or not all(math.isfinite(score) for score in scores):
             raise ValueError("Reranker must return one finite score per passage")
+        scores = [float(score) for score in scores]
 
         # Sort documents by score (higher is better)
         ranked = sorted(zip(docs, scores), key=lambda x: x[1], reverse=True)
         tracing.passages('ranked', [dict(doc, score=score) for doc, score in ranked])
+        tracing.annotate(score_kind='reranker')
+        tracing.passages('selected', [dict(doc, score=score) for doc, score in ranked[:k]])
 
         return [doc for doc, score in ranked[:k]]
 
@@ -175,4 +183,6 @@ def rerank_documents(self, docs: List[Dict], query: str, k: int) -> List[Dict]:
         if self.reranker_type == "openrouter":
             raise
         print(f"[RAG Core] CrossEncoder reranking failed: {type(e).__name__}, falling back to original order")
+        tracing.annotate(skipped_reason='reranker_failed', score_kind='retained_source')
+        tracing.passages('selected', docs[:k])
         return docs[:k]

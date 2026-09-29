@@ -17,6 +17,19 @@ def test_ollama_uses_capabilities_instead_of_model_name(monkeypatch):
     assert detect.detect_ollama()["embedding_models"] == ["my-private-vector-model"]
 
 
+def test_ollama_capability_discovery_can_be_bounded(monkeypatch):
+    checked = []
+    def get(url, **kwargs):
+        if url.endswith('/api/tags'):
+            return {'models': [{'name': f'model-{number}'} for number in range(50)]}
+        checked.append(kwargs['payload']['model'])
+        return {'capabilities': ['embedding']}
+    monkeypatch.setattr(detect, '_get_json', get)
+    result = detect.detect_ollama(max_models=20)
+    assert len(checked) == 20 and len(result['embedding_models']) == 20
+    assert result['truncated'] is True
+
+
 def test_cached_model_requires_local_weights(monkeypatch, tmp_path):
     monkeypatch.setattr(detect.importlib.util, "find_spec", lambda _: object())
     snapshot = tmp_path / "models--owner--private-model" / "snapshots" / "revision"

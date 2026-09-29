@@ -28,6 +28,30 @@ def test_incomplete_synthesis_is_an_error(monkeypatch, reason):
         hosted.synthesize_answer('question', [{'content': 'evidence'}], {})
 
 
+def test_empty_retrieval_abstains_without_claiming_the_corpus_lacks_an_answer(monkeypatch):
+    monkeypatch.setattr(hosted, '_post', lambda *a, **k: pytest.fail('No model call expected'))
+    assert hosted.synthesize_answer('question', [], {}) == "I don't have enough information to answer that question."
+
+
+@pytest.mark.parametrize('cite_sources', [False, True])
+def test_hosted_prompt_scopes_abstention_to_supplied_evidence(monkeypatch, cite_sources):
+    monkeypatch.setenv('OPENROUTER_API_KEY', 'fake')
+    captured = {}
+
+    def response(path, payload, **kwargs):
+        captured.update(payload)
+        return {'choices': [{'finish_reason': 'stop', 'message': {'content': 'No supported answer.'}}]}
+
+    monkeypatch.setattr(hosted, '_post', response)
+    hosted.synthesize_answer('question', [{'content': 'unrelated evidence'}], {'cite_sources': cite_sources})
+    instruction = captured['messages'][0]['content']
+    assert 'indexed material' not in instruction
+    assert 'do not have enough information to answer' in instruction
+    assert 'Topical similarity alone is not evidence' in instruction
+    assert 'Do not cite an abstention' in instruction
+    assert ('Cite supporting passages' in instruction) is cite_sources
+
+
 def test_synthesis_exception_does_not_leak_private_payload(monkeypatch, tmp_path):
     monkeypatch.setenv('RAG_MCP_TRACE_DIR', 'off')
     monkeypatch.setattr(server, '_validate_rag_scope', lambda *a: None)

@@ -9,10 +9,79 @@ from __future__ import annotations
 
 import json
 import os
+import hashlib
+import time
+from contextlib import contextmanager
+from contextvars import ContextVar
 from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import Any, TextIO
 from utils.persistence import write_json_atomic
+
+_query_settings = ContextVar('rag_query_settings', default=None)
+REVISION_UNSET = object()
+
+
+class SettingsConflict(ValueError):
+    """The config changed after a client read or staged it."""
+
+
+@contextmanager
+def locked_settings(environ: Mapping[str, str] | None = None, *, create=True):
+    """Serialize local config writes without a second file beside the config on POSIX."""
+    path = config_path(environ)
+    if create:
+        path.parent.mkdir(parents=True, exist_ok=True)
+    elif not path.parent.is_dir():
+        yield
+        return
+    if os.name != 'posix':
+        from filelock import FileLock, Timeout
+        try:
+            with FileLock(str(path) + '.lock', timeout=5):
+                yield
+        except Timeout as error:
+            raise SettingsConflict('Engine settings are busy. Retry.') from error
+        return
+    import fcntl
+    descriptor = os.open(path.parent, os.O_RDONLY | getattr(os, 'O_DIRECTORY', 0))
+    try:
+        deadline = time.monotonic() + 5
+        while True:
+            try:
+                fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                break
+            except BlockingIOError as error:
+                if time.monotonic() >= deadline:
+                    raise SettingsConflict('Engine settings are busy. Retry.') from error
+                time.sleep(.05)
+        yield
+    finally:
+        os.close(descriptor)
+
+
+def config_revision(environ: Mapping[str, str] | None = None) -> str | None:
+    """Opaque file-identity revision; never hash a saved credential into a public value."""
+    try:
+        info = config_path(environ).stat()
+    except FileNotFoundError:
+        return None
+    identity = f'{info.st_dev}:{info.st_ino}:{info.st_mtime_ns}:{info.st_ctime_ns}:{info.st_size}'
+    return hashlib.sha256(identity.encode()).hexdigest()
+
+
+@contextmanager
+def frozen_settings():
+    """A CLI config change applies to the next run, never halfway through this one."""
+    environ = dict(os.environ)
+    saved = load_settings(environ)
+    values = {**_merged_config(DEFAULTS, ENV_KEYS, str, environ, saved=saved),
+              **_resolved_retrieval_config(environ, saved)}
+    token = _query_settings.set(values)
+    try:
+        yield
+    finally:
+        _query_settings.reset(token)
 
 # Every choice the interactive chooser offers, in display order.
 # Defaults for explicit command-line provider flags; interactive choices use discovery.
@@ -103,15 +172,19 @@ def load_settings(environ: Mapping[str, str] | None = None) -> dict[str, Any]:
 
 def save_settings(settings: Mapping[str, Any], environ: Mapping[str, str] | None = None) -> Path:
     path = config_path(environ)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    write_json_atomic(path, dict(settings))
+    with locked_settings(environ):
+        write_json_atomic(path, dict(settings))
     return path
 
 
-def _merged_config(defaults, env_keys, value_types, environ):
+def _merged_config(defaults, env_keys, value_types, environ, *, saved=None):
+    frozen = _query_settings.get() if environ is None else None
+    if frozen is not None:
+        return {key: frozen[key] for key in defaults}
     environ = os.environ if environ is None else environ
     merged = dict(defaults)
-    saved = load_settings(environ)
+    if saved is None:
+        saved = load_settings(environ)
     for key in merged:
         value = saved.get(key)
         if isinstance(value, value_types) and str(value).strip():
@@ -128,16 +201,43 @@ def embedding_config(environ: Mapping[str, str] | None = None) -> dict[str, str]
     return _merged_config(DEFAULTS, ENV_KEYS, str, environ)
 
 
+def _resolved_retrieval_config(environ: Mapping[str, str], saved: Mapping[str, Any]) -> dict[str, str]:
+    config = _merged_config(RETRIEVAL_DEFAULTS, RETRIEVAL_ENV, (str, int), environ, saved=saved)
+    explicit = (str(saved.get('reranker_type') or '').strip()
+                or environ.get(RETRIEVAL_ENV['reranker_type'], '').strip())
+    if not explicit:
+        embedding = _merged_config(DEFAULTS, ENV_KEYS, str, environ, saved=saved)
+        has_key = (environ.get('OPENROUTER_API_KEY', '').strip()
+                   or (embedding['embed_api_key'].strip()
+                       if 'openrouter.ai' in embedding['embed_base_url'].lower() else ''))
+        if not has_key:
+            config['reranker_type'] = 'off'
+    if config['reranker_type'] in {'disabled', 'none', 'off'}:
+        config['reranker_model'] = ''
+    return config
+
+
 def retrieval_config(environ: Mapping[str, str] | None = None) -> dict[str, str]:
     """top_k / reranker: defaults, then the saved file, then RAG_MCP_* overrides."""
-    return _merged_config(RETRIEVAL_DEFAULTS, RETRIEVAL_ENV, (str, int), environ)
+    if environ is None and _query_settings.get() is not None:
+        return _merged_config(RETRIEVAL_DEFAULTS, RETRIEVAL_ENV, (str, int), environ)
+    environ = os.environ if environ is None else environ
+    return _resolved_retrieval_config(environ, load_settings(environ))
 
 
-def update_settings(changes: Mapping[str, str], environ: Mapping[str, str] | None = None) -> Path:
+def update_settings(changes: Mapping[str, str], environ: Mapping[str, str] | None = None, *,
+                    expected_data: Mapping[str, Any] | None = None,
+                    expected_revision=REVISION_UNSET) -> Path:
     """Change a few keys and keep everything else in the file."""
-    data = load_settings(environ)
-    data.update({key: str(value) for key, value in changes.items()})
-    return save_settings(data, environ)
+    path = config_path(environ)
+    with locked_settings(environ):
+        data = load_settings(environ)
+        if ((expected_data is not None and data != expected_data)
+                or (expected_revision is not REVISION_UNSET and config_revision(environ) != expected_revision)):
+            raise SettingsConflict('Engine settings changed. Reload before saving.')
+        data.update({key: str(value) for key, value in changes.items()})
+        write_json_atomic(path, data)
+    return path
 
 
 def describe_reranker(config: Mapping[str, str]) -> str:

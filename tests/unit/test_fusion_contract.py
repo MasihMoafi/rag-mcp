@@ -53,3 +53,20 @@ def test_missing_ids_use_object_identity_not_content():
 
 def test_empty_results():
     assert fuse([], []) == []
+
+
+def test_observed_fusion_scores_are_actual_rrf_without_mutating_documents():
+    pipeline = RAGPipelineV2.__new__(RAGPipelineV2)
+    pipeline.config = {}
+    first = {"id": "first", "score": 8.6}
+    second = {"id": "second", "score": 14.2}
+    observed = []
+    result = pipeline._rrf_fusion(
+        [(first, 0.4), (second, 0.3)], [(first, 8.6)],
+        on_ranked=lambda ranked: observed.extend(ranked),
+    )
+    assert result == [first, second]
+    assert result[0] is first and result[1] is second
+    assert observed == [(first, 2 / 61), (second, 1 / 62)]
+    assert first == {"id": "first", "score": 8.6}
+    assert second == {"id": "second", "score": 14.2}

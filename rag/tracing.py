@@ -19,10 +19,44 @@ from filelock import FileLock
 
 _trace = ContextVar('rag_trace', default=None)
 _parent = ContextVar('rag_span', default=None)
+_passage_observer = ContextVar('rag_passage_observer', default=None)
+_cancellation = ContextVar('rag_cancellation', default=None)
 _health_lock = Lock()
 _dropped = 0
 _MAX_BYTES = 100 * 1024 * 1024
 _MAX_AGE = 7 * 24 * 3600
+
+
+class RunCancelled(BaseException):
+    """Cooperative cancellation; must not become a provider failure or fallback."""
+
+
+@contextmanager
+def execution_context(observer, cancelled=None):
+    observation_token = _passage_observer.set(observer)
+    cancellation_token = _cancellation.set(cancelled)
+    try:
+        yield
+    finally:
+        _passage_observer.reset(observation_token)
+        _cancellation.reset(cancellation_token)
+
+
+def checkpoint():
+    cancelled = _cancellation.get()
+    if cancelled is not None and cancelled.is_set():
+        raise RunCancelled()
+
+
+def current_id():
+    trace = _trace.get()
+    return trace['trace_id'] if trace else None
+
+
+def fail_current():
+    current = _parent.get()
+    if current is not None:
+        current['status'] = 'error'
 
 
 def _directory():
@@ -62,6 +96,9 @@ def identity(value):
 
 
 def passages(name, documents):
+    observer = _passage_observer.get()
+    if observer is not None:
+        observer(name, documents)
     trace = _trace.get()
     if trace is None:
         return
@@ -104,7 +141,9 @@ def usage(value):
 def span(operation, **attributes):
     trace = _trace.get()
     if trace is None:
+        checkpoint()
         yield
+        checkpoint()
         return
     parent = _parent.get()
     record = {'span_id': uuid.uuid4().hex, 'parent_id': parent['span_id'] if parent else None,
@@ -115,7 +154,9 @@ def span(operation, **attributes):
     token = _parent.set(record)
     started = time.monotonic()
     try:
+        checkpoint()
         yield
+        checkpoint()
     except BaseException as error:
         record['status'] = 'error' if isinstance(error, Exception) else 'cancelled'
         # Exception class only, never exception text/provider bodies.
@@ -171,13 +212,15 @@ def _persist(directory, record):
 
 
 @contextmanager
-def request_trace():
+def request_trace(trace_id=None):
     global _dropped
     directory = _directory()
     if directory is None or _trace.get() is not None:
         yield
         return
-    record = {'schema_version': 1, 'trace_id': uuid.uuid4().hex,
+    if trace_id is not None and not re.fullmatch(r'[0-9a-f]{32}', trace_id):
+        raise ValueError('Invalid run id')
+    record = {'schema_version': 1, 'trace_id': trace_id or uuid.uuid4().hex,
               'capture_content': os.environ.get('RAG_MCP_TRACE_CONTENT') == '1',
               'identity_scope': 'request', 'spans': [], '_key': secrets.token_bytes(32)}
     if record['capture_content']:

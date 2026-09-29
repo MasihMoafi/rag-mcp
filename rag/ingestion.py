@@ -6,7 +6,7 @@ import sys
 from typing import Dict, List
 from utils.persistence import write_json_atomic
 
-from .chunking import chunk_document
+from .chunking import chunk_document_spans
 from .contextual_retrieval import select_document_context
 from .formats import INDEXABLE_EXTENSIONS
 from .index_lifecycle import RebuildRequired
@@ -106,7 +106,7 @@ def build_documents(self, files_to_process):
         print(f"[RAG V2] Processing {os.path.basename(file_path)}...")
 
         with tracing.span('ingestion.chunk', source_id=tracing.identity(file_path)):
-            chunks = chunk_document(
+            chunks = chunk_document_spans(
                 full_content,
                 file_path=file_path,
                 chunk_size=self.config.get("chunk_size"),
@@ -116,11 +116,10 @@ def build_documents(self, files_to_process):
 
         ext = os.path.splitext(file_path)[1].lower()
         raw_chunks = [item["content"].replace("\f", " ") for item in chunks]
-        search_from = 0
         for i, item in enumerate(chunks):
             chunk = item["content"]
             if chunk.strip():
-                location, search_from = self._locate_chunk(full_content, chunk, ext, search_from)
+                location, _ = self._locate_chunk(full_content, chunk, ext, item["start_offset"])
                 clean_chunk = raw_chunks[i]
 
                 document_context = full_content
@@ -145,6 +144,8 @@ def build_documents(self, files_to_process):
                     "end_line": int(location.rsplit("L", 1)[1]) if location.startswith("L") else 0,
                     "page_number": int(location[2:].split("-")[0]) if location.startswith("p.") else 0,
                     "heading": item["heading"],
+                    "start_offset": item["start_offset"],
+                    "end_offset": item["end_offset"],
                     "chunk_id": i,
                     "id": f"{os.path.realpath(file_path)}::chunk:{i}"
                 }

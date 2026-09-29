@@ -8,6 +8,7 @@ import pytest
 
 import server
 from rag import core, fetch, openrouter_pipeline
+from rag.trace_reader import read_trace
 
 
 @pytest.fixture
@@ -63,8 +64,24 @@ def test_real_pipeline_trace_matches_synthesis_and_refresh(pipeline, monkeypatch
         assert operation in spans
     assert spans['query']['status'] == 'success'
     assert spans['index.lookup']['attributes']['cache_state'] == 'build'
+    assert spans['retrieval.dense']['attributes']['backend'] == 'lancedb'
+    assert spans['retrieval.dense']['attributes']['distance_metric'] == 'cosine'
+    fusion = spans['retrieval.rrf']['attributes']
+    assert fusion['score_kind'] == 'rrf'
+    assert fusion['candidates'][0]['score'] == pytest.approx(1 / 61)
+    public = read_trace(first['trace_id'], directory=directory)
+    public_fusion = next(span['attributes'] for span in public['spans'] if span['operation'] == 'retrieval.rrf')
+    assert public_fusion['score_kind'] == 'rrf'
+    assert public_fusion['candidates'][0]['score'] == pytest.approx(1 / 61)
     selected = spans['selection.rerank']['attributes']['selected']
-    assert spans['synthesis']['attributes']['selected'] == selected
+    assert spans['selection.rerank']['attributes']['score_kind'] == 'reranker'
+    assert selected[0]['score'] == pytest.approx(1.0)
+    public_rerank = next(span['attributes'] for span in public['spans'] if span['operation'] == 'selection.rerank')
+    assert public_rerank['score_kind'] == 'reranker'
+    assert public_rerank['selected'] == selected
+    synthesis = spans['synthesis']['attributes']
+    assert synthesis['score_kind'] == 'retained_source'
+    assert [(row['id'], row['rank']) for row in synthesis['selected']] == [(row['id'], row['rank']) for row in selected]
     assert spans['synthesis']['attributes']['usage']['input_tokens'] == 40
     assert spans['rerank.provider']['attributes']['usage']['cost_usd'] == 0.002
     assert 'private-' not in first_path.read_text()
@@ -106,12 +123,21 @@ def test_warm_requests_and_parallel_readers_keep_complete_traces(pipeline):
     sequential = [query(i) for i in range(30)]
     with ThreadPoolExecutor(max_workers=4) as pool:
         parallel = list(pool.map(query, range(30)))
-    assert sequential + parallel == [{'result': 'Friday.'}] * 60
+    assert sequential == [{'result': 'Friday.'}] * 30
+    assert all(value == {'result': 'Friday.'} or 'Another engine query is running' in value.get('error', '') for value in parallel)
     records = [json.loads(path.read_text()) for path in directory.glob('trace-*.json')]
     assert len(records) == 61
     assert len({r['trace_id'] for r in records}) == 61
     for record in records:
+        if record['spans'][0]['status'] == 'error':
+            assert record['spans'][0]['error_class'] == 'Timeout'
+            assert record['accounting']['reported_cost_subtotal_usd'] is None
+            continue
         assert record['spans'][0]['status'] == 'success'
         assert record['accounting']['reported_cost_subtotal_usd'] == .0021
         spans = {s['operation']: s for s in record['spans']}
-        assert spans['selection.rerank']['attributes']['selected'] == spans['synthesis']['attributes']['selected']
+        rerank = spans['selection.rerank']['attributes']
+        synthesis = spans['synthesis']['attributes']
+        assert rerank['score_kind'] == 'reranker'
+        assert synthesis['score_kind'] == 'retained_source'
+        assert [(row['id'], row['rank']) for row in rerank['selected']] == [(row['id'], row['rank']) for row in synthesis['selected']]
