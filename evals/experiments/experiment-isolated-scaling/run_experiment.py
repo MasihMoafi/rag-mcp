@@ -25,40 +25,36 @@ from rag.core import RAGPipelineV2
 DOMAINS = [
     {
         "name": "attention",
-        "docs": ["evals/experiments/experiment-isolated-scaling/data/attention/att.pdf"],
-        "queries": "evals/experiments/experiment-isolated-scaling/data/attention/queries.csv",
+        "docs": ["evals/datasets/attention/att.pdf"],
+        "queries": "evals/datasets/attention/queries.csv",
         "q_col": "Q: The Question",
         "a_col": "Exact Answer"
     },
     {
         "name": "brain-and-behavior",
-        "docs": ["evals/experiments/experiment-isolated-scaling/data/brain-and-behavior/brain_and_behavior.pdf"],
-        "queries": "evals/experiments/experiment-isolated-scaling/data/brain-and-behavior/queries.csv",
+        "docs": ["evals/datasets/brain-and-behavior/brain_and_behavior.pdf"],
+        "queries": "evals/datasets/brain-and-behavior/queries.csv",
         "q_col": "Q: The Question",
         "a_col": "Exact Answer"
     },
     {
         "name": "napoleon",
-        "docs": ["evals/experiments/experiment-isolated-scaling/data/napoleon/Napoleon.pdf"],
-        "queries": "evals/experiments/experiment-isolated-scaling/data/napoleon/queries.csv",
+        "docs": ["evals/datasets/napoleon/Napoleon.pdf"],
+        "queries": "evals/datasets/napoleon/queries.csv",
         "q_col": "Question",
         "a_col": "Answer"
     },
     {
         "name": "fire-and-blood",
-        "docs": ["evals/experiments/experiment-isolated-scaling/data/fire-and-blood/Fire And Blood_George.R.R.Martin_furfalling.ir.pdf"],
-        "queries": "evals/experiments/experiment-isolated-scaling/data/fire-and-blood/queries.csv",
+        "docs": ["evals/datasets/fire-and-blood/Fire And Blood_George.R.R.Martin_furfalling.ir.pdf"],
+        "queries": "evals/datasets/fire-and-blood/queries.csv",
         "q_col": "Q: The Question",
         "a_col": "Answer"
     },
     {
         "name": "mixed-codebase",
-        "docs": [
-            "evals/experiments/experiment-isolated-scaling/data/mixed-codebase/python",
-            "evals/experiments/experiment-isolated-scaling/data/mixed-codebase/rust",
-            "evals/experiments/experiment-isolated-scaling/data/mixed-codebase/notebook"
-        ],
-        "queries": "evals/experiments/experiment-isolated-scaling/data/mixed-codebase/queries.csv",
+        "docs": ["evals/datasets/mixed-codebase/python", "evals/datasets/mixed-codebase/rust", "evals/datasets/mixed-codebase/notebook"],
+        "queries": "evals/datasets/mixed-codebase/queries.csv",
         "q_col": "Question",
         "a_col": "Expected_Answer"
     }
