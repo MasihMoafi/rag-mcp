@@ -1,0 +1,16 @@
+{
+  "decision_question": "Does the configured OpenRouter Qwen3 Embedding 4B recover the preregistered chapter-six paraphrase anchor in the top five where cached BGE small failed?",
+  "source_name": "6. Evaluating Your RAG Application _ Hands-On RAG for Production.md",
+  "source_sha256": "e5448f58e2df97ee69ce401a1f1bdce23fd782c7db6fe086245bbc9f5fe924fa",
+  "source_bytes": 79909,
+  "query": "What does the text say about balancing finding all useful documents against keeping returned documents relevant?",
+  "anchor": "precision focuses on the quality of what was found",
+  "embedding_provider": "openai_compatible",
+  "embedding_model": "qwen/qwen3-embedding-4b",
+  "embedding_endpoint": "https://openrouter.ai/api/v1",
+  "fixed_conditions": "Same 148-chunk chapter fixture and query, 50 candidate passages, five final passages, cosine distance, equal-weight RRF k=60, contextual retrieval off, reranker off, no answer generation.",
+  "baseline": "Cached BGE small v1.5 placed the anchor outside dense top 50 and at fused rank 43. BM25-only missed it in top five.",
+  "success": "Exact anchor within the fused top five, successful trace, no answer generation, <=90 seconds and <=8 GiB virtual memory.",
+  "cost_scope": "One chapter indexing plus one query through the company OpenRouter key; no full book. Published price checked 2026-09-23: $0.02 per million input tokens at https://openrouter.ai/qwen/qwen3-embedding-4b.",
+  "limitations": "One question on one chapter is a go/no-go result, not a quality estimate or answer-grounding check."
+}

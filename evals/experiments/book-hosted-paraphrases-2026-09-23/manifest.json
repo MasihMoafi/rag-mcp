@@ -1,0 +1,21 @@
+{
+  "decision_question": "Does OpenRouter Qwen3 Embedding 4B recover at least three of four preregistered paraphrase anchors from the full nine-chapter book in the top five?",
+  "source_directory": "/home/masih/Desktop/books/rag",
+  "source_filter": "top-level Markdown chapters only",
+  "source_count": 9,
+  "source_bytes": 477021,
+  "aggregate_source_sha256": "2da1ed67ae230992ab2688ccde904e9226b049658d63c5f04b294db1a3426d3e",
+  "expected_chunk_count": 884,
+  "embedding_model": "qwen/qwen3-embedding-4b",
+  "embedding_endpoint": "https://openrouter.ai/api/v1",
+  "settings": "50 retrieval candidates, five final passages, equal-weight RRF k=60, reranker off, contextual retrieval off, no answer generation",
+  "baseline": "On the same nine chapters, BM25-only retrieval found one of four exact anchors in the top five.",
+  "success": "At least three of four exact anchors in the fused top five; all four runs succeed; no answer generation; <=180 seconds and <=8 GiB virtual memory.",
+  "questions": [
+    {"query": "What does the text say about balancing finding all useful documents against keeping returned documents relevant?", "chapter": "6.", "anchor": "precision focuses on the quality of what was found"},
+    {"query": "Why repeat some material where consecutive text segments meet?", "chapter": "2.", "anchor": "preserving local context across boundaries"},
+    {"query": "How do systems turn pictures and speech into material that ordinary text search can use?", "chapter": "8.", "anchor": "translate non-text data into text-based structured representations"},
+    {"query": "At what point is the extra engineering burden of graph-based knowledge worthwhile?", "chapter": "9.", "anchor": "materially affects business outcomes"}
+  ],
+  "limitations": "Four source-anchored questions from one book are an illustrative regression, not an estimate of general retrieval or answer quality."
+}

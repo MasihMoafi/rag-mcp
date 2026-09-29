@@ -1,0 +1,26 @@
+{
+  "decision_question": "Exploratory clarification: for a specifically temporal past-versus-current query, do the retrieved five passages contain the temporal-blurring explanation and does the answer stay within that evidence?",
+  "source_directory": "/home/masih/Desktop/books/rag",
+  "aggregate_source_sha256": "2da1ed67ae230992ab2688ccde904e9226b049658d63c5f04b294db1a3426d3e",
+  "source_count": 9,
+  "source_bytes": 477021,
+  "expected_chunk_count": 884,
+  "workspace_id": "book-hosted",
+  "embedding_model": "qwen/qwen3-embedding-4b",
+  "embedding_endpoint": "https://openrouter.ai/api/v1",
+  "answer_model": "deepseek/deepseek-v4.1-flash",
+  "settings": "50 lexical and dense candidates, equal-weight RRF k=60, five final passages, reranker off, contextual retrieval off, answer max 240 tokens, cite sources as Studio",
+  "resource_limit": "<=120 seconds total, <=8 GiB virtual memory, two low-priority CPU cores, no local Ollama",
+  "questions": [
+    {
+      "id": "9a-temporal",
+      "chapter": "9",
+      "query": "Why might semantic embeddings retrieve current information when someone asks for facts as of a past date?",
+      "anchor": "embeddings tend to blur together past and present information",
+      "expectation": "answer_if_supported_else_abstain",
+      "manual_check": "Do not use the 2014 movie multi-hop passage as evidence of past-versus-current blurring."
+    }
+  ],
+  "success": "Answer with a passage that supports past-versus-current blurring if retrieved, otherwise abstain without citation; run within the same caps.",
+  "limitations": "Exploratory rewrite after the original 9a wording allowed a separate supported multi-hop answer; not an independent holdout."
+}

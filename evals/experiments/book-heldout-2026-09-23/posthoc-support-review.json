@@ -1,0 +1,64 @@
+{
+  "review_type": "Agent passage review after exact-anchor scoring; exploratory, not preregistered",
+  "scope": "Seven questions missing the exact anchor from at least one ranking's top five. All other questions were not manually re-judged.",
+  "rubric": "Does the retained top-five passage set contain enough text to answer the specific question? Topic overlap alone is insufficient.",
+  "rows": [
+    {
+      "id": "1b",
+      "lexical_support": true,
+      "hybrid_support": true,
+      "lexical_ranks": [1],
+      "hybrid_ranks": [1],
+      "reason": "The chapter-one passage explains that retrieval runs first and the generation step uses retrieved information with the query."
+    },
+    {
+      "id": "3a",
+      "lexical_support": true,
+      "hybrid_support": true,
+      "lexical_ranks": [1, 5],
+      "hybrid_ranks": [1, 3],
+      "reason": "The chapter-three passages describe quick candidate narrowing followed by more precise relevance assessment."
+    },
+    {
+      "id": "4a",
+      "lexical_support": true,
+      "hybrid_support": true,
+      "lexical_ranks": [1],
+      "hybrid_ranks": [3],
+      "reason": "The retrieved production KPI table gives sample mean and median latency targets of about four to five seconds, versus slower prototype values. The table explicitly says these are illustrative."
+    },
+    {
+      "id": "4b",
+      "lexical_support": true,
+      "hybrid_support": true,
+      "lexical_ranks": [3],
+      "hybrid_ranks": [1],
+      "reason": "The retrieved failure-analysis passage says to collect thumbs-down feedback and review bad outputs to find and fix causes."
+    },
+    {
+      "id": "8a",
+      "lexical_support": false,
+      "hybrid_support": true,
+      "lexical_ranks": [],
+      "hybrid_ranks": [5],
+      "reason": "The hybrid passage explicitly connects scans and handwriting with managed OCR services. The lexical top five did not contain this answer."
+    },
+    {
+      "id": "9a",
+      "lexical_support": false,
+      "hybrid_support": false,
+      "lexical_ranks": [],
+      "hybrid_ranks": [],
+      "reason": "The retained passages discuss similarity, multi-hop reasoning, and other topics, but do not explain why embeddings blur past and present for date-specific facts."
+    },
+    {
+      "id": "9b",
+      "lexical_support": false,
+      "hybrid_support": false,
+      "lexical_ranks": [],
+      "hybrid_ranks": [],
+      "reason": "The retained passages discuss entity linking and graph maintenance, but do not say to flag uncertain entity matches for expert review."
+    }
+  ],
+  "limit": "Single-agent judgment, no blinded second reviewer, and anchor-positive passages were not manually re-judged. Do not treat these labels as a validated relevance benchmark."
+}

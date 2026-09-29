@@ -1,0 +1,204 @@
+{
+  "decision_question": "On 18 new source-anchored book questions, does adding OpenRouter Qwen3 Embedding 4B with equal-weight RRF materially improve exact-anchor hit@5 over the same index’s lexical-only ranking?",
+  "comparison": "same 884-chunk published index and Tantivy FTS, lexical-only top five versus dense-plus-lexical RRF top five; Qwen vector index already published; no reranker, contextual retrieval, or answer generation",
+  "decision_rule": "Further explore hosted hybrid for this book only if hybrid gains at least four net top-five hits over lexical-only, has no more than two per-question regressions, all 18 queries complete, and runtime stays within 240 seconds and 8 GiB virtual memory on two low-priority CPU cores. This cannot authorize a global default change.",
+  "source_directory": "/home/masih/Desktop/books/rag",
+  "source_count": 9,
+  "source_bytes": 477021,
+  "aggregate_source_sha256": "2da1ed67ae230992ab2688ccde904e9226b049658d63c5f04b294db1a3426d3e",
+  "sources": [
+    {
+      "chapter": "1",
+      "name": "1. Introduction to Retrieval-Augmented Generation (RAG) _ Hands-On RAG for Production.md",
+      "bytes": 8560,
+      "sha256": "2d331a2988b94092ac73beadc3c197fbd804fbc2f7e17384a530f5c96082090c"
+    },
+    {
+      "chapter": "10",
+      "name": "10. The Future of RAG _ Hands-On RAG for Production.md",
+      "bytes": 22730,
+      "sha256": "f1b6c7bd2c313729d603553b356cf76091acb8a7903b63ced1074f2581142ee9"
+    },
+    {
+      "chapter": "2",
+      "name": "2. The Base RAG Stack _ Hands-On RAG for Production.md",
+      "bytes": 76766,
+      "sha256": "1a5a90ba2af7de557b9d7fcef7763a552cb6678c15a77c6653e927e57337cc35"
+    },
+    {
+      "chapter": "3",
+      "name": "3. Scaling Your RAG Stack _ Hands-On RAG for Production.md",
+      "bytes": 96379,
+      "sha256": "813479c1761472c242a1a01a73957ca3477490246489918e2d812e1a5482941a"
+    },
+    {
+      "chapter": "4",
+      "name": "4. Deploying RAG to Production _ Hands-On RAG for Production.md",
+      "bytes": 64768,
+      "sha256": "2284cc630394f6db619d67e4fd8dfc957b546701f519e395c6a68f9449fb8a12"
+    },
+    {
+      "chapter": "5",
+      "name": "5. The RAG Platform _ Hands-On RAG for Production.md",
+      "bytes": 34946,
+      "sha256": "70ae6f8b8fbe3b9af453e3a62f240e7861dc1cdbd66b7dd03e32ab05fe9da8a9"
+    },
+    {
+      "chapter": "6",
+      "name": "6. Evaluating Your RAG Application _ Hands-On RAG for Production.md",
+      "bytes": 79909,
+      "sha256": "e5448f58e2df97ee69ce401a1f1bdce23fd782c7db6fe086245bbc9f5fe924fa"
+    },
+    {
+      "chapter": "8",
+      "name": "8. Multimodal RAG _ Hands-On RAG for Production.md",
+      "bytes": 18750,
+      "sha256": "6ac6a81cd9e6d0a82422dc5b01ef7aa73c6bd9b237f16550ecb7a58e5e0fc2e8"
+    },
+    {
+      "chapter": "9",
+      "name": "9. Knowledge-Enhanced RAG _ Hands-On RAG for Production.md",
+      "bytes": 74213,
+      "sha256": "49f4a2528dde930539959c11c9fa3bcab81e0b876f522da4fe095cfa9d74611e"
+    }
+  ],
+  "expected_chunk_count": 884,
+  "embedding_model": "qwen/qwen3-embedding-4b",
+  "embedding_endpoint": "https://openrouter.ai/api/v1",
+  "candidate_k": 50,
+  "final_k": 5,
+  "rrf_k": 60,
+  "ensemble_weights": [
+    1.0,
+    1.0
+  ],
+  "questions": [
+    {
+      "id": "1a",
+      "chapter": "1",
+      "query": "Why is expanding an LLM’s pretraining corpus insufficient for keeping up with private, changing knowledge?",
+      "anchor": "Increasing the size of training sets is not a viable solution",
+      "anchor_offset": 1658
+    },
+    {
+      "id": "1b",
+      "chapter": "1",
+      "query": "At what point does a RAG system give fetched facts to the language model?",
+      "anchor": "retrieved information is added to the prompt of an LLM",
+      "anchor_offset": 4288
+    },
+    {
+      "id": "10a",
+      "chapter": "10",
+      "query": "How does ColBERT retain finer document detail than one vector per passage?",
+      "anchor": "keep vectors for every token and delay the final embedding computation",
+      "anchor_offset": 2834
+    },
+    {
+      "id": "10b",
+      "chapter": "10",
+      "query": "What can undermine an agent when it searches an external repository in place?",
+      "anchor": "at the mercy of the native retrieval capabilities",
+      "anchor_offset": 8651
+    },
+    {
+      "id": "2a",
+      "chapter": "2",
+      "query": "Why can a PDF parser struggle to recover the document hierarchy?",
+      "anchor": "designed to render the visual appearance of a document, not its logical structure",
+      "anchor_offset": 15572
+    },
+    {
+      "id": "2b",
+      "chapter": "2",
+      "query": "What happens if a text segment is longer than the embedding model can accept?",
+      "anchor": "silently truncate the chunks, causing information loss",
+      "anchor_offset": 54210
+    },
+    {
+      "id": "3a",
+      "chapter": "3",
+      "query": "Why do large-scale retrievers narrow results before a more precise stage?",
+      "anchor": "two distinct phases to optimize both speed and accuracy",
+      "anchor_offset": 32386
+    },
+    {
+      "id": "3b",
+      "chapter": "3",
+      "query": "What should a search input interface help a user communicate clearly?",
+      "anchor": "optimize for user expression",
+      "anchor_offset": 81588
+    },
+    {
+      "id": "4a",
+      "chapter": "4",
+      "query": "What response-time expectation matters when moving a prototype into production?",
+      "anchor": "in the range of a few seconds end-to-end",
+      "anchor_offset": 11183
+    },
+    {
+      "id": "4b",
+      "chapter": "4",
+      "query": "How can live users help identify unsafe or bad answers after launch?",
+      "anchor": "allowing end users to report problematic outputs",
+      "anchor_offset": 33402
+    },
+    {
+      "id": "5a",
+      "chapter": "5",
+      "query": "What infrastructure burden does a managed RAG service take over from developers?",
+      "anchor": "abstracting the infrastructure complexities",
+      "anchor_offset": 2094
+    },
+    {
+      "id": "5b",
+      "chapter": "5",
+      "query": "Why should a team verify whether a prebuilt SaaS connector imports complete records?",
+      "anchor": "A HubSpot connector might only import part of the customer relationship management",
+      "anchor_offset": 17838
+    },
+    {
+      "id": "6a",
+      "chapter": "6",
+      "query": "Which evaluation mode is used to optimize a pipeline before deployment?",
+      "anchor": "Performed during the development cycle",
+      "anchor_offset": 587
+    },
+    {
+      "id": "6b",
+      "chapter": "6",
+      "query": "Which facts in a nugget-based check must an answer include to count as complete?",
+      "anchor": "facts that are considered essential for a comprehensive and correct answer",
+      "anchor_offset": 44677
+    },
+    {
+      "id": "8a",
+      "chapter": "8",
+      "query": "What tooling is suited to extracting text from scans and handwriting?",
+      "anchor": "scanned documents, images, or handwriting, where powerful OCR is required",
+      "anchor_offset": 5911
+    },
+    {
+      "id": "8b",
+      "chapter": "8",
+      "query": "Why can retrieving a table row without its header lead to a wrong answer?",
+      "anchor": "Every subsequent chunk is “headless,”",
+      "anchor_offset": 13815
+    },
+    {
+      "id": "9a",
+      "chapter": "9",
+      "query": "Why can vector similarity confuse a question about a particular historical date?",
+      "anchor": "embeddings tend to blur together past and present information",
+      "anchor_offset": 787
+    },
+    {
+      "id": "9b",
+      "chapter": "9",
+      "query": "What should a graph-building pipeline do when an entity match is uncertain?",
+      "anchor": "when the system’s confidence in a match is low",
+      "anchor_offset": 38935
+    }
+  ],
+  "limitations": "Manually authored from one book after an earlier four-question test but before evaluating these 18 queries; exact-anchor hit is a narrow retrieval measure and does not establish answer grounding or general model quality."
+}

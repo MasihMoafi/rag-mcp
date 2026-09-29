@@ -1,0 +1,13 @@
+{
+  "purpose": "bounded local embedding go/no-go, not a quality estimate",
+  "source_name": "6. Evaluating Your RAG Application _ Hands-On RAG for Production.md",
+  "source_sha256": "e5448f58e2df97ee69ce401a1f1bdce23fd782c7db6fe086245bbc9f5fe924fa",
+  "source_bytes": 79909,
+  "query": "What does the text say about balancing finding all useful documents against keeping returned documents relevant?",
+  "anchor": "precision focuses on the quality of what was found",
+  "success": "exact anchor in top five with no provider/network call, <=90s and <=8 GiB virtual memory",
+  "models": [
+    "BM25 only",
+    "BAAI/bge-small-en-v1.5 hybrid"
+  ]
+}

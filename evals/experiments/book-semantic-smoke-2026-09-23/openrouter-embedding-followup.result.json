@@ -1,0 +1,18 @@
+{
+  "status": "success",
+  "run_id": "efe01837ea844d4080e197df8a285814",
+  "workspace_revision": "1790178570791-7d0498a92ded",
+  "configuration_revision": "e7d079edb9a4e7bc9962569e12032fe917f0881e06862c8ae38a0f51466bfbc9",
+  "passage_count": 5,
+  "anchor_rank": 4,
+  "anchor_offsets": [31674, 32165],
+  "document_count": 148,
+  "embedding_document_input_tokens": 17924,
+  "embedding_query_input_tokens": 18,
+  "provider_reported_cost_usd": 0.00035884,
+  "elapsed_seconds": 15.52,
+  "max_rss_kib": 684976,
+  "trace_capture_content": false,
+  "key_in_process_logs": false,
+  "limitations": "One question and one chapter, retrieval-only; no answer-quality or full-book conclusion."
+}

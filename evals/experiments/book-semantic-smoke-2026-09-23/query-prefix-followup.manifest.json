@@ -1,0 +1,14 @@
+{
+  "decision_question": "Does the BGE small v1.5 recommended query instruction move the preregistered anchor into the top five without rebuilding the existing chapter-six index?",
+  "source_sha256": "e5448f58e2df97ee69ce401a1f1bdce23fd782c7db6fe086245bbc9f5fe924fa",
+  "workspace_revision": "1790178570791-7d0498a92ded",
+  "query": "What does the text say about balancing finding all useful documents against keeping returned documents relevant?",
+  "anchor": "precision focuses on the quality of what was found",
+  "model": "BAAI/bge-small-en-v1.5",
+  "independent_variable": "Dense query embedding is raw query versus recommended instruction plus raw query; lexical query remains unchanged.",
+  "prefix": "Represent this sentence for searching relevant passages: ",
+  "fixed_conditions": "Existing 148-chunk index, cosine distance, 50 dense and lexical candidates, reciprocal rank fusion k=60 with equal weights, no reranker or answer generation.",
+  "baseline": "Raw-query hybrid anchor rank 43 in the saved warm top-50 run; lexical rank 18.",
+  "success": "Prefixed query anchor reaches fused top five with no provider request, no index rebuild, <=30 seconds warm run, and <=1 GiB peak RSS.",
+  "limitations": "One query on one chapter; any improvement is not a general quality estimate."
+}

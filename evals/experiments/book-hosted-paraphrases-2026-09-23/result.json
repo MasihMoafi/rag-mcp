@@ -1,0 +1,63 @@
+{
+  "manifest": "manifest.json",
+  "outcome": "threshold_failed",
+  "cpu_retry": {
+    "workspace_revision": "1790183502926-7ce526d3488d",
+    "runs": [
+      {
+        "run_id": "27ec19ec79b246c488aadbabe3f9e854",
+        "status": "success",
+        "anchor_rank": null,
+        "chapter_rank": 4,
+        "passage_count": 5,
+        "reported_cost_usd": 3.6e-07,
+        "duration_seconds": 15.301
+      },
+      {
+        "run_id": "493da34c012c4bbfb1a27097a33c2754",
+        "status": "success",
+        "anchor_rank": null,
+        "chapter_rank": 1,
+        "passage_count": 5,
+        "reported_cost_usd": 2.2e-07,
+        "duration_seconds": 8.576
+      },
+      {
+        "run_id": "00967a81a2b043279616d2a928cfa079",
+        "status": "success",
+        "anchor_rank": 2,
+        "chapter_rank": 2,
+        "passage_count": 5,
+        "reported_cost_usd": 3.4e-07,
+        "duration_seconds": 8.128
+      },
+      {
+        "run_id": "86f2870b85b6464998c21cdb09ca4af0",
+        "status": "success",
+        "anchor_rank": null,
+        "chapter_rank": 1,
+        "passage_count": 5,
+        "reported_cost_usd": 3e-07,
+        "duration_seconds": 9.796
+      }
+    ],
+    "index_chunks": 884,
+    "elapsed_seconds": 41.817,
+    "anchors_in_top_five": 1,
+    "accepted": false
+  },
+  "cpu_retry_resource": "elapsed=42.97 maxrss_kb=714532",
+  "first_attempt": {
+    "outcome": "aborted_on_third_query",
+    "exit_code": 134,
+    "index_chunks": 884,
+    "resource": "Command terminated by signal 6\nelapsed=25.93 maxrss_kb=758360",
+    "failure": "Rust allocation failed with CUDA selected under 8 GiB virtual-memory cap"
+  },
+  "all_attempts_provider_reported_cost_usd": 0.00133706,
+  "document_embedding_input_tokens": 66763,
+  "trace_count": 6,
+  "content_capture": true,
+  "key_absent_from_process_logs": true,
+  "limitations": "Four exact-anchor paraphrases from one book; no answer generation or grounding evaluation."
+}
