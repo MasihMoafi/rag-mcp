@@ -253,3 +253,26 @@ def test_verified_passages_report_source_lines_but_only_for_the_file_s_own_text(
     assert (projected[0]['start_line'], projected[0]['end_line']) == (2, 3) and 'start_line' not in projected[1]
     # The persisted evidence contract that Studio reads is unchanged.
     assert all('start_line' not in item and 'end_line' not in item for item in result['evidence'])
+
+
+ABSTENTION = "I don't have enough information to answer that question."
+
+
+@pytest.mark.parametrize('scope', ['workspace', 'file'])
+@pytest.mark.parametrize('found, reason', [
+    (0, 'Search found no passages in the selected sources.'),
+    (2, 'Search found 2 passages, but none of them answers the question.'),
+])
+def test_a_refusal_says_why(workspace, monkeypatch, scope, found, reason):
+    from rag import openrouter_pipeline
+    from rag.answer_contract import decode_public_answer
+    source = stored_path(workspace, 'chapter')
+    passages = [{'content': 'Cedar Lantern opens Friday.', 'file_path': str(source)}] * found
+    monkeypatch.setattr(server.importlib, 'import_module', lambda _: types.SimpleNamespace(
+        fetchExternalKnowledge=lambda **kwargs: passages))
+    monkeypatch.setattr(openrouter_pipeline, 'synthesize_answer', lambda *_: ABSTENTION)
+    target = {'workspace_id': 'book'} if scope == 'workspace' else {'doc_path': str(source)}
+    public = json.loads(server.query_knowledge_base('Who owns it?', **target))
+    assert public == {'result': ABSTENTION, 'reason': reason}
+    assert decode_public_answer(json.dumps(public)) == (f'{ABSTENTION}\n{reason}', False)
+    assert decode_public_answer(json.dumps({**public, 'reason': 5}))[1] is True

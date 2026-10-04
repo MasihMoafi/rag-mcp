@@ -18,9 +18,14 @@ def decode_public_answer(response: object) -> tuple[str, bool]:
         return INVALID_PUBLIC_ANSWER, True
     if not isinstance(payload, dict):
         return INVALID_PUBLIC_ANSWER, True
-    if set(payload) == {"result"} and isinstance(payload["result"], str):
+    if set(payload) in ({"result"}, {"result", "reason"}) and isinstance(payload["result"], str) \
+            and isinstance(payload.get("reason", ""), str):
         answer = payload["result"].strip()
-        return (answer, False) if answer else (INVALID_PUBLIC_ANSWER, True)
+        if not answer:
+            return INVALID_PUBLIC_ANSWER, True
+        # A refusal can carry its cause on a second line.
+        reason = payload.get("reason", "").strip()
+        return (f"{answer}\n{reason}" if reason else answer), False
     if set(payload) == {"error"} and isinstance(payload["error"], str):
         error = payload["error"].strip()
         return (error, True) if error else (INVALID_PUBLIC_ANSWER, True)
