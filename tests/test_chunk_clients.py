@@ -47,7 +47,7 @@ def test_cli_and_mcp_read_same_private_chunk_page(tmp_path, monkeypatch):
     assert not replies[-1]["isError"]
     server._handle_request({"id": 2, "method": "tools/call", "params": {"name": "get_workspaces",
                            "arguments": {"workspace_id": "book"}}})
-    assert json.loads(replies[-1]["content"][0]["text"]) == details
+    assert json.loads(replies[-1]["content"][0]["text"]) == {**details, "next_offset": None}  # MCP returns one page.
     server._handle_request({"id": 2, "method": "tools/call", "params": {"name": "get_workspaces",
                            "arguments": {"workspace_id": ""}}})
     assert replies[-1]["isError"]

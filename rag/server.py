@@ -311,8 +311,11 @@ _WORKSPACE_CHUNKS_GET_TOOL = {
 }
 _WORKSPACES_GET_TOOL = {
     'name': 'get_workspaces',
-    'description': 'List shared local workspace IDs, or provide workspace_id to read its revision and source IDs. Returns metadata only, without source text, stored paths, or hashes. It does not search content; to find something in files, use query_knowledge_base.',
-    'inputSchema': {'type': 'object', 'properties': {'workspace_id': {'type': 'string'}},
+    'description': 'List shared local workspace IDs, or provide workspace_id to read its revision and source IDs, 100 sources per page (pass offset=next_offset for more). Returns metadata only, without source text, stored paths, or hashes. It does not search content; to find something in files, use query_knowledge_base.',
+    'inputSchema': {'type': 'object', 'properties': {
+        'workspace_id': {'type': 'string'},
+        'limit': {'type': 'integer', 'minimum': 1, 'maximum': 500, 'description': 'Sources per page, 100 by default'},
+        'offset': {'type': 'integer', 'minimum': 0, 'description': 'First source to return; use next_offset for the next page'}},
                     'additionalProperties': False},
     'annotations': {'title': 'Read shared workspaces', 'readOnlyHint': True, 'destructiveHint': False,
                     'idempotentHint': True, 'openWorldHint': False},
@@ -835,7 +838,8 @@ def _handle_request(message: dict[str, Any]) -> None:
             elif name == _WORKSPACES_GET_TOOL['name']:
                 store = WorkspaceStore()
                 try:
-                    value = store.describe(arguments['workspace_id']) if 'workspace_id' in arguments else {
+                    value = store.describe(arguments['workspace_id'], limit=arguments.get('limit', 100),
+                                           offset=arguments.get('offset', 0)) if 'workspace_id' in arguments else {
                         'schema_version': 1, 'workspaces': store.list_workspaces()}
                     output = json.dumps(value, ensure_ascii=False)
                 except FileNotFoundError:

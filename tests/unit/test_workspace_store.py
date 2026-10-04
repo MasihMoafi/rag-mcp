@@ -106,3 +106,35 @@ def test_two_simultaneous_writers_have_exactly_one_winner(tmp_path):
             return False
     with ThreadPoolExecutor(max_workers=2) as pool:
         assert sorted(pool.map(replace, ["Writer A", "Writer B"])) == [False, True]
+
+
+def test_workspace_sources_can_be_read_one_page_at_a_time(tmp_path):
+    store = WorkspaceStore(tmp_path)
+    store.replace("book", "Book", [{"id": str(n), "name": f"{n}.txt", "source_type": "text", "content": "x"}
+                                   for n in range(5)])
+    first = store.describe("book", limit=2)
+    assert [item["id"] for item in first["documents"]] == ["0", "1"]
+    assert (first["document_count"], first["next_offset"]) == (5, 2)
+    last = store.describe("book", limit=2, offset=4)
+    assert [item["id"] for item in last["documents"]] == ["4"] and last["next_offset"] is None
+    for limit, offset in ((0, 0), (501, 0), (2, -1), ("2", 0)):
+        with pytest.raises(ValueError):
+            store.describe("book", limit=limit, offset=offset)
+
+
+def test_mcp_workspace_read_returns_one_page_by_default(tmp_path, monkeypatch):
+    from rag import server
+    store = WorkspaceStore(tmp_path)
+    store.replace("book", "Book", [{"id": str(n), "name": f"{n}.txt", "source_type": "text", "content": "x"}
+                                   for n in range(150)])
+    monkeypatch.setenv("RAG_MCP_WORKSPACE_DIR", str(tmp_path))
+    replies = []
+    monkeypatch.setattr(server, "_result", lambda request_id, result: replies.append(result))
+    monkeypatch.setattr(server, "_initialized", False)
+    server._handle_request({"id": 0, "method": "initialize"})
+    for arguments in ({"workspace_id": "book"}, {"workspace_id": "book", "offset": 100}):
+        server._handle_request({"id": 1, "method": "tools/call",
+                                "params": {"name": "get_workspaces", "arguments": arguments}})
+    first, second = (json.loads(reply["content"][0]["text"]) for reply in replies[-2:])
+    assert (len(first["documents"]), first["next_offset"]) == (100, 100)
+    assert (len(second["documents"]), second["next_offset"]) == (50, None)
