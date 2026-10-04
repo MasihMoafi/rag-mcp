@@ -138,6 +138,14 @@ RETRIEVAL_ENV = {
     **CONTEXTUAL_ENV,
 }
 RERANKER_CHOICES = ("off", "auto", "fastembed", "openrouter")
+# Whole-number settings that chat and `rag config` change: stored key, smallest, largest, meaning.
+NUMBER_SETTINGS = {
+    "top": ("top_k", 1, 100, "How many reranked passages answer synthesis may use"),
+    "candidates": ("candidate_k", 1, 1000, "Candidate passages before reranking"),
+    "answer_max_tokens": ("answer_max_tokens", 64, 8192, "Largest answer length in tokens"),
+    "answer_timeout": ("answer_timeout", 5, 600, "Seconds to wait for the answer model"),
+    "reranker_timeout": ("reranker_timeout", 5, 600, "Seconds to wait for the reranker"),
+}
 FASTEMBED_RERANKER = "Xenova/ms-marco-MiniLM-L-6-v2"
 ST_RERANKER = "cross-encoder/ms-marco-MiniLM-L-6-v2"
 

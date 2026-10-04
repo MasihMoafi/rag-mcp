@@ -183,7 +183,7 @@ _MODELS_GET_TOOL = {
 _SETTINGS_SET_TOOL = {
     "name": "set_rag_settings",
     "description": (
-        "Change the RAG pipeline from plain words: passages supplied to synthesis (top), the reranker "
+        "Change the RAG pipeline from plain words: passages supplied to synthesis (top), answer length, timeouts, the reranker "
         "(off, auto, fastembed, openrouter or a model name), or the embedding model (guessing where it runs: Ollama, "
         "a small local ONNX model, or an API whose key is already in the environment). For a detected local "
         "OpenAI-compatible model, pass embedding_runtime from get_rag_models (LM Studio or vLLM). Never pass API keys here; "
@@ -192,8 +192,8 @@ _SETTINGS_SET_TOOL = {
     "inputSchema": {
         "type": "object",
         "properties": {
-            "top": {"type": "integer", "minimum": 1, "description": "How many reranked passages answer synthesis may use"},
-            "candidates": {"type": "integer", "minimum": 1, "maximum": 1000, "description": "Candidate passages before reranking"},
+            **{name: {"type": "integer", "minimum": low, "maximum": high, "description": meaning}
+               for name, (_, low, high, meaning) in user_settings.NUMBER_SETTINGS.items()},
             "answer_model": {"type": "string", "description": "OpenRouter answer model ID"},
             "reranker": {"type": "string", "description": "off | auto | fastembed | openrouter | a reranker model name"},
             "contextual_retrieval": {"type": "string", "enum": ["on", "off"], "description": "Enable or disable Anthropic-style ingestion-time contextual retrieval"},
@@ -361,7 +361,8 @@ def _apply_settings(arguments: dict[str, Any], *, expected_revision=user_setting
     with tempfile.TemporaryDirectory(prefix="rag-settings-") as temporary, contextlib.redirect_stdout(sys.stderr):
         staged_environ = dict(os.environ, RAG_MCP_CONFIG=str(Path(temporary) / "config.json"))
         user_settings.save_settings(original, staged_environ)
-        for name, setting in (("top", "top"), ("candidates", "candidates"), ("answer_model", "answer"), ("reranker", "reranker"), ("contextual_retrieval", "contextual")):
+        for name, setting in (*((name, name) for name in user_settings.NUMBER_SETTINGS), ("answer_model", "answer"),
+                              ("reranker", "reranker"), ("contextual_retrieval", "contextual")):
             if name in arguments:
                 args = argparse.Namespace(setting=setting, value=str(arguments[name]), provider=None, no_verify=True)
                 code = _config_command(args, stdout=io.StringIO(), stderr=(err := io.StringIO()), environ=staged_environ, verify=None)
@@ -388,7 +389,7 @@ def _apply_settings(arguments: dict[str, Any], *, expected_revision=user_setting
                 user_settings.update_settings(updates, expected_data=original,
                                               expected_revision=expected_revision)
     if not changed:
-        return {"error": "Nothing to change: pass top, reranker, contextual_retrieval, embedding_model or embedding_provider."}
+        return {"error": "Nothing to change: pass a setting such as top, answer_max_tokens, reranker or embedding_model."}
     try:
         if 'rag.fetch' in sys.modules:
             sys.modules['rag.fetch'].reset_pipelines()
