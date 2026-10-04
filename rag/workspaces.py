@@ -185,16 +185,23 @@ class WorkspaceStore:
         manifest = self._read_manifest(self._workspace(workspace_id) / "manifest.json")
         return self._summary(manifest)
 
-    def describe(self, workspace_id: str) -> dict[str, Any]:
-        """Client-facing source IDs and metadata without stored paths or text hashes."""
+    def describe(self, workspace_id: str, *, limit: int | None = None, offset: int = 0) -> dict[str, Any]:
+        """Client-facing source IDs and metadata without stored paths or text hashes. A limit returns one page."""
+        if limit is not None and (type(limit) is not int or not 1 <= limit <= 500
+                                  or type(offset) is not int or offset < 0):
+            raise ValueError("Give a page limit from 1 to 500 and an offset of 0 or more.")
         value = self.get(workspace_id)
-        return {
+        end = len(value["documents"]) if limit is None else offset + limit
+        page = {
             **{key: value[key] for key in ("schema_version", "revision", "id", "name", "document_count", "total_bytes")},
             "documents": [
                 {key: item[key] for key in ("id", "name", "source_type", "size_bytes")}
-                for item in value["documents"]
+                for item in value["documents"][offset:end]
             ],
         }
+        if limit is not None:
+            page["next_offset"] = end if end < len(value["documents"]) else None
+        return page
 
     @staticmethod
     def _summary(manifest: dict[str, Any]) -> dict[str, Any]:
