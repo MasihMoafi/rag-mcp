@@ -702,7 +702,7 @@ def _query_knowledge_base(
                 facets = decompose_query(query)
                 tracing.annotate(facet_count=len(facets))
                 if len(facets) == 1:
-                    value = fetch(query=query, doc_path=fetch_doc_path, scope=fetch_scope)
+                    value = fetch(query=facets[0], doc_path=fetch_doc_path, scope=fetch_scope)
                 else:
                     groups = []
                     for facet in facets:
@@ -726,6 +726,7 @@ def _query_knowledge_base(
             answer = value
         else:
             from rag.openrouter_pipeline import synthesize_answer
+            from rag.passage_answers import PassageAnswerError
 
             tracing.passages('synthesis_evidence', value)
             if retrieval_only:
@@ -737,6 +738,8 @@ def _query_knowledge_base(
                     {**embedding_config(), **retrieval_config(), 'cite_sources': cite_sources,
                      **({'answer_model': answer_model} if answer_model is not None else {})},
                 )
+            except PassageAnswerError:
+                return json.dumps({'error': 'RAG answer synthesis returned an invalid or unsupported quote.'})
             except Exception as exc:
                 return json.dumps({'error': (
                     f'RAG answer synthesis failed ({type(exc).__name__}). '

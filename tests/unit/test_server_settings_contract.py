@@ -116,6 +116,33 @@ def test_multi_part_question_retrieves_facets_but_synthesizes_once(monkeypatch, 
     assert {passage['content'].split()[1] for passage in captured['passages']} == {'1', '2', '3'}
 
 
+def test_single_content_facet_retrieves_without_answer_instructions(monkeypatch, tmp_path):
+    import json
+    from rag import openrouter_pipeline
+
+    document = tmp_path / 'chapter.md'
+    document.write_text('Book evidence.')
+    calls = []
+    captured = {}
+    question = 'Which passages discuss ambition?'
+    query = question + ' Return two passages from this book.'
+
+    def retrieve(**kwargs):
+        calls.append(kwargs['query'])
+        return [{'content': 'Book evidence.'}]
+
+    def synthesize(original, passages, config):
+        captured['query'] = original
+        return 'Book answer.'
+
+    monkeypatch.setattr(fetch, 'fetchExternalKnowledge', retrieve)
+    monkeypatch.setattr(openrouter_pipeline, 'synthesize_answer', synthesize)
+
+    assert json.loads(server.query_knowledge_base(query, str(document))) == {'result': 'Book answer.'}
+    assert calls == [question]
+    assert captured['query'] == query
+
+
 @pytest.mark.parametrize('read_fails', [False, True])
 @pytest.mark.parametrize('cleanup_fails', [False, True])
 def test_server_shutdown_releases_pipelines(monkeypatch, read_fails, cleanup_fails, capsys):

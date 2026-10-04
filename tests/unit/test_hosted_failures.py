@@ -63,6 +63,79 @@ def test_synthesis_exception_does_not_leak_private_payload(monkeypatch, tmp_path
     assert 'RuntimeError' in response['error']
 
 
+def test_invalid_quote_error_is_distinct_from_provider_availability(monkeypatch, tmp_path):
+    from rag.passage_answers import PassageAnswerError
+
+    monkeypatch.setenv('RAG_MCP_TRACE_DIR', 'off')
+    monkeypatch.setattr(server, '_validate_rag_scope', lambda *a: None)
+    monkeypatch.setattr(fetch, 'fetchExternalKnowledge', lambda **k: [{'content': 'evidence'}])
+    monkeypatch.setattr(hosted, 'synthesize_answer', Mock(side_effect=PassageAnswerError('private document')))
+    response = json.loads(server.query_knowledge_base('question', str(tmp_path)))
+    assert set(response) == {'error'}
+    assert 'invalid or unsupported quote' in response['error']
+    assert 'availability' not in response['error']
+    assert 'private document' not in response['error']
+
+
+def test_requested_book_references_receive_verified_pdf_pages(monkeypatch):
+    monkeypatch.setenv('OPENROUTER_API_KEY', 'fake')
+    captured = {}
+
+    def response(path, payload, **kwargs):
+        captured.update(payload)
+        return {'choices': [{'finish_reason': 'stop', 'message': {'content': 'Book answer.'}}]}
+
+    monkeypatch.setattr(hosted, '_post', response)
+    hosted.synthesize_answer('Give a short quote and its exact PDF page number.', [
+        {'content': 'First page.\fSecond page.', 'location': 'p.83-84',
+         'file_path': '/private/book.pdf', 'score': 0.9},
+        {'content': 'Other evidence.', 'location': ''},
+    ], {})
+
+    instruction = captured['messages'][0]['content']
+    evidence = captured['messages'][1]['content']
+    assert 'Do not mention retrieval, passages, files, sources' not in instruction
+    assert 'PDF page 83' in evidence and 'PDF page 84' in evidence
+    assert 'Printed page number: unavailable' in evidence
+    assert 'Source location: unavailable' in evidence
+    assert '/private/book.pdf' not in evidence
+    assert '0.9' not in evidence
+
+
+def test_invalid_pdf_location_cannot_supply_a_page_number(monkeypatch):
+    monkeypatch.setenv('OPENROUTER_API_KEY', 'fake')
+    captured = {}
+
+    def response(path, payload, **kwargs):
+        captured.update(payload)
+        return {'choices': [{'finish_reason': 'stop', 'message': {'content': 'Unavailable.'}}]}
+
+    monkeypatch.setattr(hosted, '_post', response)
+    hosted.synthesize_answer('Give the PDF page number.', [
+        {'content': 'Evidence.', 'location': 'p.0', 'page_number': 900},
+    ], {})
+
+    assert 'Source location: unavailable' in captured['messages'][1]['content']
+    assert '900' not in captured['messages'][1]['content']
+
+
+def test_pdf_page_breaks_require_current_source_text(monkeypatch):
+    from rag.parsers import pdf
+
+    monkeypatch.setattr(pdf, 'extract_pdf_text', lambda path: 'Cover\fFirst.\fSecond.')
+    passage = {'file_path': '/book.pdf', 'location': 'p.2-3',
+               'start_offset': 6, 'end_offset': 20}
+    content = 'First. Second.'
+    evidence = hosted._answer_evidence({**passage, 'content': content}, source_details=True, pdf_cache={})
+    assert '[PDF page 2]\nFirst.' in evidence
+    assert '[PDF page 3]\nSecond.' in evidence
+
+    monkeypatch.setattr(pdf, 'extract_pdf_text', lambda path: 'Cover\fChanged.\fSecond.')
+    evidence = hosted._answer_evidence({**passage, 'content': content}, source_details=True, pdf_cache={})
+    assert 'Exact page within range: unavailable' in evidence
+    assert '[PDF page 2]' not in evidence
+
+
 class _Body:
     """The context-manager response urlopen returns."""
     def __init__(self, value):

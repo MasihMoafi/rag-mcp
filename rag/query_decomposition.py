@@ -11,6 +11,29 @@ _FACET_START = (
     r"what|why|how|which|who|where|when|give|explain|describe|identify|"
     r"compare|list|summarize|outline|provide"
 )
+_ANSWER_INSTRUCTION = re.compile(
+    r"^(?:for each\b|"
+    r"(?:return|give|provide|list)\b[^?]*\b(?:passages?|quotes?|excerpts?)\s+"
+    r"from (?:this|the) (?:PDF|document|book|file|text)[.!]?$|"
+    r"(?:return|respond|reply|output|format)\b[^?]*\bas (?:JSON|Markdown|a table|bullets)\b|"
+    r"(?:state|include|give|provide)\b[^?]*(?:page number|source reference|citation|format)\b|"
+    r"do not (?:invent|fabricate)\b)",
+    re.IGNORECASE,
+)
+_EVIDENCE_ALTERNATIVES = re.compile(
+    r'((?:which|what) (?:passages|excerpts|quotes|examples) '
+    r'(?:show|describe|discuss|warn against|help someone) )(.+)\?',
+    re.IGNORECASE,
+)
+
+
+def _evidence_alternatives(facet: str) -> list[str]:
+    """Search each explicit alternative in a request for supporting text."""
+    match = _EVIDENCE_ALTERNATIVES.fullmatch(facet)
+    if not match or not re.search(r'\bor\b', match[2], re.IGNORECASE):
+        return [facet]
+    topics = re.split(r',\s*(?:or\s+)?|\s+or\s+', match[2], flags=re.IGNORECASE)
+    return [topic.strip() for topic in topics if topic.strip()]
 
 
 def _evaluation_lifecycle_facets(facets: list[str], query: str) -> list[str] | None:
@@ -49,14 +72,19 @@ def decompose_query(query: str, *, max_facets: int = 3) -> list[str]:
     sentences = [part.strip() for part in re.split(r"(?<=[?!.])\s+", normalized) if part.strip()]
     facets: list[str] = []
     for sentence in sentences:
+        if _ANSWER_INSTRUCTION.search(sentence):
+            continue
         parts = re.split(
             rf",?\s+and\s+(?=(?:{_FACET_START})\b)",
             sentence,
             flags=re.IGNORECASE,
         )
-        facets.extend(part.strip() for part in parts if len(part.split()) >= 3)
+        facets.extend(
+            part.strip() for part in parts
+            if len(part.split()) >= 3 and not _ANSWER_INSTRUCTION.search(part.strip())
+        )
     if len(facets) < 2:
-        return [normalized]
+        return _evidence_alternatives(facets[0])[:max_facets] if facets else [normalized]
     facets = facets[:max_facets]
     return _evaluation_lifecycle_facets(facets, normalized) or facets
 

@@ -98,7 +98,9 @@ def test_query_uses_recorded_context_and_appends_success(saved):
     assert first['result'] == 'Friday. [1]' and first['conversation_revision']
     second = run_conversation_query('What time?', 'book', conversation_id, client='mcp', store=store,
                                     result_store=results, executor=execute)
-    assert calls == [('When?', 'cli'), ('When?\nWhat time?', 'mcp')]
+    assert calls == [('When?', 'cli'), (
+        'Previous question (context only, do not answer): When?\n'
+        'Current question (answer this question only): What time?', 'mcp')]
     assert second['conversation_revision'] != first['conversation_revision']
     assert [turn['question'] for turn in store.get('book', conversation_id)['turns']] == ['When?', 'What time?']
     with pytest.raises(WorkspaceConflict):
