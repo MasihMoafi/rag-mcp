@@ -40,3 +40,17 @@ Purpose (from `docs/specs-2026-10-02-book-references.md`): stop the refusals on 
 7. **Context notes are not checked.** The code checks each quote against the source, but not the context note. Two runs gave two attributions for the same quote on PDF page 205: "Moscow, 1812" and "Eugène Beauharnais, 1805". The page does not settle the attribution, and the second one comes after a section heading.
 
 Verdict: keep it. Commit `ff4004c` keeps the work. Commit `cdd6922` corrects item 4, and commit `cc5f173` corrects item 5. Item 7 is open.
+
+## Status at the end of 2026-10-04
+
+All 869 tests pass. Commits are local on `fix/book-references`.
+
+Corrected:
+
+- The full rebuild after a workspace edit (`5639a6c`).
+- Answer length and timeouts from chat (`2cce7f3`).
+- Pages for `get_workspaces` (`337e476`).
+- Embedding batches that the trace did not show (`9102346`).
+- The old scope test (`68bad68`).
+
+Open: a refusal does not give its reason. The tool does not check context notes. The old `elpis-core` index (167 MB) goes to the trash after the next edit of that workspace.
