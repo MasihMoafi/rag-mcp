@@ -13,6 +13,7 @@ import urllib.request
 from collections.abc import Mapping, Sequence
 from typing import Any
 from . import tracing
+from .passage_answers import ABSTENTION
 
 
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
@@ -196,7 +197,7 @@ def synthesize_answer(query: str, passages: Sequence[Mapping[str, Any]], config:
     tracing.passages('selected', passages)
     if not passages:
         tracing.annotate(skipped_reason='no_passages')
-        return "I don't have enough information to answer that question."
+        return ABSTENTION
     from .passage_answers import (requests_passages, requests_references, selection_limits, selection_format,
                                   render_selections)
     source_details = requests_references(query)
@@ -271,7 +272,7 @@ def synthesize_answer(query: str, passages: Sequence[Mapping[str, Any]], config:
                         "for the specific relation and conditions asked. Topical similarity alone is not evidence. "
                         "Do not substitute an action for a related but different condition. "
                         "If the passages do not have enough information to answer the exact question, "
-                        "reply exactly: I don't have enough information to answer that question. "
+                        f"reply exactly: {ABSTENTION} "
                         "Do not cite an abstention. Return only a concise, readable answer. "
                         + ("Cite supporting passages with their exact bracketed numbers, such as [1]. "
                            "Only cite passages that support the adjacent claim. "

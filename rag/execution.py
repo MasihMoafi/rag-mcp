@@ -12,6 +12,7 @@ from filelock import FileLock, Timeout
 from rag import tracing
 from rag.settings import frozen_settings
 from rag.answer_contract import decode_public_answer
+from rag.passage_answers import ABSTENTION
 from rag.workspaces import WorkspaceStore
 from rag.run_results import RunResultStore
 
@@ -39,8 +40,9 @@ _EXTRACTED_TYPES = {'pdf', 'docx', 'html'}
 
 
 def public_response(result: dict) -> str:
-    return json.dumps({'result': result['answer']} if result['status'] == 'success'
-                      else {'error': result['error']})
+    if result['status'] != 'success':
+        return json.dumps({'error': result['error']})
+    return json.dumps({'result': result['answer'], **({'reason': result['reason']} if result.get('reason') else {})})
 
 
 def retrieval_response(result: dict, *, include_content: bool = False) -> dict:
@@ -85,8 +87,12 @@ def execute_run(query: str, doc_path: str = "", extensions: list[str] | None = N
     source_paths = {}
     selected_files = None
     all_sources = False
+    checked = None  # Passages that reached synthesis; None until synthesis starts.
 
     def observe(name, passages):
+        nonlocal checked
+        if name == 'synthesis_evidence':
+            checked = len(passages)
         if name != 'synthesis_evidence' or snapshot is None:
             return
         evidence.clear()
@@ -205,6 +211,11 @@ def execute_run(query: str, doc_path: str = "", extensions: list[str] | None = N
                 result['error'] = answer
             else:
                 result.update(status='success', answer=answer if mode == 'answer' else None)
+                if result['answer'] == ABSTENTION and checked is not None:
+                    # A refusal names its cause and never names sources.
+                    result['reason'] = (f"Search found {checked} passage{'s' if checked != 1 else ''}, "
+                                        "but none of them answers the question." if checked
+                                        else 'Search found no passages in the selected sources.')
             tracing.content('public_result', response)
     except tracing.RunCancelled:
         result.update(status='cancelled', error='Query cancelled.', answer=None)
