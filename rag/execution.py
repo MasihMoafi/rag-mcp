@@ -84,6 +84,7 @@ def execute_run(query: str, doc_path: str = "", extensions: list[str] | None = N
     snapshot = None
     source_paths = {}
     selected_files = None
+    all_sources = False
 
     def observe(name, passages):
         if name != 'synthesis_evidence' or snapshot is None:
@@ -173,12 +174,10 @@ def execute_run(query: str, doc_path: str = "", extensions: list[str] | None = N
             if workspace_id and not doc_path:
                 try:
                     # Snapshot and path must refer to the same immutable generation.
-                    snapshot = store.snapshot(workspace_id)
+                    snapshot, root, source_paths = store.local_snapshot(workspace_id)
                     if workspace_revision is not None and snapshot['revision'] != workspace_revision:
                         raise RunInputError('Workspace changed. Sync sources before querying.', 'workspace_conflict')
                     tracing.annotate(workspace_revision=snapshot['revision'])
-                    root = store.root / workspace_id / 'generations' / snapshot['revision'] / 'documents'
-                    source_paths = {str(root / store.document_filename(item['id'], item['sourceType'])): item for item in snapshot['documents']}
                     if source_ids is not None:
                         available = {item['id'] for item in snapshot['documents']}
                         if not source_ids or not set(source_ids).issubset(available):
@@ -189,6 +188,7 @@ def execute_run(query: str, doc_path: str = "", extensions: list[str] | None = N
                         # the scope Studio sends explicitly for its default view.
                         selected_files = list(source_paths)
                     doc_path = str(root)
+                    all_sources = len(selected_files) == len(source_paths)
                     result['workspace_revision'] = snapshot['revision']
                     workspace_id = ''
                 except RunInputError:
@@ -196,7 +196,7 @@ def execute_run(query: str, doc_path: str = "", extensions: list[str] | None = N
                 except (ValueError, OSError):
                     pass  # Existing scope validation produces the public typed failure.
             response = server._query_knowledge_base(query, doc_path, extensions, workspace_id,
-                                                    selected_files=selected_files, cite_sources=client == 'studio', retrieval_only=mode == 'retrieve', answer_model=answer_model)
+                                                    selected_files=selected_files, all_sources=all_sources, cite_sources=client == 'studio', retrieval_only=mode == 'retrieve', answer_model=answer_model)
             with tracing.span('public.boundary'):
                 answer, failed = decode_public_answer(response)
                 tracing.annotate(is_error=failed)

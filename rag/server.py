@@ -35,8 +35,8 @@ from rag.settings import embedding_config, retrieval_config  # noqa: E402
 from rag import settings as user_settings  # noqa: E402
 from rag.answer_contract import decode_public_answer  # noqa: E402
 from rag.formats import INDEXABLE_EXTENSIONS  # noqa: E402
-from rag.index_lifecycle import selected_file_scope  # noqa: E402
 from rag import tracing  # noqa: E402
+from rag.index_lifecycle import workspace_scope  # noqa: E402
 from rag.workspaces import WorkspaceStore  # noqa: E402
 
 _SERVER_NAME = "rag-mcp"
@@ -647,7 +647,7 @@ def _query_knowledge_base(
     doc_path: str = "",
     extensions: list[str] | None = None,
     workspace_id: str = "",
-    *, selected_files: list[str] | None = None, cite_sources: bool = False, retrieval_only: bool = False, answer_model: str | None = None,
+    *, selected_files: list[str] | None = None, all_sources: bool = False, cite_sources: bool = False, retrieval_only: bool = False, answer_model: str | None = None,
 ) -> str:
     """Load and run RAG only after an explicit tool call."""
     tracing.annotate(server_source_sha256_at_startup=_SERVER_SOURCE_SHA256)
@@ -687,7 +687,7 @@ def _query_knowledge_base(
         if selected_files is not None:
             fetch_doc_path = selected_files
             # An index scope must not reuse a full-corpus manifest for a subset.
-            fetch_scope = selected_file_scope(normalized_doc_path, selected_files)
+            fetch_scope = workspace_scope(normalized_doc_path, selected_files, complete=all_sources)
         # rag.core/fetch/qdrant_backend log via plain print() to stdout. On a stdio
         # MCP transport, stdout carries only JSON-RPC frames, so redirect that noise
         # to stderr for the duration of the call instead of touching every print().

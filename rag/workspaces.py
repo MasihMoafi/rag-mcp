@@ -7,6 +7,7 @@ import json
 import os
 import re
 import secrets
+import shutil
 import time
 from pathlib import Path
 from typing import Any, Mapping
@@ -31,11 +32,14 @@ def _default_root(environ: Mapping[str, str] | None = None) -> Path:
     return state_home / "ragmcp" / "workspaces"
 
 
+def _suffix(source_type: str) -> str:
+    return ".md" if source_type in _MARKDOWN_TYPES else ".txt"
+
+
 class WorkspaceStore:
     @staticmethod
-    def document_filename(document_id: str, source_type: str) -> str:
-        suffix = ".md" if source_type in _MARKDOWN_TYPES else ".txt"
-        return hashlib.sha256(document_id.encode()).hexdigest() + suffix
+    def document_filename(document_id: str, source_type: str, content_sha256: str) -> str:
+        return hashlib.sha256(f"{document_id}\n{content_sha256}".encode()).hexdigest() + _suffix(source_type)
 
     def __init__(
         self,
@@ -130,8 +134,7 @@ class WorkspaceStore:
 
         generation = f"{int(time.time() * 1000)}-{secrets.token_hex(6)}"
         workspace = self._workspace(workspace_id)
-        generation_root = workspace / "generations" / generation
-        document_root = generation_root / "documents"
+        document_root = workspace / "documents"
         metadata: list[dict[str, Any]] = []
 
         with self._lock():
@@ -144,41 +147,38 @@ class WorkspaceStore:
                 for item in previous["documents"]
             ] == [item for item, _ in normalized]:
                 return self._summary(previous)
-            document_root.mkdir(parents=True, mode=0o700)
+            document_root.mkdir(parents=True, exist_ok=True, mode=0o700)
             workspace.chmod(0o700)
-            (workspace / "generations").chmod(0o700)
-            generation_root.chmod(0o700)
             document_root.chmod(0o700)
-            try:
-                for document, encoded in normalized:
-                    stored_file = self.document_filename(document["id"], document["source_type"])
-                    target = document_root / stored_file
-                    with os.fdopen(os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), "wb") as stream:
+            for document, encoded in normalized:
+                # The name changes with the content, so an unchanged document keeps its file and its index entries.
+                stored_file = self.document_filename(document["id"], document["source_type"], document["content_sha256"])
+                target = document_root / stored_file
+                if not target.is_file() or hashlib.sha256(target.read_bytes()).hexdigest() != document["content_sha256"]:
+                    temporary = document_root / f".{stored_file}.{generation}.tmp"
+                    with os.fdopen(os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), "wb") as stream:
                         stream.write(encoded)
                         stream.flush()
                         os.fsync(stream.fileno())
-                    metadata.append({**document, "stored_file": stored_file})
-
-                manifest = {
-                    "schema_version": 1,
-                    "id": workspace_id,
-                    "name": name.strip(),
-                    "generation": generation,
-                    "document_count": len(metadata),
-                    "total_bytes": total_bytes,
-                    "updated_unix": time.time(),
-                    "documents": metadata,
-                }
-                temporary = workspace / f"manifest-{generation}.tmp"
-                with os.fdopen(os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), "w") as stream:
-                    json.dump(manifest, stream, ensure_ascii=False, separators=(",", ":"))
-                    stream.flush()
-                    os.fsync(stream.fileno())
-                temporary.replace(workspace / "manifest.json")
-            except BaseException:
-                import shutil
-                shutil.rmtree(generation_root, ignore_errors=True)
-                raise
+                    temporary.replace(target)
+                metadata.append({**document, "stored_file": stored_file})
+            manifest = {
+                "schema_version": 1,
+                "id": workspace_id,
+                "name": name.strip(),
+                "generation": generation,
+                "document_count": len(metadata),
+                "total_bytes": total_bytes,
+                "updated_unix": time.time(),
+                "documents": metadata,
+            }
+            temporary = workspace / f"manifest-{generation}.tmp"
+            with os.fdopen(os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), "w") as stream:
+                json.dump(manifest, stream, ensure_ascii=False, separators=(",", ":"))
+                stream.flush()
+                os.fsync(stream.fileno())
+            temporary.replace(manifest_path)
+            self._remove_unused(workspace, [manifest, previous] if previous else [manifest])
         return self._summary(manifest)
 
     def get(self, workspace_id: str) -> dict[str, Any]:
@@ -210,14 +210,48 @@ class WorkspaceStore:
 
     def snapshot(self, workspace_id: str) -> dict[str, Any]:
         """Private document endpoint for paired clients; never included in traces."""
+        return self.local_snapshot(workspace_id)[0]
+
+    def local_snapshot(self, workspace_id: str) -> tuple[dict[str, Any], Path, dict[str, dict[str, Any]]]:
+        """One revision, its document folder, and each document by local path. For local indexing only."""
         workspace = self._workspace(workspace_id)
         manifest = self._read_manifest(workspace / "manifest.json")
-        root = workspace / "generations" / manifest["generation"] / "documents"
-        return {**self._summary(manifest), "documents": [
-            {"id": item["id"], "name": item["name"], "sourceType": item["source_type"],
-             "content": (root / item["stored_file"]).read_text(encoding="utf-8")}
-            for item in manifest["documents"]
-        ]}
+        files = {}
+        for item in manifest["documents"]:
+            path = self.document_path(workspace_id, manifest["generation"], item)
+            files[str(path)] = {"id": item["id"], "name": item["name"], "sourceType": item["source_type"],
+                                "content": path.read_text(encoding="utf-8")}
+        snapshot = {**self._summary(manifest), "documents": list(files.values())}
+        return snapshot, self._documents_root(workspace, manifest["generation"]), files
+
+    def document_path(self, workspace_id: str, revision: str, document: Mapping[str, Any]) -> Path:
+        """The local file of one manifest document. A name that the store did not write is invalid."""
+        if document["stored_file"] not in (
+            self.document_filename(document["id"], document["source_type"], document["content_sha256"]),
+            # Name of a revision saved before the shared document folder.
+            hashlib.sha256(document["id"].encode()).hexdigest() + _suffix(document["source_type"]),
+        ):
+            raise OSError("Workspace source metadata is invalid.")
+        return self._documents_root(self._workspace(workspace_id), revision) / document["stored_file"]
+
+    @staticmethod
+    def _documents_root(workspace: Path, revision: str) -> Path:
+        # A revision saved before the shared document folder keeps its own copy.
+        legacy = workspace / "generations" / revision / "documents"
+        return legacy if legacy.is_dir() else workspace / "documents"
+
+    @staticmethod
+    def _remove_unused(workspace: Path, manifests: list[Mapping[str, Any]]) -> None:
+        """Keep the files of the current and previous revision: a running query can still read the previous one."""
+        revisions = {manifest["generation"] for manifest in manifests}
+        stored = {item["stored_file"] for manifest in manifests for item in manifest["documents"]}
+        generations = workspace / "generations"
+        for path in generations.iterdir() if generations.is_dir() else ():
+            if path.name not in revisions:
+                shutil.rmtree(path, ignore_errors=True)
+        for path in (workspace / "documents").iterdir():
+            if path.name not in stored:
+                path.unlink(missing_ok=True)
 
     def list_workspaces(self) -> list[dict[str, Any]]:
         if not self.root.exists():
@@ -236,7 +270,7 @@ class WorkspaceStore:
     def resolve(self, workspace_id: str) -> Path:
         workspace = self._workspace(workspace_id)
         manifest = self._read_manifest(workspace / "manifest.json")
-        documents = workspace / "generations" / manifest["generation"] / "documents"
+        documents = self._documents_root(workspace, manifest["generation"])
         if not documents.is_dir():
             raise OSError("workspace documents are unavailable")
         return documents

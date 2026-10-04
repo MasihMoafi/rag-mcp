@@ -22,6 +22,11 @@ def selected_file_scope(root: str, paths: list[str]) -> str:
     return f"{root}:{digest}"
 
 
+def workspace_scope(root: str, paths: list[str], *, complete: bool) -> str:
+    """One index for all sources of a workspace, kept across edits. A subset of its sources keeps its own index."""
+    return f"{root}:all" if complete else selected_file_scope(root, paths)
+
+
 def source_snapshot(document_paths):
     """Cheap filesystem revision check; not an immutable content snapshot."""
     sources = []
@@ -85,6 +90,14 @@ def _build_generation(config, build, pending, active, delta):
     return build({**config, 'persist_dir': str(pending), 'force_reindex': True, 'source_delta': None})
 
 
+def _remove_superseded(root, keep):
+    """Remove finished generations older than the replaced one. A running reader can still use the replaced one."""
+    for generation in root.glob('generation-*'):
+        # A generation without its manifest is still being built by another process.
+        if generation not in keep and (generation / 'source-manifest.json').is_file():
+            shutil.rmtree(generation, ignore_errors=True)
+
+
 def open_or_build(config, build):
     """The builder must close its own resources if construction fails."""
     root = Path(config.get('index_scope', config['persist_dir']))
@@ -127,6 +140,7 @@ def open_or_build(config, build):
                 except (OSError, ValueError):
                     pass
                 raise
+            _remove_superseded(root, keep=(pending, active))
         return instance
     except BaseException as error:
         try:
