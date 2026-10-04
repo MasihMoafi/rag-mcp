@@ -35,7 +35,8 @@ Purpose (from `docs/specs-2026-10-02-book-references.md`): stop the refusals on 
 2. **Book feature works.** A live query gave a real quote on PDF page 205. This agrees with the spec notes.
 3. **Search change is useful.** Search now ignores answer-format sentences, such as "Do not invent details".
 4. **False trigger.** Any question with "which … passages" goes to book-quote mode. Live test: "Which function returns the passages to synthesis?" on `rag/server.py` gave "Exact PDF page: unavailable. Printed page: unavailable" and no function name.
-5. **Wide trigger.** The words "passages", "source", "pages" and "references" also change the prompt for code questions. After the change in item 4, the code question got a normal answer that showed "passage 2, L181-L190". The user did not ask for these references.
+5. **Wide trigger.** The words "passages", "source", "pages" and "references" added references to code answers. Test, 7 code questions, trigger on and off: 7 of 7 correct each time, but 7 of 7 "on" answers showed references that nobody requested. One labelled a Python file "PDF page 1". Commit `cc5f173` narrows the trigger. After it, 7 of 7 are correct with no references.
 6. **Follow-up questions:** search results do not change. Each search part now also contains a label, such as "Previous question (context only, do not answer)".
+7. **Context notes are not checked.** The code checks each quote against the source, but not the context note. Two runs gave two attributions for the same quote on PDF page 205: "Moscow, 1812" and "Eugène Beauharnais, 1805". The page does not settle the attribution, and the second one comes after a section heading.
 
-Verdict: keep it. Done: commit `ff4004c` keeps the work. The next commit makes quote mode start only when passages are the thing requested.
+Verdict: keep it. Commit `ff4004c` keeps the work. Commit `cdd6922` corrects item 4, and commit `cc5f173` corrects item 5. Item 7 is open.
