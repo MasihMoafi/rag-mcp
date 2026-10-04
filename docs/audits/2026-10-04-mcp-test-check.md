@@ -43,7 +43,7 @@ Verdict: keep it. Commit `ff4004c` keeps the work. Commit `cdd6922` corrects ite
 
 ## Status at the end of 2026-10-04
 
-All 869 tests pass. Commits are local on `fix/book-references`.
+All 873 tests pass. Commits are local on `fix/book-references`.
 
 Corrected:
 
@@ -52,5 +52,6 @@ Corrected:
 - Pages for `get_workspaces` (`337e476`).
 - Embedding batches that the trace did not show (`9102346`).
 - The old scope test (`68bad68`).
+- The reason for a refusal (`2d744c8`).
 
-Open: a refusal does not give its reason. The tool does not check context notes. The old `elpis-core` index (167 MB) goes to the trash after the next edit of that workspace.
+Open: the tool does not check context notes. The next edit of `elpis-core` moves it to the shared document folder, and the next query then builds its index one more time.
