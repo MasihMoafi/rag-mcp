@@ -164,7 +164,8 @@ def test_cli_query_and_mcp_query_continue_one_recorded_conversation(workspace, m
     second = call(query='What time?', workspace_id='book', conversation_id=conversation_id,
                   conversation_revision=first['conversation_revision'])
     assert second['result'] == 'Friday. [1]' and second['conversation_revision'] != first['conversation_revision']
-    assert calls == [('When?', 'cli'), ('When?\nWhat time?', 'mcp')]
+    assert calls == [('When?', 'cli'), ('Previous question (context only, do not answer): When?\n'
+                                       'Current question (answer this question only): What time?', 'mcp')]
     stale = call(query='Stale?', workspace_id='book', conversation_id=conversation_id,
                  conversation_revision=first['conversation_revision'])
     assert 'changed' in stale['error'] and replies[-1]['isError'] and len(calls) == 2
