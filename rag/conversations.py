@@ -188,7 +188,11 @@ def prepare_conversation_query(question: str, workspace_id: str, conversation_id
     revision = current['revision'] if current else None
     if expected_revision is not _UNSET and expected_revision != revision:
         raise WorkspaceConflict('Conversation changed. Reload before querying.')
-    query = f"{current['turns'][-1]['question']}\n{question}" if current else question
+    query = (
+        f"Previous question (context only, do not answer): {current['turns'][-1]['question']}\n"
+        f"Current question (answer this question only): {question}"
+        if current else question
+    )
     return query, revision
 
 

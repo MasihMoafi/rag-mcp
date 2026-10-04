@@ -164,7 +164,8 @@ def test_gateway_conversation_query_saves_answer_in_one_request(tmp_path):
         with request(f'{base}/v1/runs', body=second) as response:
             assert json.load(response)['conversation_revision'] != first['conversation_revision']
         assert calls == [('When?', ['chapter'], snapshot['revision']),
-                         ('When?\nWhat time?', ['chapter'], snapshot['revision'])]
+                         ('Previous question (context only, do not answer): When?\n'
+                          'Current question (answer this question only): What time?', ['chapter'], snapshot['revision'])]
         with pytest.raises(HTTPError) as stale:
             request(f'{base}/v1/runs', body={**second, 'run_id': 'd' * 32})
         assert stale.value.code == 409

@@ -111,8 +111,10 @@ Evaluated across **5 merged heterogeneous domains (6,314 chunks in a single inde
 The approved hosted profile uses BM25 plus OpenRouter `qwen/qwen3-embedding-4b`, fuses
 the best 50 candidates with RRF, asks `cohere/rerank-4-fast` for the best five,
 then asks `deepseek/deepseek-v4.1-flash` for a concise grounded answer. The CLI
-prints only that answer; the MCP result does not expose chunks, paths, citations,
-scores, or retrieval metadata. A query must name an explicit supported file or a
+prints that answer. MCP returns the answer without private paths, scores, or internal retrieval data.
+When requested, the answer can include short quotes and available source references.
+PDF page references use file positions. Missing printed page numbers remain unavailable.
+A query must name an explicit supported file or a
 narrow directory. Directory queries accept an optional file-type filter.
 With no OpenRouter key and no explicit reranker choice, a fresh local profile
 keeps reranking off so retrieval-only BM25 search works without provider setup.
@@ -709,8 +711,8 @@ These are design choices, not novelty claims:
   enrichment also sends text externally. Choose providers accordingly for private data.
 - **Small transport layer:** the MCP host uses direct stdio JSON-RPC rather than depending on an MCP SDK.
 - **Per-call scope:** one server can search different files/directories instead of requiring one fixed knowledge base per project.
-- **Private evidence boundary:** returned chunks, paths, scores, and citations stay
-  inside the pipeline; the public tool result contains only the synthesized answer.
+- **Private evidence boundary:** chunks, private paths, and scores stay inside the pipeline.
+  The public tool returns the answer. It can include requested quotes and available source references.
 
 ## Evals and test series
 
