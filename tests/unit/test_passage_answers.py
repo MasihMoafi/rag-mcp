@@ -2,7 +2,8 @@ import json
 
 import pytest
 
-from rag.passage_answers import ABSTENTION, render_selections, requests_passages, selection_limits
+from rag.passage_answers import (ABSTENTION, render_selections, requests_passages, requests_references,
+                                 selection_limits)
 
 
 def _selection(anchor, **changes):
@@ -34,6 +35,30 @@ def test_a_request_for_passages_selects_passages(query):
 ])
 def test_a_question_that_only_mentions_passages_is_answered_normally(query):
     assert not requests_passages(query)
+
+
+@pytest.mark.parametrize('query', [
+    'Give a short quote and its exact PDF page number.',
+    'Give the PDF page number.',
+    'Cite the sources.',
+    'Include the source references.',
+    'Which passages show learning?',
+])
+def test_a_request_for_references_gets_them(query):
+    assert requests_references(query)
+
+
+@pytest.mark.parametrize('query', [
+    'Which function re-reads only the changed source files?',
+    'When does the code restore PDF page breaks from the source offsets?',
+    'What error does a folder with more than 500 source files cause?',
+    'What is the largest number of passages a request can select, and what is the default?',
+    'Which function builds the continuity prompt from the memory sources?',
+    'How does the parser handle quotes inside strings?',
+    'List the source files that the indexer skips.',
+])
+def test_a_question_that_only_mentions_sources_gets_no_references(query):
+    assert not requests_references(query)
 
 
 def test_quote_page_and_word_limit_come_from_source_evidence():

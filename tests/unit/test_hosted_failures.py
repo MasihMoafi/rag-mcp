@@ -119,6 +119,23 @@ def test_invalid_pdf_location_cannot_supply_a_page_number(monkeypatch):
     assert '900' not in captured['messages'][1]['content']
 
 
+def test_a_code_question_about_sources_gets_no_references(monkeypatch):
+    monkeypatch.setenv('OPENROUTER_API_KEY', 'fake')
+    captured = {}
+
+    def response(path, payload, **kwargs):
+        captured.update(payload)
+        return {'choices': [{'finish_reason': 'stop', 'message': {'content': '`refresh_documents`'}}]}
+
+    monkeypatch.setattr(hosted, '_post', response)
+    hosted.synthesize_answer('Which function re-reads only the changed source files?', [
+        {'content': 'def refresh_documents(self, delta):', 'location': 'L182-L187'},
+    ], {})
+
+    assert 'Do not mention retrieval, passages, files, sources' in captured['messages'][0]['content']
+    assert 'L182' not in captured['messages'][1]['content']
+
+
 def test_pdf_page_breaks_require_current_source_text(monkeypatch):
     from rag.parsers import pdf
 

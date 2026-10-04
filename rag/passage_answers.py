@@ -26,14 +26,26 @@ def selection_limits(query: str) -> tuple[int, int]:
     return max(1, min(5, value(count, 2))), max(1, min(10, value(words, 10)))
 
 
-_PASSAGE_MODIFIERS = r'(?:me|us|of|the|a|some|any|all|more|other|few|several|short|brief|useful|relevant|' \
-    r'key|best|exact|specific|distinct|separate|supporting|\d+|' + '|'.join(_NUMBERS) + r')'
+_MODIFIERS = r'(?:me|us|of|the|a|an|its|their|your|some|any|all|more|other|few|several|short|brief|useful|' \
+    r'relevant|key|best|exact|specific|distinct|separate|supporting|direct|original|pdf|printed|source|\d+|' \
+    + '|'.join(_NUMBERS) + r')'
+
+
+def _requested(verbs: str, nouns: str, query: str) -> bool:
+    # The noun must be the thing requested, not a word later in a question about something else.
+    return bool(re.search(rf'\b(?:{verbs})(?:\s+{_MODIFIERS}){{0,4}}\s+(?:{nouns})\b', query, re.I))
 
 
 def requests_passages(query: str) -> bool:
-    # Passages must be the thing requested, not a word later in a question about something else.
-    return bool(re.search(r'\b(?:which|find|select|return|give|provide)(?:\s+' + _PASSAGE_MODIFIERS
-                          + r'){0,4}\s+passages\b', query, re.I))
+    return _requested('which|find|select|return|give|provide', 'passages', query)
+
+
+def requests_references(query: str) -> bool:
+    """Quotes, pages or sources requested by name; a passage request needs them too."""
+    return requests_passages(query) or bool(re.search(r'\bcite\b', query, re.I)) or _requested(
+        'which|find|select|return|give|provide|include|add|show|list|state|quote',
+        r'quotes?|quotations?|excerpts?|anchors?|citations?|references?|sources|source references?|'
+        r'page numbers?|page ranges?|pages', query)
 
 
 def selection_format(max_passages: int) -> dict:

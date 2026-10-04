@@ -18,10 +18,6 @@ from . import tracing
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 COHERE_RERANK_4_FAST = "cohere/rerank-4-fast"
 DEEPSEEK_FLASH = "deepseek/deepseek-v4.1-flash"
-_SOURCE_REQUEST = re.compile(
-    r"\b(?:quotes?|quotations?|passages?|excerpts?|anchors?|citations?|references?|pages?|cite|sources?)\b",
-    re.IGNORECASE,
-)
 
 
 def _restore_pdf_pages(passage: Mapping[str, Any], content: str,
@@ -201,8 +197,9 @@ def synthesize_answer(query: str, passages: Sequence[Mapping[str, Any]], config:
     if not passages:
         tracing.annotate(skipped_reason='no_passages')
         return "I don't have enough information to answer that question."
-    source_details = bool(_SOURCE_REQUEST.search(query))
-    from .passage_answers import requests_passages, selection_limits, selection_format, render_selections
+    from .passage_answers import (requests_passages, requests_references, selection_limits, selection_format,
+                                  render_selections)
+    source_details = requests_references(query)
     passage_selection = requests_passages(query)
     max_passages, max_anchor_words = selection_limits(query)
     pdf_cache: dict[str, str] = {}
