@@ -109,10 +109,12 @@ def test_repeated_scope_queries_reuse_manifest_and_invalidate_on_change() -> Non
     captured = []
     walk_count = 0
 
-    def counting_walk(*args, **kwargs):
+    def counting_walk(top, *args, **kwargs):
         nonlocal walk_count
-        walk_count += 1
-        return original_walk(*args, **kwargs)
+        # The runtime manifest also walks the engine's own code once. Only scans of the queried folder count.
+        if Path(top) == scope:
+            walk_count += 1
+        return original_walk(top, *args, **kwargs)
 
     try:
         with tempfile.TemporaryDirectory() as directory:
