@@ -584,9 +584,10 @@ def _validate_rag_scope(path: Path, extensions: list[str] | None = None) -> _Sco
         current_stat = current_path.stat()
         watched_paths[str(current_path)] = (current_stat.st_mtime_ns, 0, False)
         depth = len(current_path.relative_to(path).parts)
+        # Sorted names give the same file order on every scan and filesystem.
         dirs[:] = [
             directory
-            for directory in dirs
+            for directory in sorted(dirs)
             if directory not in _UNSAFE_PATH_COMPONENTS and not directory.startswith(".")
             and not (current_path / directory).is_symlink()
         ]
@@ -595,7 +596,7 @@ def _validate_rag_scope(path: Path, extensions: list[str] | None = None) -> _Sco
                 f"RAG scan exceeds the configured {max_depth}-folder depth limit. "
                 "Choose a narrower folder or raise RAG_MCP_MAX_DEPTH deliberately."
             )
-        for name in files:
+        for name in sorted(files):
             candidate = current_path / name
             if candidate.is_symlink():
                 continue
