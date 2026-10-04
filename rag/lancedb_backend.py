@@ -10,6 +10,7 @@ Replaces embedded Qdrant + custom Python BM25 with native LanceDB:
 
 from __future__ import annotations
 
+import contextvars
 import os
 import re
 import sys
@@ -102,6 +103,8 @@ class LanceDBBackend:
 
 
         batch_error = None
+        # LanceDB can read later batches on another thread, where the request trace is not visible.
+        context = contextvars.copy_context()
 
         def batches():
             nonlocal batch_error
@@ -117,7 +120,7 @@ class LanceDBBackend:
                         # only new text is sent to the embedding provider.
                         vectors = [doc.get("vector") for doc in batch]
                         missing = [index for index, vector in enumerate(vectors) if vector is None]
-                        embedded = self._batch_embed([contents[index] for index in missing]) if missing else []
+                        embedded = context.run(self._batch_embed, [contents[index] for index in missing]) if missing else []
                         if len(embedded) != len(missing):
                             raise ValueError(f"Embedding count {len(embedded)} does not match document count {len(missing)}.")
                         for index, vector in zip(missing, embedded):
