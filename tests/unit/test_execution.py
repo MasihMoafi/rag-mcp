@@ -1,5 +1,6 @@
 import json
 import types
+from pathlib import Path
 
 import pytest
 
@@ -7,6 +8,11 @@ import server
 from rag.execution import execute_run, retrieval_response
 from rag.workspaces import WorkspaceStore
 
+
+def stored_path(store, document_id, workspace_id='book'):
+    """The local file of one saved document, as a query reads it."""
+    return next(Path(path) for path, document in store.local_snapshot(workspace_id)[2].items()
+                if document['id'] == document_id)
 
 @pytest.fixture
 def workspace(monkeypatch, tmp_path):
@@ -119,7 +125,7 @@ def test_selected_source_and_unicode_location(workspace, monkeypatch):
         {'id': 'chapter', 'name': 'chapter.txt', 'sourceType': 'text', 'content': '🌲 Friday.\nFriday.'},
         {'id': 'other', 'name': 'other.txt', 'sourceType': 'text', 'content': 'Monday.'},
     ], expected_revision=old['revision'])
-    source = workspace.resolve('book') / workspace.document_filename('chapter', 'text')
+    source = stored_path(workspace, 'chapter')
     def fetch(**kwargs):
         assert kwargs['doc_path'] == [str(source)]
         return [{'content': 'Friday.', 'file_path': str(source), 'start_line': 2}]
@@ -137,7 +143,7 @@ def test_repeated_passage_uses_verified_index_offsets(workspace, monkeypatch):
     workspace.replace('book', 'Book', [
         {'id': 'chapter', 'name': 'chapter.txt', 'sourceType': 'text', 'content': content},
     ], expected_revision=old['revision'])
-    source = workspace.resolve('book') / workspace.document_filename('chapter', 'text')
+    source = stored_path(workspace, 'chapter')
     start = content.rfind('Cedar.')
     monkeypatch.setattr(server.importlib, 'import_module', lambda _: types.SimpleNamespace(
         fetchExternalKnowledge=lambda **kwargs: [{
@@ -157,7 +163,7 @@ def test_repeated_passage_without_valid_offsets_stays_unlinked(workspace, monkey
     workspace.replace('book', 'Book', [
         {'id': 'chapter', 'name': 'chapter.txt', 'sourceType': 'text', 'content': 'Cedar. Cedar.'},
     ], expected_revision=old['revision'])
-    source = workspace.resolve('book') / workspace.document_filename('chapter', 'text')
+    source = stored_path(workspace, 'chapter')
     monkeypatch.setattr(server.importlib, 'import_module', lambda _: types.SimpleNamespace(
         fetchExternalKnowledge=lambda **kwargs: [{
             'content': 'Cedar.', 'file_path': str(source), 'start_line': 1, **offsets,
@@ -233,11 +239,10 @@ def test_verified_passages_report_source_lines_but_only_for_the_file_s_own_text(
         {'id': 'notes', 'name': 'notes.md', 'sourceType': 'markdown', 'content': '🌲 One.\nTwo.\nThree.\nFour.'},
         {'id': 'paper', 'name': 'paper.html', 'sourceType': 'html', 'content': 'Alpha.\nBeta.'},
     ], expected_revision=old['revision'])
-    root = workspace.resolve('book')
     def fetch(**kwargs):
         return [
-            {'content': 'Two.\nThree.', 'file_path': str(root / workspace.document_filename('notes', 'markdown')), 'start_line': 2},
-            {'content': 'Beta.', 'file_path': str(root / workspace.document_filename('paper', 'html')), 'start_line': 2},
+            {'content': 'Two.\nThree.', 'file_path': str(stored_path(workspace, 'notes')), 'start_line': 2},
+            {'content': 'Beta.', 'file_path': str(stored_path(workspace, 'paper')), 'start_line': 2},
         ]
     monkeypatch.setattr(server.importlib, 'import_module', lambda _: types.SimpleNamespace(fetchExternalKnowledge=fetch))
     result = execute_run('Which lines?', workspace_id='book', client='studio', mode='retrieve')

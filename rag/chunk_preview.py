@@ -41,10 +41,7 @@ def preview_workspace_chunks(
     document = next((item for item in manifest["documents"] if item["id"] == document_id), None)
     if document is None:
         raise FileNotFoundError("Source not found.")
-    stored_file = store.document_filename(document_id, document["source_type"])
-    if document["stored_file"] != stored_file:
-        raise OSError("Workspace source metadata is invalid.")
-    path = store.root / store.validate_id(workspace_id) / "generations" / revision / "documents" / stored_file
+    path = store.document_path(workspace_id, revision, document)
     source_content = path.read_text(encoding="utf-8")
 
     # Ingestion reads this same normalized file and uses these process settings.
@@ -53,7 +50,7 @@ def preview_workspace_chunks(
 
     size = RAG_CONFIG_V2["chunk_size"]
     overlap = RAG_CONFIG_V2["chunk_overlap"]
-    chunks = chunk_document_spans(source_content, file_path=stored_file, chunk_size=size, chunk_overlap=overlap)
+    chunks = chunk_document_spans(source_content, file_path=path.name, chunk_size=size, chunk_overlap=overlap)
     end = min(len(chunks), offset + limit)
     selected: list[dict[str, Any]] = []
     for ordinal, item in enumerate(chunks[offset:end], start=offset):

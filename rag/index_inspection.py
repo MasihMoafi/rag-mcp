@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from rag.chunk_preview import _utf16_positions
-from rag.index_lifecycle import active_directory, selected_file_scope
+from rag.index_lifecycle import active_directory, workspace_scope
 from rag.workspaces import WorkspaceConflict, WorkspaceStore
 
 
@@ -82,13 +82,9 @@ def inspect_published_chunks(
         raise ValueError("Selected source scope must include available sources and the inspected source.")
     selected_documents = [item for item in manifest["documents"] if item["id"] in selected_ids]
     canonical_ids = [item["id"] for item in selected_documents]
-    stored_file = store.document_filename(document_id, document["source_type"])
-    if document["stored_file"] != stored_file:
-        raise OSError("Workspace source metadata is invalid.")
-    # Query scope resolves the immutable workspace generation to an absolute path.
-    source_root = Path(store.root / store.validate_id(workspace_id)
-                       / "generations" / revision / "documents").resolve()
-    source_path = source_root / stored_file
+    # Query scope resolves the workspace document folder to an absolute path.
+    source_path = store.document_path(workspace_id, revision, document).resolve()
+    source_root = source_path.parent
     base = {
         "schema_version": 1,
         "metadata_kind": "published_documents_unverified_storage",
@@ -110,11 +106,12 @@ def inspect_published_chunks(
     from rag.settings import contextual_retrieval_enabled, embedding_config, retrieval_config
 
     embedding = embedding_config()
-    selected_files = [str(source_root / store.document_filename(item["id"], item["source_type"]))
-                      for item in selected_documents]
-    selected_scope = Path(index_root_path()) / _safe_dir_name(selected_file_scope(str(source_root), selected_files), embedding)
+    selected_files = [str(source_root / item["stored_file"]) for item in selected_documents]
+    complete = len(selected_documents) == len(manifest["documents"])
+    selected_scope = Path(index_root_path()) / _safe_dir_name(
+        workspace_scope(str(source_root), selected_files, complete=complete), embedding)
     legacy_scope = Path(index_root_path()) / _safe_dir_name(str(source_root), embedding)
-    scope = selected_scope if selected_scope.is_dir() or len(selected_documents) != len(manifest["documents"]) else legacy_scope
+    scope = selected_scope if selected_scope.is_dir() or not complete else legacy_scope
     if not scope.is_dir():
         return {**base, "status": "not_indexed"}
     try:
