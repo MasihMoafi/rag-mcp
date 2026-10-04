@@ -16,6 +16,26 @@ def test_reference_request_is_not_always_a_passage_selection():
     assert not requests_passages('What year did this happen? Give its PDF page number.')
 
 
+@pytest.mark.parametrize('query', [
+    'Which passages show learning?',
+    'Return two useful passages. Use an anchor of at most ten words.',
+    'Find 2 short passages that mention the retreat.',
+    'Give me three passages about courage.',
+    'Which of the passages warn against haste?',
+])
+def test_a_request_for_passages_selects_passages(query):
+    assert requests_passages(query)
+
+
+@pytest.mark.parametrize('query', [
+    'Which function returns the passages to synthesis?',
+    'Which code returns passages to the reranker?',
+    'Find where the server trims passages before synthesis.',
+])
+def test_a_question_that_only_mentions_passages_is_answered_normally(query):
+    assert not requests_passages(query)
+
+
 def test_quote_page_and_word_limit_come_from_source_evidence():
     quote = 'One two three four five six seven eight nine ten eleven.'
     result = render_selections(_selection(quote), [{'content': quote}],

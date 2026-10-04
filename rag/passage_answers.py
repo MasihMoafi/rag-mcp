@@ -26,8 +26,14 @@ def selection_limits(query: str) -> tuple[int, int]:
     return max(1, min(5, value(count, 2))), max(1, min(10, value(words, 10)))
 
 
+_PASSAGE_MODIFIERS = r'(?:me|us|of|the|a|some|any|all|more|other|few|several|short|brief|useful|relevant|' \
+    r'key|best|exact|specific|distinct|separate|supporting|\d+|' + '|'.join(_NUMBERS) + r')'
+
+
 def requests_passages(query: str) -> bool:
-    return bool(re.search(r'\b(?:which|find|select|return|give|provide)\b[^?.]*\bpassages\b', query, re.I))
+    # Passages must be the thing requested, not a word later in a question about something else.
+    return bool(re.search(r'\b(?:which|find|select|return|give|provide)(?:\s+' + _PASSAGE_MODIFIERS
+                          + r'){0,4}\s+passages\b', query, re.I))
 
 
 def selection_format(max_passages: int) -> dict:
