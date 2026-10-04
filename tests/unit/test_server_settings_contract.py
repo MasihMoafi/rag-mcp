@@ -280,3 +280,27 @@ def test_mcp_local_runtime_setting_uses_detected_endpoint(monkeypatch, tmp_path)
     assert result['changed'] == ['embedding']
     assert settings.load_settings()['embed_base_url'] == 'http://localhost:8000/v1'
     assert settings.load_settings()['embed_api_key'] == ''
+
+
+def test_answer_length_and_timeouts_can_be_set_from_chat(monkeypatch, tmp_path):
+    monkeypatch.setenv('RAG_MCP_CONFIG', str(tmp_path / 'config.json'))
+    for name in ('RAG_MCP_ANSWER_MAX_TOKENS', 'RAG_MCP_ANSWER_TIMEOUT', 'RAG_MCP_RERANKER_TIMEOUT'):
+        monkeypatch.delenv(name, raising=False)
+    server.user_settings.save_settings({'top_k': '5'})
+    monkeypatch.setattr(fetch, 'reset_pipelines', Mock())
+    assert {'answer_max_tokens', 'answer_timeout', 'reranker_timeout'} <= set(
+        server._SETTINGS_SET_TOOL['inputSchema']['properties'])
+    result = server._apply_settings({'answer_max_tokens': 1200, 'answer_timeout': 120, 'reranker_timeout': 30})
+    assert result['changed'] == ['answer_max_tokens', 'answer_timeout', 'reranker_timeout']
+    retrieval = server.user_settings.retrieval_config()
+    assert (retrieval['answer_max_tokens'], retrieval['answer_timeout'], retrieval['reranker_timeout']) == (
+        '1200', '120', '30')
+
+
+@pytest.mark.parametrize('arguments', [{'answer_max_tokens': 10}, {'answer_timeout': 0}, {'reranker_timeout': 9999}])
+def test_out_of_range_answer_length_or_timeout_changes_nothing(monkeypatch, tmp_path, arguments):
+    monkeypatch.setenv('RAG_MCP_CONFIG', str(tmp_path / 'config.json'))
+    path = server.user_settings.save_settings({'top_k': '5'})
+    original = path.read_bytes()
+    assert 'error' in server._apply_settings(arguments)
+    assert path.read_bytes() == original

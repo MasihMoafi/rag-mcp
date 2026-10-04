@@ -157,11 +157,12 @@ def _config_command(args: argparse.Namespace, *, stdout: TextIO, stderr: TextIO,
         for line in user_settings.describe_settings(environ):
             print(line, file=stdout)
         return 0
-    if setting in {"top", "candidates"}:
-        if not value.isdigit() or not 1 <= int(value) <= (100 if setting == "top" else 1000):
-            print("Give a whole number, e.g. `rag config top 5`.", file=stderr)
+    if setting in user_settings.NUMBER_SETTINGS:
+        key, low, high, _ = user_settings.NUMBER_SETTINGS[setting]
+        if not value.isdigit() or not low <= int(value) <= high:
+            print(f"Give a whole number from {low} to {high}, e.g. `rag config {setting} {low}`.", file=stderr)
             return 2
-        user_settings.update_settings({"top_k" if setting == "top" else "candidate_k": value}, environ)
+        user_settings.update_settings({key: value}, environ)
     elif setting == "answer":
         if not value or len(value) > 200 or any(ord(c) < 32 for c in value):
             print("Give an OpenRouter answer model ID.", file=stderr)
@@ -232,7 +233,7 @@ def _parser() -> argparse.ArgumentParser:
     commands.add_parser("menu", help="open the interactive human terminal UI")
 
     config = commands.add_parser("config", help="Show or change settings: top N, reranker, contextual retrieval, embedding model")
-    config.add_argument("setting", nargs="?", choices=["show", "top", "candidates", "answer", "reranker", "contextual", "embedding"], default="show")
+    config.add_argument("setting", nargs="?", choices=["show", *user_settings.NUMBER_SETTINGS, "answer", "reranker", "contextual", "embedding"], default="show")
     config.add_argument("value", nargs="?", default="")
     config.add_argument("--provider", choices=user_settings.PROVIDERS, help="Where the embedding model runs (guessed when omitted)")
     config.add_argument("--runtime", help="Detected local OpenAI-compatible runtime (LM Studio or vLLM) for an embedding model")
