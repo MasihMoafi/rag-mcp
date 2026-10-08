@@ -10,6 +10,7 @@ from .chunking import chunk_document_spans
 from .contextual_retrieval import select_document_context
 from .formats import INDEXABLE_EXTENSIONS
 from .index_lifecycle import RebuildRequired
+from .parsers.text import clean_text
 from . import tracing
 
 
@@ -79,6 +80,9 @@ def source_files(self):
             files_to_process.append(path)
     return files_to_process
 
+_PROSE_EXTENSIONS = (".md", ".markdown", ".txt", ".pdf", ".docx")
+
+
 def build_documents(self, files_to_process):
     """Extract, chunk and optionally contextualize the given sources."""
     import concurrent.futures
@@ -121,6 +125,11 @@ def build_documents(self, files_to_process):
             if chunk.strip():
                 location, _ = self._locate_chunk(full_content, chunk, ext, item["start_offset"])
                 clean_chunk = raw_chunks[i]
+                # Search prose without converter noise; citations keep the exact source text.
+                searchable = (clean_text(clean_chunk, markdown=ext in (".md", ".markdown"))
+                              if ext in _PROSE_EXTENSIONS else clean_chunk)
+                if not searchable:
+                    continue
 
                 document_context = full_content
                 if self.config.get("use_contextual", False):
@@ -132,7 +141,7 @@ def build_documents(self, files_to_process):
                         start_chunks=int(self.config.get("contextual_start_chunks", 2)),
                         previous_chunks=int(self.config.get("contextual_prev_chunks", 2)),
                     )
-                contextualized_chunk = self._add_context_to_chunk(clean_chunk, document_context)
+                contextualized_chunk = self._add_context_to_chunk(searchable, document_context)
 
                 doc = {
                     "content": contextualized_chunk,
