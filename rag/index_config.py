@@ -63,7 +63,7 @@ def build_source_stamp(config, embedding, contextual):
     """The exact stamp a workspace query compares with its published index."""
     return {
         "version": 3,
-        "parsing_version": 7,
+        "parsing_version": 8,
         "storage": {name: config[name] for name in ("backend", "distance_metric")},
         "chunking": {"version": 2, "size": config["chunk_size"], "overlap": config["chunk_overlap"]},
         "sources": source_snapshot(config["document_paths"]),
