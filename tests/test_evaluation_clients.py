@@ -107,6 +107,18 @@ def test_cli_and_mcp_share_human_labels(workspace, monkeypatch):
     assert main(['labels', 'book', batch_id, '--json'], stdout=output) == 0
     assert json.loads(output.getvalue()) == cleared
 
+    output = io.StringIO()
+    assert main(['answers', 'book', batch_id], stdout=output) == 0
+    assert output.getvalue().startswith('No answer checks for this batch.')
+    monkeypatch.setattr('rag.openrouter_pipeline.synthesize_answer', lambda question, passages, config: 'Friday. [1]')
+    monkeypatch.setattr('rag.evaluation_answers.judge_answer', lambda question, answer, passages, config: {
+        'claims': [{'claim': 'Friday.', 'supported': True}], 'relevance': 'full'})
+    output = io.StringIO()
+    assert main(['answers', 'book', batch_id, '--check'], stdout=output) == 0
+    assert output.getvalue().startswith('faithfulness 1.00  relevance 1.00\n1 answered, 0 abstained')
+    checked = call('get_evaluation_answers', workspace_id='book', batch_id=batch_id)
+    assert checked['items'][0]['answer'] == 'Friday. [1]' and checked['judge_model'] == 'deepseek/deepseek-v4.1-flash'
+
 
 def test_cli_and_mcp_share_conversation_turns(workspace, monkeypatch):
     from rag import server

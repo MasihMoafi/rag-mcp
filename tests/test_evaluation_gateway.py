@@ -141,6 +141,24 @@ def test_score_api_scores_a_batch_against_marked_passages(gateway):
     assert denied.value.code == 403 and missing.value.code == 404
 
 
+def test_answer_check_api_runs_paired_checks_and_reads_them_back(gateway, monkeypatch):
+    base, payload, _, _, _ = gateway
+    request(f'{base}/v1/workspaces/book/evaluation-runs', payload=payload)
+    url = f"{base}/v1/workspaces/book/evaluation-runs/{payload['batch_id']}/answers"
+    assert request(url)['status'] is None
+    monkeypatch.setattr('rag.openrouter_pipeline.synthesize_answer', lambda question, passages, config: 'Friday. [1]')
+    monkeypatch.setattr('rag.evaluation_answers.judge_answer', lambda question, answer, passages, config: {
+        'claims': [{'claim': 'Friday.', 'supported': True}], 'relevance': 'partial'})
+    with pytest.raises(HTTPError) as denied:
+        request(url, payload={}, token='wrong')
+    checked = request(url, payload={})
+    assert checked['status'] == 'success' and checked['summary']['relevance'] == 0.5
+    assert request(url) == checked
+    with pytest.raises(HTTPError) as missing:
+        request(f"{base}/v1/workspaces/book/evaluation-runs/{'b' * 32}/answers", payload={})
+    assert denied.value.code == 403 and missing.value.code == 404
+
+
 def test_conversation_api_uses_private_saved_runs_and_revisions(gateway):
     base, _, _, _, workspaces = gateway
     run_id, conversation_id = 'b' * 32, 'c' * 32

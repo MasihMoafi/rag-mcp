@@ -336,6 +336,11 @@ def _parser() -> argparse.ArgumentParser:
     labels.add_argument("--set", metavar="RUN_ID:RANK:LABEL", help="Mark a passage relevant, irrelevant, or clear its label")
     labels.add_argument("--scores", action="store_true", help="Score the batch against passages marked relevant")
     labels.add_argument("--json", action="store_true", dest="as_json")
+    answers = commands.add_parser("answers", help="Read or run answer checks (faithfulness, relevance) for a saved evaluation batch")
+    answers.add_argument("workspace_id", help="Shared workspace ID")
+    answers.add_argument("batch_id", help="Saved evaluation batch ID")
+    answers.add_argument("--check", action="store_true", help="Answer and judge every question: two paid model calls per question")
+    answers.add_argument("--json", action="store_true", dest="as_json")
     conversations = commands.add_parser("conversations", help="List, read, or append to shared workspace conversations")
     conversations.add_argument("workspace_id", help="Shared workspace ID")
     conversations.add_argument("conversation_id", nargs="?", help="Conversation ID to read or append to")
@@ -518,6 +523,33 @@ def _main(
         else:
             for item in value['labels']:
                 print(f"{item['run_id']}:{item['rank']}  {item['label']}  {item['source_id']}", file=stdout)
+        return 0
+
+    if args.command == "answers":
+        from filelock import Timeout
+        from rag.evaluation_answers import EvaluationAnswerStore, check_answers
+        from rag.workspaces import WorkspaceStore
+
+        store = EvaluationAnswerStore(WorkspaceStore.from_environ(environ))
+        try:
+            value = (check_answers(args.workspace_id, args.batch_id, store=store) if args.check
+                     else store.get(args.workspace_id, args.batch_id))
+        except (ValueError, OSError, Timeout) as error:
+            print(f'Cannot access answer checks: {error}', file=stderr)
+            return 2
+        if args.as_json:
+            print(json.dumps(value, ensure_ascii=False), file=stdout)
+            return 0
+        if value['status'] is None:
+            print('No answer checks for this batch. Run again with --check (two paid model calls per question).', file=stdout)
+            return 0
+        summary = value['summary']
+        score = lambda number: '—' if number is None else f'{number:.2f}'
+        print(f"faithfulness {score(summary['faithfulness'])}  relevance {score(summary['relevance'])}", file=stdout)
+        print(f"{summary['answered']} answered, {summary['abstained']} abstained, {summary['unsupported_claims']} unsupported claims, "
+              f"{summary['missing_evidence']} with expired evidence · {value['status']} · judge {value['judge_model']}", file=stdout)
+        if value['error']:
+            print(value['error'], file=stdout)
         return 0
 
     if args.command == "evaluations":

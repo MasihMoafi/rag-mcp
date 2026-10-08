@@ -25,6 +25,7 @@ from rag.evaluation_sets import EvaluationSetStore
 from rag.evaluation_runs import EvaluationRunStore, execute_evaluation
 from rag.evaluation_labels import EvaluationLabelStore
 from rag.evaluation_scores import score_batch
+from rag.evaluation_answers import EvaluationAnswerStore, check_answers
 from rag.conversations import ConversationStore
 from filelock import Timeout
 
@@ -245,6 +246,7 @@ def create_companion_server(
     evaluation_sets = EvaluationSetStore(workspace_store)
     evaluation_runs = EvaluationRunStore(workspace_store)
     evaluation_labels = EvaluationLabelStore(workspace_store, result_store)
+    evaluation_answers = EvaluationAnswerStore(workspace_store, result_store)
     result_store = result_store or RunResultStore()
     conversations = ConversationStore(workspace_store, result_store)
     run_lock = Lock()
@@ -503,11 +505,12 @@ def create_companion_server(
                             return
                         self._send_json(200, value)
                         return
-                    label_path = re.fullmatch(r'([A-Za-z0-9][A-Za-z0-9_-]{0,63})/evaluation-runs/([0-9a-f]{32})/(labels|scores)', workspace_path)
+                    label_path = re.fullmatch(r'([A-Za-z0-9][A-Za-z0-9_-]{0,63})/evaluation-runs/([0-9a-f]{32})/(labels|scores|answers)', workspace_path)
                     if label_path:
                         workspace_id, batch_id, kind = label_path.groups()
                         try:
                             value = (evaluation_labels.get(workspace_id, batch_id) if kind == 'labels'
+                                     else evaluation_answers.get(workspace_id, batch_id) if kind == 'answers'
                                      else score_batch(workspace_id, batch_id, evaluation_labels))
                         except FileNotFoundError:
                             self._send_json(404, {'error': 'Evaluation batch not found.'})
@@ -699,8 +702,9 @@ def create_companion_server(
             path = urlsplit(self.path).path
             is_run = path == '/v1/runs' or bool(re.fullmatch(r'/v1/runs/[0-9a-f]{32}/cancel', path))
             batch_path = re.fullmatch(r'/v1/workspaces/([A-Za-z0-9][A-Za-z0-9_-]{0,63})/evaluation-runs(?:/([0-9a-f]{32})/cancel)?', path)
+            answers_path = re.fullmatch(r'/v1/workspaces/([A-Za-z0-9][A-Za-z0-9_-]{0,63})/evaluation-runs/([0-9a-f]{32})/answers', path)
             conversation_path = re.fullmatch(r'/v1/workspaces/([A-Za-z0-9][A-Za-z0-9_-]{0,63})/conversations/([0-9a-f]{32})/turns', path)
-            if path not in {"/generate", "/embed"} and not is_run and not batch_path and not conversation_path:
+            if path not in {"/generate", "/embed"} and not is_run and not batch_path and not answers_path and not conversation_path:
                 self._send_json(404, {"error": "Not found."})
                 return
             if not self._authorized():
@@ -732,6 +736,9 @@ def create_companion_server(
                 return
             if batch_path:
                 self._evaluation_batch(*batch_path.groups())
+                return
+            if answers_path:
+                self._answer_checks(*answers_path.groups())
                 return
             if path.endswith('/cancel'):
                 run_id = path.split('/')[3]
@@ -906,6 +913,28 @@ def create_companion_server(
                 response_status, response_body = 503, {'error': 'Evaluation storage is unavailable. Completed records remain in the engine.'}
             except Exception:
                 response_status, response_body = 502, {'error': 'Evaluation failed. Inspect the saved batch before retrying.'}
+            finally:
+                active_batches.pop((workspace_id, batch_id), None)
+                run_lock.release()
+            self._send_json(response_status, response_body)
+
+        def _answer_checks(self, workspace_id, batch_id):
+            # Paid model calls; cancelled through the batch's cancel route.
+            if not run_lock.acquire(blocking=False):
+                self._send_json(409, {'error': 'Another engine query is running.', 'code': 'engine_busy'})
+                return
+            event = Event()
+            active_batches[(workspace_id, batch_id)] = event
+            try:
+                response_status, response_body = 200, check_answers(workspace_id, batch_id, store=evaluation_answers, cancelled=event)
+            except FileNotFoundError:
+                response_status, response_body = 404, {'error': 'Evaluation batch not found.'}
+            except Timeout:
+                response_status, response_body = 409, {'error': 'Answer checks are already running for this batch.'}
+            except ValueError as error:
+                response_status, response_body = 400, {'error': str(error)}
+            except OSError:
+                response_status, response_body = 503, {'error': 'Answer check storage is unavailable. Completed checks remain in the engine.'}
             finally:
                 active_batches.pop((workspace_id, batch_id), None)
                 run_lock.release()
