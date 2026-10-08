@@ -24,6 +24,7 @@ from rag.run_results import RunResultStore
 from rag.evaluation_sets import EvaluationSetStore
 from rag.evaluation_runs import EvaluationRunStore, execute_evaluation
 from rag.evaluation_labels import EvaluationLabelStore
+from rag.evaluation_scores import score_batch
 from rag.conversations import ConversationStore
 from filelock import Timeout
 
@@ -502,10 +503,12 @@ def create_companion_server(
                             return
                         self._send_json(200, value)
                         return
-                    label_path = re.fullmatch(r'([A-Za-z0-9][A-Za-z0-9_-]{0,63})/evaluation-runs/([0-9a-f]{32})/labels', workspace_path)
+                    label_path = re.fullmatch(r'([A-Za-z0-9][A-Za-z0-9_-]{0,63})/evaluation-runs/([0-9a-f]{32})/(labels|scores)', workspace_path)
                     if label_path:
+                        workspace_id, batch_id, kind = label_path.groups()
                         try:
-                            value = evaluation_labels.get(*label_path.groups())
+                            value = (evaluation_labels.get(workspace_id, batch_id) if kind == 'labels'
+                                     else score_batch(workspace_id, batch_id, evaluation_labels))
                         except FileNotFoundError:
                             self._send_json(404, {'error': 'Evaluation batch not found.'})
                             return

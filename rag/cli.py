@@ -334,6 +334,7 @@ def _parser() -> argparse.ArgumentParser:
     labels.add_argument("workspace_id", help="Shared workspace ID")
     labels.add_argument("batch_id", help="Saved evaluation batch ID")
     labels.add_argument("--set", metavar="RUN_ID:RANK:LABEL", help="Mark a passage relevant, irrelevant, or clear its label")
+    labels.add_argument("--scores", action="store_true", help="Score the batch against passages marked relevant")
     labels.add_argument("--json", action="store_true", dest="as_json")
     conversations = commands.add_parser("conversations", help="List, read, or append to shared workspace conversations")
     conversations.add_argument("workspace_id", help="Shared workspace ID")
@@ -495,11 +496,23 @@ def _main(
                     raise ValueError('Use RUN_ID:RANK:relevant, irrelevant, or clear.')
                 value = store.set(args.workspace_id, args.batch_id, parts[0], int(parts[1]),
                                   None if parts[2] == 'clear' else parts[2], expected_revision=value['revision'])
+            if args.scores:
+                from rag.evaluation_scores import score_batch
+                value = score_batch(args.workspace_id, args.batch_id, store)
         except (ValueError, OSError, WorkspaceConflict, Timeout) as error:
             print(f'Cannot access evaluation labels: {error}', file=stderr)
             return 2
         if args.as_json:
             print(json.dumps(value, ensure_ascii=False), file=stdout)
+        elif args.scores:
+            summary = value['summary']
+            if not summary['judged_questions']:
+                print('No question has a passage marked relevant yet.', file=stdout)
+            else:
+                print('  '.join(f"{name} {summary[key]:.2f}" for name, key in (
+                    ('hit rate', 'hit_rate'), ('recall', 'recall'), ('MRR', 'mrr'), ('nDCG', 'ndcg'), ('precision', 'precision'))), file=stdout)
+            print(f"{summary['judged_questions']} judged questions, {summary['unjudged_questions']} without right answers, "
+                  f"{summary['unjudged_passages']} unlabelled passages, {summary['missing_evidence']} with expired evidence", file=stdout)
         elif not value['labels']:
             print('No human relevance labels in this batch.', file=stdout)
         else:

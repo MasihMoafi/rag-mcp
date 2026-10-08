@@ -96,6 +96,10 @@ def test_cli_and_mcp_share_human_labels(workspace, monkeypatch):
         server._handle_request({'id': 1, 'method': 'tools/call', 'params': {'name': name, 'arguments': arguments}})
         return json.loads(replies[-1]['content'][0]['text'])
     assert call('get_evaluation_labels', workspace_id='book', batch_id=batch_id) == marked
+    output = io.StringIO()
+    assert main(['labels', 'book', batch_id, '--scores'], stdout=output) == 0
+    assert output.getvalue().startswith('hit rate 1.00  recall 1.00  MRR 1.00')
+    assert call('get_evaluation_scores', workspace_id='book', batch_id=batch_id)['summary']['ndcg'] == 1.0
     cleared = call('set_evaluation_label', workspace_id='book', batch_id=batch_id, revision=marked['revision'],
                    run_id=run_id, rank=1, label=None)
     assert cleared['labels'] == [] and not replies[-1]['isError']
