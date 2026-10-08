@@ -126,6 +126,21 @@ def test_label_api_requires_pairing_and_saved_evidence(gateway):
     assert cleared['labels'] == []
 
 
+def test_score_api_scores_a_batch_against_marked_passages(gateway):
+    base, payload, _, _, _ = gateway
+    batch = request(f'{base}/v1/workspaces/book/evaluation-runs', payload=payload)
+    url = f"{base}/v1/workspaces/book/evaluation-runs/{payload['batch_id']}"
+    assert request(f'{url}/scores')['summary']['judged_questions'] == 0
+    request(f'{url}/labels', payload={'revision': None, 'run_id': batch['rows'][0]['run_id'], 'rank': 1, 'label': 'relevant'}, method='PUT')
+    scores = request(f'{url}/scores')
+    assert scores['summary']['judged_questions'] == 1 and scores['summary']['mrr'] == 1.0
+    with pytest.raises(HTTPError) as denied:
+        request(f'{url}/scores', token='wrong')
+    with pytest.raises(HTTPError) as missing:
+        request(f"{base}/v1/workspaces/book/evaluation-runs/{'b' * 32}/scores")
+    assert denied.value.code == 403 and missing.value.code == 404
+
+
 def test_conversation_api_uses_private_saved_runs_and_revisions(gateway):
     base, _, _, _, workspaces = gateway
     run_id, conversation_id = 'b' * 32, 'c' * 32
