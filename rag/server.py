@@ -266,6 +266,15 @@ _EVALUATION_SCORES_TOOL = {
     'annotations': {'title': 'Score evaluation batch', 'readOnlyHint': True, 'destructiveHint': False,
                     'idempotentHint': True, 'openWorldHint': False},
 }
+_EVALUATION_ANSWERS_TOOL = {
+    'name': 'get_evaluation_answers',
+    'description': 'Read answer checks for one saved evaluation batch: each answer, its claims marked supported or not by the saved passages, faithfulness and relevance. Checks are run from Studio or the CLI because they use paid model calls.',
+    'inputSchema': {'type': 'object', 'properties': {
+        'workspace_id': {'type': 'string'}, 'batch_id': {'type': 'string'}},
+        'required': ['workspace_id', 'batch_id'], 'additionalProperties': False},
+    'annotations': {'title': 'Read answer checks', 'readOnlyHint': True, 'destructiveHint': False,
+                    'idempotentHint': True, 'openWorldHint': False},
+}
 _EVALUATION_LABELS_SET_TOOL = {
     'name': 'set_evaluation_label',
     'description': 'Mark one retained passage relevant or irrelevant, or clear its judgment. Requires the latest label revision.',
@@ -342,7 +351,7 @@ _WORKSPACE_SOURCES_ADD_TOOL = {
                     'idempotentHint': True, 'openWorldHint': False},
 }
 _TOOLS = [_TOOL, _SEARCH_WORKSPACE_TOOL, _SETTINGS_GET_TOOL, _CAPABILITIES_GET_TOOL, _MODELS_GET_TOOL, _SETTINGS_SET_TOOL, _EVALUATIONS_GET_TOOL, _EVALUATIONS_SET_TOOL,
-          _EVALUATION_RUN_TOOL, _EVALUATION_RUNS_GET_TOOL, _EVALUATION_LABELS_GET_TOOL, _EVALUATION_SCORES_TOOL, _EVALUATION_LABELS_SET_TOOL,
+          _EVALUATION_RUN_TOOL, _EVALUATION_RUNS_GET_TOOL, _EVALUATION_LABELS_GET_TOOL, _EVALUATION_SCORES_TOOL, _EVALUATION_ANSWERS_TOOL, _EVALUATION_LABELS_SET_TOOL,
           _CONVERSATIONS_GET_TOOL, _CONVERSATION_APPEND_TOOL, _WORKSPACES_GET_TOOL, _WORKSPACE_SOURCES_ADD_TOOL,
           _WORKSPACE_CHUNKS_GET_TOOL]
 
@@ -919,6 +928,9 @@ def _handle_request(message: dict[str, Any]) -> None:
                                       arguments.get('run_id'), arguments.get('question'),
                                       expected_revision=arguments.get('revision')))
                 output = json.dumps(value, ensure_ascii=False)
+            elif name == _EVALUATION_ANSWERS_TOOL['name']:
+                from rag.evaluation_answers import EvaluationAnswerStore
+                output = json.dumps(EvaluationAnswerStore().get(arguments.get('workspace_id'), arguments.get('batch_id')), ensure_ascii=False)
             elif name in {_EVALUATION_LABELS_GET_TOOL['name'], _EVALUATION_LABELS_SET_TOOL['name'], _EVALUATION_SCORES_TOOL['name']}:
                 from rag.evaluation_labels import EvaluationLabelStore
                 from rag.evaluation_scores import score_batch
