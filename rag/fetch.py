@@ -91,6 +91,10 @@ def index_root() -> str:
     return root
 
 
+def _pipeline_key(doc_path, scope):
+    return scope or ("\n".join(doc_path) if isinstance(doc_path, list) else (doc_path or "__DEFAULT__"))
+
+
 @tracing.traced('index.lookup')
 def get_rag_pipeline_v2(doc_path: Optional[str | list[str]] = None, scope: Optional[str] = None):
 
@@ -107,7 +111,7 @@ def get_rag_pipeline_v2(doc_path: Optional[str | list[str]] = None, scope: Optio
 
     # The folder a manifest was enumerated from keeps one index across added and
     # removed files; without it every file-list change starts a new index.
-    key = scope or ("\n".join(doc_path) if isinstance(doc_path, list) else (doc_path if doc_path else "__DEFAULT__"))
+    key = _pipeline_key(doc_path, scope)
     with _scope_lock(key):
         instance = _get_scoped_pipeline(key, doc_path)
         # Dict insertion order tracks the last acquisition of each scope.
@@ -287,3 +291,30 @@ def fetchExternalKnowledge(
 ) -> list[dict] | str:
     return fetchExternalKnowledgeV2(query, doc_path=doc_path,
                                     exclude_global_archive=exclude_global_archive, scope=scope)
+
+
+def expand_answer_context(passages, doc_path, scope, radius):
+    """Use this scope's published chunks without changing its index or rankings."""
+    from .context_window import expand_passage_windows
+    from .ingestion import read_documents, source_files
+    from .index_lifecycle import RebuildRequired
+    if radius == 0:
+        return passages
+    key = _pipeline_key(doc_path, scope)
+    try:
+        # Reuse the searched generation only; expanding an answer must never build an index.
+        with _scope_lock(key):
+            pipeline = _rag_system_v2_instances.get(key)
+            if pipeline is None:
+                return passages
+            with pipeline._queries.query(), tracing.span('selection.context', context_radius=radius,
+                                                         input_count=len(passages)):
+                result = expand_passage_windows(passages, read_documents(pipeline), pipeline._extract_content,
+                                                radius, set(source_files(pipeline)))
+                tracing.annotate(output_count=len(result), expanded_count=sum(
+                    (before.get('start_offset'), before.get('end_offset')) !=
+                    (after.get('start_offset'), after.get('end_offset'))
+                    for before, after in zip(passages, result)))
+                return result
+    except (OSError, RebuildRequired, PipelineClosedError):
+        return passages

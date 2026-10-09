@@ -143,6 +143,11 @@ uvx ragmcp query "What changed?" --path ./docs       # explicit document scope
 uvx ragmcp query "What does the book say?" --path ./book --type md  # exclude HTML and other formats
 ```
 
+`rag config context_radius 1` adds one indexed neighbouring chunk on each side
+when answering. The default is `0` (off), with a maximum of `3`. Search rankings
+and retrieval-only results stay unchanged; changing this setting does not rebuild
+the index. Windows use verified source text and are capped at 16,000 characters.
+
 The CLI checks a path's file types and folder-size limits before first-use model
 setup. For a saved-page folder containing Markdown chapters plus HTML and asset
 copies, use `--type md` deliberately; an oversized mixed folder is rejected

@@ -751,6 +751,10 @@ def _query_knowledge_base(
             from rag.openrouter_pipeline import synthesize_answer
             from rag.passage_answers import PassageAnswerError
 
+            if not retrieval_only:
+                radius = int(retrieval_config()['context_radius'])
+                if radius:
+                    value = module.expand_answer_context(value, fetch_doc_path, fetch_scope, radius)
             tracing.passages('synthesis_evidence', value)
             if retrieval_only:
                 return json.dumps({'result': 'Retrieval completed.'})
