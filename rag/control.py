@@ -19,7 +19,7 @@ def read_config():
 
 
 def patch_config(changes):
-    fields = {'top': ['top_k'], 'candidates': ['candidate_k'], 'answer_model': ['answer_model'],
+    fields = {'context_radius': ['context_radius'], 'top': ['top_k'], 'candidates': ['candidate_k'], 'answer_model': ['answer_model'],
               'reranker': ['reranker_type', 'reranker_model'], 'contextual_retrieval': ['contextual_retrieval'],
               'embedding_provider': ['embed_provider'], 'embedding_model': ['embed_model'],
               'embedding_source': [], 'embedding_runtime': ['embed_base_url', 'embed_api_key']}
@@ -65,9 +65,10 @@ def patch_config(changes):
             continue
         if any(field in overridden for field in fields[key]):
             raise ValueError('This setting is controlled by the engine environment. Change it there and restart the engine.')
-        if key in {'top', 'candidates'}:
-            if type(value) is not int or not 1 <= value <= (100 if key == 'top' else 1000):
-                raise ValueError('Passage counts must be whole numbers within the supported limits.')
+        if key in settings.NUMBER_SETTINGS:
+            _, low, high, _ = settings.NUMBER_SETTINGS[key]
+            if type(value) is not int or not low <= value <= high:
+                raise ValueError(f'{key} must be a whole number from {low} to {high}.')
         elif key in {'embedding_source', 'embedding_runtime', 'embedding_provider', 'embedding_model'}:
             continue
         elif not isinstance(value, str) or not value.strip() or len(value) > 200 or any(ord(c) < 32 for c in value):
