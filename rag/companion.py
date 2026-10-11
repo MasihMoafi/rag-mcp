@@ -147,6 +147,32 @@ def _prompt(payload: dict[str, Any]) -> str:
     )
 
 
+def codex_cached_models() -> list[dict[str, str]]:
+    """Display choices from the local Codex cache without making account requests."""
+    cache = Path(os.environ.get("CODEX_HOME", Path.home() / ".codex")) / "models_cache.json"
+    try:
+        payload = json.loads(cache.read_text())
+        entries = payload.get("models", []) if isinstance(payload, dict) else []
+    except (OSError, ValueError):
+        entries = []
+    models = {}
+    for entry in entries if isinstance(entries, list) else []:
+        if not isinstance(entry, dict) or entry.get("visibility") != "list":
+            continue
+        model = entry.get("slug")
+        if isinstance(model, str) and re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.:/-]{0,127}", model) and model not in models:
+            name = entry.get("display_name")
+            models[model] = {"id": model, "name": name if isinstance(name, str) and name.strip() else model}
+    return list(models.values()) or [{"id": MODEL, "name": MODEL}]
+
+
+def _generation_model(payload: dict[str, Any]) -> str:
+    model = payload.get("model", MODEL)
+    if not isinstance(model, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.:/-]{0,127}", model):
+        raise ValueError("Invalid Codex model ID.")
+    return model
+
+
 def run_codex_generation(payload: dict[str, Any]) -> GenerationResult:
     executable = shutil.which("codex")
     if executable is None:
@@ -165,7 +191,7 @@ def run_codex_generation(payload: dict[str, Any]) -> GenerationResult:
                 "--sandbox",
                 "read-only",
                 "--model",
-                MODEL,
+                _generation_model(payload),
                 "--cd",
                 directory,
                 "--output-last-message",
@@ -206,6 +232,7 @@ def _valid_payload(value: Any) -> bool:
     return (
         isinstance(question, str)
         and 0 < len(question.strip()) <= 4_000
+        and ("model" not in value or isinstance(value["model"], str) and re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.:/-]{0,127}", value["model"]) is not None)
         and isinstance(history, list)
         and len(history) <= 4
         and all(
@@ -325,7 +352,7 @@ def create_companion_server(
         active_embedding = getattr(loaded.get("embedder"), "model_name", None)
         return {
             "operations": operations,
-            "models": {"embedding": active_embedding or configured_embedding, "generation": MODEL},
+            "models": {"embedding": active_embedding or configured_embedding, "generation": loaded.get("generation_model", MODEL)},
             "usage": usage,
             "gates": {
                 "companion_connected": True,
@@ -558,7 +585,7 @@ def create_companion_server(
             if path == "/v1/dashboard":
                 self._send_json(200, dashboard(ready))
                 return
-            self._send_json(200, {"ready": ready, "model": MODEL, "embedding": embedding_status()})
+            self._send_json(200, {"ready": ready, "model": MODEL, "generation_models": codex_cached_models(), "embedding": embedding_status()})
 
         def _read_json(self, maximum: int) -> Any | None:
             try:
@@ -858,8 +885,10 @@ def create_companion_server(
             if isinstance(result, str):
                 result = GenerationResult(result)
             record("generation", started, True, result)
+            model = _generation_model(payload)
+            loaded["generation_model"] = model
             events = [
-                {"type": "meta", "mode": "provider", "provider": "Codex · Local", "model": MODEL},
+                {"type": "meta", "mode": "provider", "provider": "Codex · Local", "model": model},
                 {"type": "delta", "text": result.answer},
                 {"type": "done"},
             ]
