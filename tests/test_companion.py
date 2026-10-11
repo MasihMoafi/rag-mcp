@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 from types import SimpleNamespace
 from threading import Event, Thread
 from urllib.error import HTTPError
@@ -445,6 +446,7 @@ def test_codex_generation_reads_reported_usage(monkeypatch):
 
 
 def test_companion_rejects_unpaired_requests_and_streams_grounded_answers(monkeypatch, tmp_path):
+    monkeypatch.setenv("CODEX_HOME", str(tmp_path / "codex"))
     monkeypatch.setenv("RAG_MCP_CONFIG", str(tmp_path / "config.json"))
     monkeypatch.delenv("RAG_MCP_EMBED_PROVIDER", raising=False)
     calls = []
@@ -465,6 +467,7 @@ def test_companion_rejects_unpaired_requests_and_streams_grounded_answers(monkey
             assert json.load(response) == {
                 "ready": True,
                 "model": "gpt-5.6-luna",
+                "generation_models": [{"id": "gpt-5.6-luna", "name": "gpt-5.6-luna"}],
                 "embedding": {"provider": "none", "model": ""},
             }
             assert response.headers["Access-Control-Allow-Origin"] == "https://rag.masihmoafi.com"
@@ -486,6 +489,7 @@ def test_companion_rejects_unpaired_requests_and_streams_grounded_answers(monkey
                 raise AssertionError("unpaired companion request was accepted")
 
         payload = {
+            "model": "synthetic-selected-model",
             "question": "What is the codename?",
             "history": [],
             "chunks": [{
@@ -499,7 +503,7 @@ def test_companion_rejects_unpaired_requests_and_streams_grounded_answers(monkey
         with request(f"{base}/generate", body=payload) as response:
             events = [json.loads(line) for line in response.read().decode().splitlines()]
         assert events == [
-            {"type": "meta", "mode": "provider", "provider": "Codex · Local", "model": "gpt-5.6-luna"},
+            {"type": "meta", "mode": "provider", "provider": "Codex · Local", "model": "synthetic-selected-model"},
             {"type": "delta", "text": "Cedar Lantern [1]"},
             {"type": "done"},
         ]
@@ -510,7 +514,7 @@ def test_companion_rejects_unpaired_requests_and_streams_grounded_answers(monkey
         assert dashboard["operations"]["generation"]["successes"] == 1
         assert dashboard["operations"]["generation"]["failures"] == 0
         assert dashboard["operations"]["generation"]["average_latency_ms"] >= 0
-        assert dashboard["models"]["generation"] == "gpt-5.6-luna"
+        assert dashboard["models"]["generation"] == "synthetic-selected-model"
         assert dashboard["usage"] == {"input_tokens": 123, "output_tokens": 17, "cost_usd": None}
         assert dashboard["gates"]["native_operation_metrics"] is True
         assert dashboard["gates"]["durable_operation_metrics"] is True
@@ -698,3 +702,33 @@ def test_companion_replaces_and_lists_private_workspaces_only_when_paired(tmp_pa
         server.shutdown()
         server.server_close()
         thread.join(timeout=2)
+
+
+def test_codex_generation_respects_selected_model(monkeypatch):
+    monkeypatch.setattr("rag.companion.shutil.which", lambda _name: "/usr/bin/codex")
+    def run(command, **_kwargs):
+        assert command[command.index("--model") + 1] == "synthetic-selected-model"
+        Path(command[command.index("--output-last-message") + 1]).write_text("Synthetic [1]")
+        return SimpleNamespace(returncode=0, stdout="")
+    monkeypatch.setattr("rag.companion.subprocess.run", run)
+    assert run_codex_generation({"model": "synthetic-selected-model", "question": "Test?", "chunks": []}).answer == "Synthetic [1]"
+
+
+def test_codex_cached_models_are_displayable_unique_choices(monkeypatch, tmp_path):
+    from rag.companion import codex_cached_models
+    monkeypatch.setenv("CODEX_HOME", str(tmp_path))
+    (tmp_path / "models_cache.json").write_text(json.dumps({"identity": {"private": "never expose"}, "models": [
+        {"slug": "synthetic-a", "display_name": "Model A", "visibility": "list"},
+        {"slug": "hidden-model", "visibility": "hide"},
+        {"slug": "synthetic-a", "display_name": "Duplicate", "visibility": "list"},
+        {"slug": "synthetic-b", "display_name": "Model B", "visibility": "list"},
+    ]}))
+    assert codex_cached_models() == [{"id": "synthetic-a", "name": "Model A"}, {"id": "synthetic-b", "name": "Model B"}]
+
+
+@pytest.mark.parametrize("model", ["", "--flag", 4, "model with space", "x" * 129])
+def test_codex_generation_rejects_invalid_model_before_execution(monkeypatch, model):
+    monkeypatch.setattr("rag.companion.shutil.which", lambda _name: "/usr/bin/codex")
+    monkeypatch.setattr("rag.companion.subprocess.run", lambda *_args, **_kwargs: pytest.fail("must not execute"))
+    with pytest.raises(ValueError, match="Invalid Codex model"):
+        run_codex_generation({"model": model, "question": "Test?", "chunks": []})
