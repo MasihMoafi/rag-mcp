@@ -9,6 +9,9 @@ from __future__ import annotations
 
 import os
 import math
+import queue
+import threading
+import time
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
@@ -18,6 +21,44 @@ from . import tracing
 FULL_EXTRA_HINT = (
     "Install the full extra (uv tool install 'ragmcp[full]') or pick another option in `rag setup`."
 )
+
+# Seconds after the first send at which a still-unanswered query embedding is sent again.
+QUERY_RESEND_AFTER = (2.0, 5.0)
+
+
+def _first_answer(work, resend_after):
+    """Run `work`, start it again at each delay while nothing has answered; the first success wins.
+
+    Requests through a proxy sometimes stall, and a stalled one would hold the search for the
+    client's whole timeout. Attempts run in daemon threads, so a process can exit past a stalled one.
+    """
+    answers = queue.SimpleQueue()
+
+    def attempt():
+        try:
+            answers.put((True, work()))
+        except Exception as error:
+            answers.put((False, error))
+
+    starts = (0.0, *resend_after)
+    began = time.monotonic()
+    started = failed = 0
+    while True:
+        if started < len(starts) and time.monotonic() - began >= starts[started]:
+            threading.Thread(target=attempt, daemon=True).start()
+            started += 1
+            continue
+        wait = None if started == len(starts) else max(0.0, began + starts[started] - time.monotonic())
+        try:
+            ok, value = answers.get(timeout=wait)
+        except queue.Empty:
+            continue
+        if ok:
+            return value
+        failed += 1
+        # Only the last possible attempt failing ends it; an early failure waits for the next start.
+        if failed == len(starts):
+            raise value
 
 
 def _validate_vectors(vectors):
@@ -193,11 +234,13 @@ class OpenAICompatibleWrapper:
     def close(self):
         self.client.close()
 
-    def embed_documents(self, texts):
+    def embed_documents(self, texts, resend_after=()):
         if not texts:
             return []
         positions = {text: i for i, text in enumerate(dict.fromkeys(texts))}
-        resp = self._create_with_retry(list(positions))
+        inputs = list(positions)
+        resp = (_first_answer(lambda: self._create_with_retry(inputs), resend_after) if resend_after
+                else self._create_with_retry(inputs))
         usage = getattr(resp, 'usage', None)
         if usage is not None:
             field = usage.get if isinstance(usage, Mapping) else lambda name: getattr(usage, name, None)
@@ -215,7 +258,8 @@ class OpenAICompatibleWrapper:
         return [list(vectors[positions[text]]) for text in texts]
 
     def embed_query(self, text):
-        return self.embed_documents([text])[0]
+        # A query is a few tokens, so resending a stalled one costs nothing; batches are never resent.
+        return self.embed_documents([text], resend_after=QUERY_RESEND_AFTER)[0]
 
 
 class STWrapper:

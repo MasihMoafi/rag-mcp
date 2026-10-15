@@ -4,7 +4,8 @@ from __future__ import annotations
 import math
 import json
 import re
-from threading import Event
+from contextlib import contextmanager
+from threading import Event, Thread
 import uuid
 import hashlib
 from filelock import FileLock, Timeout
@@ -21,6 +22,36 @@ class RunInputError(ValueError):
     def __init__(self, message, code):
         super().__init__(message)
         self.code = code
+
+
+@contextmanager
+def _runtime_manifest_recorded(result):
+    """Record the runtime manifest beside the run, not before it.
+
+    A process's first capture reads the Studio bundle (about 1.5 s); in a thread it overlaps
+    the search's network waits. The run's result and trace get it however the run ends.
+    """
+    from rag.provenance import runtime_manifest
+    captured = {}
+
+    def capture():
+        try:
+            captured['value'] = runtime_manifest()
+        except Exception:
+            pass
+
+    worker = Thread(target=capture, daemon=True)
+    worker.start()
+    try:
+        yield
+    finally:
+        worker.join()
+        if 'value' in captured:
+            result['runtime_manifest'] = captured['value']
+            tracing.annotate(runtime_manifest_sha256=captured['value']['sha256'])
+        else:
+            result['runtime_manifest_status'] = 'unavailable'
+            tracing.annotate(runtime_manifest_status='unavailable')
 
 
 def request_fingerprint(query, doc_path='', extensions=None, workspace_id='', source_ids=None, workspace_revision=None, mode='answer', answer_model=None, configuration_revision=None, conversation_id=None, conversation_revision=None):
@@ -151,16 +182,8 @@ def execute_run(query: str, doc_path: str = "", extensions: list[str] | None = N
     try:
         store = workspace_store or WorkspaceStore()
         store.root.mkdir(parents=True, exist_ok=True, mode=0o700)
-        with tracing.execution_context(observe, cancelled), tracing.request_trace(run_id), FileLock(store.root / '.execution.lock', timeout=0), frozen_settings():
+        with tracing.execution_context(observe, cancelled), tracing.request_trace(run_id), FileLock(store.root / '.execution.lock', timeout=0), frozen_settings(), _runtime_manifest_recorded(result):
             tracing.annotate(client=client, workspace_id=workspace_id or None)
-            from rag.provenance import runtime_manifest
-            try:
-                result['runtime_manifest'] = runtime_manifest()
-            except Exception:
-                result['runtime_manifest_status'] = 'unavailable'
-                tracing.annotate(runtime_manifest_status='unavailable')
-            else:
-                tracing.annotate(runtime_manifest_sha256=result['runtime_manifest']['sha256'])
             if mode not in {'answer', 'retrieve'}:
                 raise RunInputError('Unsupported run mode.', 'invalid_mode')
             tracing.annotate(mode=mode)
