@@ -31,6 +31,7 @@ def _first_answer(work, resend_after):
 
     Requests through a proxy sometimes stall, and a stalled one would hold the search for the
     client's whole timeout. Attempts run in daemon threads, so a process can exit past a stalled one.
+    Resends are for stalls: an error with no other attempt running is the answer.
     """
     answers = queue.SimpleQueue()
 
@@ -56,8 +57,7 @@ def _first_answer(work, resend_after):
         if ok:
             return value
         failed += 1
-        # Only the last possible attempt failing ends it; an early failure waits for the next start.
-        if failed == len(starts):
+        if failed == started:
             raise value
 
 
@@ -227,9 +227,26 @@ class OpenAICompatibleWrapper:
         self.client = OpenAI(api_key=api_key, base_url=base_url, max_retries=1, timeout=30)
         self.model_name = model_name
 
-    def _create_with_retry(self, input_val):
-        # The SDK already classifies retryable errors and owns the retry budget.
-        return self.client.embeddings.create(model=self.model_name, input=input_val)
+    # OpenRouter passes on each upstream provider's per-minute limit as HTTP 429, and
+    # several agents may index at once. Wait it out (Retry-After when sent, capped)
+    # instead of failing the whole index; every other error still fails fast.
+    # A search's query is resent at QUERY_RESEND_AFTER instead of waiting.
+    RATE_LIMIT_WAITS = (2, 4, 8, 16, 30)
+
+    def _create_with_retry(self, input_val, rate_limit_waits=RATE_LIMIT_WAITS):
+        from openai import RateLimitError
+
+        for wait in (*rate_limit_waits, None):
+            try:
+                return self.client.embeddings.create(model=self.model_name, input=input_val)
+            except RateLimitError as error:
+                if wait is None:
+                    raise
+                try:
+                    wait = min(float(error.response.headers.get('retry-after')), 60.)
+                except (TypeError, ValueError):
+                    pass
+                time.sleep(wait)
 
     def close(self):
         self.client.close()
@@ -239,7 +256,7 @@ class OpenAICompatibleWrapper:
             return []
         positions = {text: i for i, text in enumerate(dict.fromkeys(texts))}
         inputs = list(positions)
-        resp = (_first_answer(lambda: self._create_with_retry(inputs), resend_after) if resend_after
+        resp = (_first_answer(lambda: self._create_with_retry(inputs, ()), resend_after) if resend_after
                 else self._create_with_retry(inputs))
         usage = getattr(resp, 'usage', None)
         if usage is not None:
