@@ -115,21 +115,43 @@ def test_import_rejects_concurrent_workspace_change(tmp_path, monkeypatch):
     assert [item['id'] for item in store.snapshot('book')['documents']] == ['concurrent']
 
 
-def test_unreadable_chapter_does_not_publish_a_partial_workspace(tmp_path):
-    from rag.workspace_import import import_workspace_sources
+def test_unreadable_chapter_does_not_publish_a_partial_workspace(tmp_path, monkeypatch):
+    from rag import workspace_import
 
     folder = tmp_path / 'book'
     folder.mkdir()
     (folder / 'one.md').write_text('Readable chapter.')
-    (folder / 'two.md').write_text('   ')
+    (folder / 'two.md').write_text('Text the parser loses.')
+    extract = workspace_import.extract_content
+    monkeypatch.setattr(workspace_import, 'extract_content',
+                        lambda file: '   ' if file.endswith('two.md') else extract(file))
     store = WorkspaceStore(tmp_path / 'workspaces')
     before = store.replace('book', 'Book', [{'id': 'browser-source', 'name': 'Studio source',
                                            'sourceType': 'text', 'content': 'Keep me.'}])
     with pytest.raises(ValueError, match='No readable text'):
-        import_workspace_sources(store, 'book', folder, ['md'])
+        workspace_import.import_workspace_sources(store, 'book', folder, ['md'])
     after = store.snapshot('book')
     assert after['revision'] == before['revision']
     assert [item['id'] for item in after['documents']] == ['browser-source']
+
+
+def test_folder_import_skips_empty_files(tmp_path):
+    from rag.workspace_import import import_workspace_sources
+
+    folder = tmp_path / 'package'
+    folder.mkdir()
+    (folder / '__init__.py').write_text('')
+    (folder / 'blank.py').write_text('\n  \n')
+    (folder / 'core.py').write_text('def search(): pass\n')
+    store = WorkspaceStore(tmp_path / 'workspaces')
+    result = import_workspace_sources(store, 'code', folder, ['py'])
+    assert result['imported_count'] == 1 and result['skipped_empty'] == ['__init__.py', 'blank.py']
+    assert [item['name'] for item in store.snapshot('code')['documents']] == ['core.py']
+    with pytest.raises(ValueError, match='No readable text'):
+        import_workspace_sources(store, 'code', folder / '__init__.py')
+    (folder / 'core.py').write_text('')
+    with pytest.raises(ValueError, match='No readable text'):
+        import_workspace_sources(store, 'code', folder, ['py'])
 
 
 def test_mcp_import_requires_current_revision_and_returns_metadata_only(tmp_path, monkeypatch):

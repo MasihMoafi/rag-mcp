@@ -39,7 +39,7 @@ def import_workspace_sources(store: WorkspaceStore, workspace_id: str, path: Pat
     if not files:
         raise ValueError('No readable documents found in the selected scope.')
 
-    imported = []
+    imported, skipped = [], []
     for file in files:
         source = Path(file)
         before = source.stat()
@@ -47,6 +47,10 @@ def import_workspace_sources(store: WorkspaceStore, workspace_id: str, path: Pat
             raise ValueError(f'Source file exceeds the {store.max_document_bytes}-byte import limit.')
         content = extract_content(file)
         if not content or not content.strip():
+            # An empty file (a package's __init__.py) loses nothing; text the parser lost does.
+            if scope is not None and not source.read_bytes().strip():
+                skipped.append(str(source.relative_to(path)))
+                continue
             raise ValueError(f'No readable text found in {source.name}.')
         after = source.stat()
         if (before.st_mtime_ns, before.st_size) != (after.st_mtime_ns, after.st_size):
@@ -57,6 +61,8 @@ def import_workspace_sources(store: WorkspaceStore, workspace_id: str, path: Pat
             'sourceType': _SOURCE_TYPES.get(source.suffix.lower(), 'text'),
             'content': content,
         })
+    if not imported:
+        raise ValueError('No readable text found in the selected scope.')
     if scope is not None and not scope.is_current():
         raise ValueError('The folder changed during import. Retry with a stable folder.')
 
@@ -85,5 +91,6 @@ def import_workspace_sources(store: WorkspaceStore, workspace_id: str, path: Pat
         'document_count': saved['document_count'],
         'total_bytes': saved['total_bytes'],
         'imported_count': len(imported),
+        'skipped_empty': skipped,
         'source_ids': [item['id'] for item in imported],
     }
