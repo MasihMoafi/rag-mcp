@@ -126,7 +126,7 @@ def test_ollama_rejects_dimension_change_between_batches():
 
 def wrapper_with_response(monkeypatch, items):
     wrapper = OpenAICompatibleWrapper.__new__(OpenAICompatibleWrapper)
-    monkeypatch.setattr(wrapper, "_create_with_retry", lambda texts: SimpleNamespace(data=items))
+    monkeypatch.setattr(wrapper, "_create_with_retry", lambda texts, *_: SimpleNamespace(data=items))
     return wrapper
 
 
@@ -236,7 +236,9 @@ def test_unknown_backend_is_rejected_before_model_initialization(monkeypatch):
         core.RAGPipeline({'backend': 'lance_typo', 'persist_dir': '/unused'})
 
 
-@pytest.mark.parametrize('status,expected_calls', [(401, 1), (400, 1), (429, 2), (503, 2)])
+# A 429 is rejected, not billed: it is waited out within a bounded budget.
+@pytest.mark.parametrize('status,expected_calls', [
+    (401, 1), (400, 1), (429, 2 * (len(OpenAICompatibleWrapper.RATE_LIMIT_WAITS) + 1)), (503, 2)])
 def test_sdk_retry_budget_is_not_multiplied(monkeypatch, status, expected_calls):
     import httpx
     import openai
@@ -271,3 +273,83 @@ def test_api_batch_failure_does_not_fan_out_into_query_requests(monkeypatch, bac
     with pytest.raises(RuntimeError, match='provider unavailable'):
         backend._batch_embed(['first', 'second'])
     assert calls == [['first', 'second']]
+
+
+def _rate_limited(retry_after=None):
+    import httpx
+    from openai import RateLimitError
+
+    headers = {'retry-after': retry_after} if retry_after else {}
+    response = httpx.Response(429, headers=headers, request=httpx.Request('POST', 'https://openrouter.test/v1/embeddings'))
+    return RateLimitError('rate limited', response=response, body=None)
+
+
+def test_api_embedding_waits_out_provider_rate_limits(monkeypatch):
+    from rag import embeddings
+
+    waits = []
+    monkeypatch.setattr(embeddings.time, 'sleep', waits.append)
+    wrapper = OpenAICompatibleWrapper('fixture', api_key='key', base_url='https://openrouter.test/v1')
+    ok = SimpleNamespace(data=[SimpleNamespace(index=0, embedding=[1., 0.])], usage=None)
+    calls = iter([_rate_limited('3'), _rate_limited(), ok])
+
+    def create(**kwargs):
+        result = next(calls)
+        if isinstance(result, Exception):
+            raise result
+        return result
+
+    wrapper.client = SimpleNamespace(embeddings=SimpleNamespace(create=create))
+    assert wrapper.embed_documents(['document']) == [[1., 0.]]
+    assert waits == [3., 4]
+
+
+def test_api_embedding_gives_up_after_bounded_rate_limit_waits(monkeypatch):
+    from openai import RateLimitError
+    from rag import embeddings
+
+    waits = []
+    monkeypatch.setattr(embeddings.time, 'sleep', waits.append)
+    wrapper = OpenAICompatibleWrapper('fixture', api_key='key', base_url='https://openrouter.test/v1')
+
+    def create(**kwargs):
+        raise _rate_limited('999')
+
+    wrapper.client = SimpleNamespace(embeddings=SimpleNamespace(create=create))
+    with pytest.raises(RateLimitError):
+        wrapper.embed_documents(['document'])
+    assert len(waits) == len(OpenAICompatibleWrapper.RATE_LIMIT_WAITS)
+    assert max(waits) <= 60
+
+
+def test_query_embedding_fails_fast_and_resends_only_a_stall(monkeypatch):
+    from threading import Event
+    from openai import RateLimitError
+    from rag import embeddings
+
+    waits = []
+    monkeypatch.setattr(embeddings.time, 'sleep', waits.append)
+    wrapper = OpenAICompatibleWrapper('fixture', api_key='key', base_url='https://openrouter.test/v1')
+    calls = []
+
+    def limited(**kwargs):
+        calls.append(kwargs['input'])
+        raise _rate_limited('30')
+
+    wrapper.client = SimpleNamespace(embeddings=SimpleNamespace(create=limited))
+    with pytest.raises(RateLimitError):
+        wrapper.embed_documents(['query'], resend_after=(0.05, 0.1))
+    assert waits == [] and len(calls) == 1
+
+    stalled, ok = Event(), SimpleNamespace(data=[SimpleNamespace(index=0, embedding=[1., 0.])], usage=None)
+
+    def first_stalls(**kwargs):
+        calls.append(kwargs['input'])
+        if len(calls) == 2:
+            stalled.wait(5)
+        return ok
+
+    wrapper.client = SimpleNamespace(embeddings=SimpleNamespace(create=first_stalls))
+    assert wrapper.embed_documents(['query'], resend_after=(0.05, 0.1)) == [[1., 0.]]
+    stalled.set()
+    assert len(calls) == 3
