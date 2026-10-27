@@ -190,3 +190,16 @@ def test_mcp_import_requires_current_revision_and_returns_metadata_only(tmp_path
     fresh = add(value['revision'])
     assert fresh['isError'] is False
     assert WorkspaceStore(root).snapshot('book')['documents'][0]['content'] == 'Revised private text.'
+
+
+def test_unparsable_source_names_the_file(tmp_path):
+    from rag import workspace_import
+
+    folder = tmp_path / 'corpus'
+    folder.mkdir()
+    (folder / 'garden.md').write_text('Readable.')
+    (folder / 'tsconfig.json').write_text('{\n  // comments are not JSON\n}\n')
+    store = WorkspaceStore(tmp_path / 'workspaces')
+    with pytest.raises(ValueError, match='tsconfig.json'):
+        workspace_import.import_workspace_sources(store, 'corpus', folder, ['md', 'json'])
+    assert not (store.root / 'corpus' / 'manifest.json').exists()
