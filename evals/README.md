@@ -3,7 +3,7 @@
 Recorded retrieval experiments against real documents, kept as evidence rather than as an
 automated suite. Nothing here runs in CI — `tests/` holds the automated checks.
 
-Each folder is one corpus with its own `queries.csv`:
+Each corpus folder sits under `experiments/experiment-isolated-scaling/data/` and `experiments/experiment-unified-scaling/data/` with its own `queries.csv`:
 
 | Corpus | Material |
 | --- | --- |

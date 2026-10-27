@@ -1,7 +1,7 @@
 {
   "name": "rag",
   "version": "0.2.0",
-  "description": "Local hybrid-RAG (BM25 + vector + rerank) over files and folders on your machine. Nothing leaves the device unless you configure a hosted model.",
+  "description": "Local hybrid-RAG (BM25 + vector + rerank) over files and folders on your machine. Indexing and search run locally; answers are written by a hosted model through OpenRouter, so a question and its retrieved passages leave the device.",
   "author": { "name": "Masih Moafi" },
   "homepage": "https://github.com/MasihMoafi/rag-mcp#readme",
   "repository": "https://github.com/MasihMoafi/rag-mcp",

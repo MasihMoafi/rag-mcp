@@ -1,6 +1,6 @@
 ---
 name: rag-search
-description: Answer questions from local documents (PDF, DOCX, Markdown, code, text) with the rag MCP server. Use when the answer lives in files or folders on disk and grep or reading whole files would be slow or noisy.
+description: Answer questions from local documents (PDF, Markdown, code, text) with the rag MCP server. Use when the answer lives in files or folders on disk and grep or reading whole files would be slow or noisy.
 ---
 
 # rag-search
