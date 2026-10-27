@@ -149,3 +149,18 @@ def test_optional_extractor_page_labels_and_failure(pipeline, monkeypatch):
     partition.side_effect = RuntimeError("parser failed")
     with pytest.raises(RuntimeError, match="parser failed"):
         pipeline._extract_content("document.docx")
+
+
+def test_pdf_fallback_without_unstructured_reports_the_pdf_error(monkeypatch, tmp_path):
+    from rag.parsing import extract_content
+
+    monkeypatch.setitem(sys.modules, 'unstructured', None)
+    path = tmp_path / 'scan.pdf'
+    path.write_bytes(b'%PDF-1.4 broken')
+
+    def broken(file_path):
+        raise RuntimeError('encrypted document')
+
+    with pytest.raises(RuntimeError, match='encrypted document'):
+        extract_content(str(path), pdf=broken)
+    assert extract_content(str(path), pdf=lambda file_path: '  ') == '  '
