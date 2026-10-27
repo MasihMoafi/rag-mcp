@@ -163,6 +163,10 @@ class LanceDBBackend:
                 # Arrow wraps iterator errors; do not embed provider details in its message.
                 raise RuntimeError("Embedding batch preparation failed.") from None
 
+        # mode="overwrite" keeps every earlier version's data files and FTS indexes, so each
+        # refresh grew the scope directory by a whole copy of the index. Start from a fresh table.
+        if getattr(self, "table", None) is not None:
+            self.db.drop_table(self.table_name)
         try:
             self.table = self.db.create_table(self.table_name, data=batches(), mode="overwrite")
         except Exception:
