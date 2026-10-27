@@ -4,6 +4,7 @@ Readers live in parsers/. These adapters retain the pipeline method override
 points used by callers; extraction policy is unchanged.
 """
 
+import importlib.util
 import os
 
 from .parsers.json import extract_json_text
@@ -49,14 +50,19 @@ def extract_content(file_path: str, *, pdf=extract_pdf_text, office=extract_offi
     if ext in unstructured_exts:
         return office(file_path)
     elif ext == ".pdf":
+        # The office parser needs the optional unstructured package; without it the
+        # PDF's own error (or empty text) must reach the caller, not an import error.
+        fallback = importlib.util.find_spec("unstructured") is not None
         try:
             text = pdf(file_path)
         except Exception:
+            if not fallback:
+                raise
             text = office(file_path)
             if not text or not text.strip():
                 raise
             return text
-        if not text or not text.strip():
+        if (not text or not text.strip()) and fallback:
             text = office(file_path)
         return text
     elif ext == ".json":
