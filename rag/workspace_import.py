@@ -45,7 +45,11 @@ def import_workspace_sources(store: WorkspaceStore, workspace_id: str, path: Pat
         before = source.stat()
         if before.st_size > store.max_document_bytes:
             raise ValueError(f'Source file exceeds the {store.max_document_bytes}-byte import limit.')
-        content = extract_content(file)
+        try:
+            content = extract_content(file)
+        except (OSError, ValueError, RuntimeError) as error:
+            where = source.relative_to(path) if scope is not None else source.name
+            raise ValueError(f'Cannot read {where}: {error}') from error
         if not content or not content.strip():
             # An empty file (a package's __init__.py) loses nothing; text the parser lost does.
             if scope is not None and not source.read_bytes().strip():
