@@ -72,6 +72,15 @@ def chunk_text(text: str, chunk_size: int = 700, chunk_overlap: int = 100) -> Li
     return [content for content, _, _ in _chunk_text_slices(text, chunk_size, chunk_overlap)]
 
 
+# Book-length prose is cut in wide windows: a narrative's facts sit in scenes and paragraphs that a
+# 700-character window splits apart, so book-length text gets 1,600 characters with 250 overlap. Code keeps the
+# configured window, since a function is the unit there.
+LONG_DOCUMENT_CHARS = int(os.environ.get("RAG_MCP_LONG_DOCUMENT_CHARS", "150000"))
+LONG_CHUNK_SIZE = int(os.environ.get("RAG_MCP_LONG_CHUNK_SIZE", "1600"))
+LONG_CHUNK_OVERLAP = int(os.environ.get("RAG_MCP_LONG_CHUNK_OVERLAP", "250"))
+_CAPTION_RE = re.compile(r"^(?:Figure|Fig\.|Table)\s+\d+[.:]\s")
+_UNIT_BREAK_RE = re.compile(r"\n\s*\n|\f")
+
 _MD_EXTS = {".md", ".markdown"}
 _CODE_EXTS = {
     ".py", ".rs", ".js", ".ts", ".tsx", ".jsx", ".c", ".h", ".cpp", ".hpp",
@@ -137,6 +146,27 @@ def _split_markdown_sections(text: str) -> List[Tuple[str, str, int]]:
     return sections
 
 
+def _caption_units(text: str) -> List[Tuple[str, int]]:
+    """Split a section so each figure or table caption is a unit of its own; the paragraphs between
+    captions stay together for the window chunker. Returns (unit text, start offset)."""
+    units: List[Tuple[str, int]] = []
+    unit_start, position = 0, 0
+    for match in list(_UNIT_BREAK_RE.finditer(text)) + [None]:
+        end = match.start() if match else len(text)
+        paragraph = text[position:end]
+        if _CAPTION_RE.match(paragraph.strip()):
+            before = text[unit_start:position]
+            if before.strip():
+                units.append((before, unit_start))
+            units.append((paragraph, position))
+            unit_start = match.end() if match else len(text)
+        position = match.end() if match else len(text)
+    rest = text[unit_start:]
+    if rest.strip():
+        units.append((rest, unit_start))
+    return units
+
+
 def _first_code_symbol(text: str) -> str:
     """Label the first regex-recognized symbol in a chunk, not its enclosing scope."""
     for line in text.split("\n"):
@@ -160,15 +190,19 @@ def chunk_document_spans(
         return []
 
     ext = os.path.splitext(file_path)[1].lower()
+    if ext not in _CODE_EXTS and len(text) >= LONG_DOCUMENT_CHARS:
+        chunk_size, chunk_overlap = max(chunk_size, LONG_CHUNK_SIZE), max(chunk_overlap, LONG_CHUNK_OVERLAP)
 
     if ext == '.pdf':
+        # The PDF reader marks chapter headings as "# " lines: no chunk spans two chapters, each carries
+        # its chapter as a breadcrumb, and captions stay chunks of their own.
+        sections = _split_markdown_sections(text) if _HEADING_RE.search(text) else [("", text, 0)]
         results = []
-        section_start = 0
-        for section in text.split('\n\n'):
-            results.extend({'content': content, 'heading': '', 'start_offset': section_start + start,
-                            'end_offset': section_start + end}
-                           for content, start, end in _chunk_text_slices(section, chunk_size, chunk_overlap))
-            section_start += len(section) + 2
+        for heading, section, section_start in sections:
+            for unit, unit_start in _caption_units(section):
+                results.extend({'content': content, 'heading': heading, 'start_offset': section_start + unit_start + start,
+                                'end_offset': section_start + unit_start + end}
+                               for content, start, end in _chunk_text_slices(unit, chunk_size, chunk_overlap))
         return results
 
     if ext in _MD_EXTS and _HEADING_RE.search(text):

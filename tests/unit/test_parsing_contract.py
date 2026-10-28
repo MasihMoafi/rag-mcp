@@ -84,9 +84,11 @@ def test_pdf_normalization_and_page_separators(pipeline, tmp_path):
 def test_pdf_ligatures_expand_without_changing_mathematical_symbols(monkeypatch):
     from rag.parsers import pdf
     from types import SimpleNamespace
+    data = {'height': 600, 'blocks': [{'type': 0, 'lines': [
+        {'bbox': (60, 100, 360, 112), 'spans': [{'text': 'ﬁrst eﬀicient ﬂow ﬃ ﬄ ﬅ ﬆ x² √dk', 'size': 10.5}]}]}]}
     class Document:
         def __iter__(self):
-            return iter([SimpleNamespace(get_text=lambda: 'ﬁrst eﬀicient ﬂow ﬃ ﬄ ﬅ ﬆ x² √dk')])
+            return iter([SimpleNamespace(get_text=lambda kind='text': data, rect=SimpleNamespace(height=600))])
         def close(self):
             pass
     monkeypatch.setattr(pdf.pymupdf, 'open', lambda _: Document())
