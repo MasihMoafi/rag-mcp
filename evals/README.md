@@ -3,6 +3,8 @@
 Recorded retrieval experiments against real documents, kept as evidence rather than as an
 automated suite. Nothing here runs in CI — `tests/` holds the automated checks.
 
+A run that pays for calls is built on `paidrun.py` (smoke test of every input set, success by content, the estimate from the probe confirmed before the rest, a cap by the runner's own count, isolated and locked stores); `tests/unit/test_paidrun.py` shows each guard firing.
+
 Each corpus folder sits under `experiments/experiment-isolated-scaling/data/` and `experiments/experiment-unified-scaling/data/` with its own `queries.csv`:
 
 | Corpus | Material |
