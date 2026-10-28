@@ -125,3 +125,23 @@ def test_bold_capital_section_title_is_a_heading(monkeypatch):
 def test_font_ligature_glyphs_become_letters(monkeypatch):
     text = fake_pdf(monkeypatch, [[('A SelecƟon from His WriƩen Words', 10.5, False)]])
     assert text == 'A Selection from His Written Words'
+
+
+def test_contents_entries_are_not_headings(monkeypatch):
+    text = fake_pdf(monkeypatch, [[('THE RISE OF CAPITALISM 59', 10.5, True)], [('1–37 Aegon I the Conqueror', 18, False)]])
+    assert '# ' not in text
+
+
+def test_decorated_initial_marks_a_chapter_break(monkeypatch):
+    text = fake_pdf(monkeypatch, [[('T', 48, False)], [('he king rode north.', 10.5, False)]],
+                    [[('A', 48, False)], [('egon sailed.', 10.5, False)]])
+    chunks = chunk_document(text, 'book.pdf', 700, 100)
+    assert [c['heading'] for c in chunks] == ['Chapter 1', 'Chapter 2']
+    assert chunks[1]['content'].endswith('Aegon sailed.')
+
+
+def test_a_heading_alone_is_not_a_chunk():
+    text = '# PART ONE\n\n# CHAPTER ONE\n\nThe army crossed the river at dawn.'
+    chunks = chunk_document(text, 'book.pdf', 700, 100)
+    assert len(chunks) == 1 and chunks[0]['heading'] == 'CHAPTER ONE'
+    assert 'The army crossed' in chunks[0]['content']

@@ -20,6 +20,8 @@ _LIGATURES = str.maketrans(dict(zip('ﬀﬁﬂﬃﬄﬅﬆƟƩ', ('ff', 'fi', 'f
 _CAPTION = re.compile(r'^(?:Figure|Fig\.|Table)\s+\d+[.:]\s')
 _PAGE_NUMBER = re.compile(r'^(?:page\s+)?(?:\d{1,4}|[ivxlcdm]{1,7})$', re.IGNORECASE)
 _ROMAN = re.compile(r'^[IVXLCDM]+\.?$')
+# A table-of-contents entry names a page: "THE RISE OF CAPITALISM 59", "1–37 Aegon I the Conqueror".
+_CONTENTS_ENTRY = re.compile(r'\s\d{1,4}$|^\d{1,4}\s*[–-]\s*\d{1,4}\s')
 MARGIN = 0.08          # share of the page height, top and bottom, where running headers and page numbers sit
 REPEATED_SHARE = 0.3   # a margin line on at least this share of pages (and at least 3) is a running header
 HEADING_RATIO = 1.25   # a block this much larger than the body text is a heading
@@ -92,7 +94,7 @@ def extract_pdf_text(pdf_path: str) -> str:
 
     def is_heading(text, mean, bold):
         letters = re.findall(r'[^\W\d_]', text)
-        if len(letters) < 3 or len(text) > HEADING_MAX_CHARS or _ROMAN.match(text):
+        if len(letters) < 3 or len(text) > HEADING_MAX_CHARS or _ROMAN.match(text) or _CONTENTS_ENTRY.search(text):
             return False
         larger = body and mean >= body * HEADING_RATIO
         bold_capitals = bold >= 0.9 and ''.join(letters) == ''.join(letters).upper() and not text.rstrip().endswith('.')
@@ -100,6 +102,7 @@ def extract_pdf_text(pdf_path: str) -> str:
 
     out_pages = []
     drop_cap = ''
+    chapters = 0
     for blocks in pages:
         paragraphs = []
         for lines in blocks:
@@ -117,6 +120,10 @@ def extract_pdf_text(pdf_path: str) -> str:
                 paragraphs.append('# ' + text)
                 continue
             if drop_cap:
+                # A decorated initial opens a chapter; when the title is artwork, mark the break by number.
+                if not (paragraphs and paragraphs[-1].startswith('# ')):
+                    chapters += 1
+                    paragraphs.append(f'# Chapter {chapters}')
                 lines = [(drop_cap + lines[0][0].lstrip(), *lines[0][1:])] + lines[1:]
                 drop_cap = ''
             # A caption starts its own paragraph even when the block runs on into body text.

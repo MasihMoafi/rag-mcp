@@ -202,7 +202,8 @@ def chunk_document_spans(
             for unit, unit_start in _caption_units(section):
                 results.extend({'content': content, 'heading': heading, 'start_offset': section_start + unit_start + start,
                                 'end_offset': section_start + unit_start + end}
-                               for content, start, end in _chunk_text_slices(unit, chunk_size, chunk_overlap))
+                               for content, start, end in _chunk_text_slices(unit, chunk_size, chunk_overlap)
+                               if not all(line.startswith('# ') for line in content.splitlines() if line.strip()))  # a heading alone is no passage
         return results
 
     if ext in _MD_EXTS and _HEADING_RE.search(text):
