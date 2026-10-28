@@ -1,0 +1,242 @@
+{
+ "fire-and-blood#1": {
+  "A": "branch",
+  "B": "baseline"
+ },
+ "fire-and-blood#2": {
+  "A": "branch",
+  "B": "baseline"
+ },
+ "fire-and-blood#3": {
+  "A": "branch",
+  "B": "baseline"
+ },
+ "fire-and-blood#4": {
+  "A": "baseline",
+  "B": "branch"
+ },
+ "fire-and-blood#5": {
+  "A": "branch",
+  "B": "baseline"
+ },
+ "fire-and-blood#6": {
+  "A": "baseline",
+  "B": "branch"
+ },
+ "fire-and-blood#7": {
+  "A": "branch",
+  "B": "baseline"
+ },
+ "fire-and-blood#8": {
+  "A": "baseline",
+  "B": "branch"
+ },
+ "fire-and-blood#9": {
+  "A": "branch",
+  "B": "baseline"
+ },
+ "fire-and-blood#10": {
+  "A": "branch",
+  "B": "baseline"
+ },
+ "fire-and-blood#11": {
+  "A": "branch",
+  "B": "baseline"
+ },
+ "fire-and-blood#12": {
+  "A": "branch",
+  "B": "baseline"
+ },
+ "fire-and-blood#13": {
+  "A": "branch",
+  "B": "baseline"
+ },
+ "fire-and-blood#14": {
+  "A": "baseline",
+  "B": "branch"
+ },
+ "fire-and-blood#15": {
+  "A": "baseline",
+  "B": "branch"
+ },
+ "fire-and-blood#16": {
+  "A": "baseline",
+  "B": "branch"
+ },
+ "fire-and-blood#17": {
+  "A": "branch",
+  "B": "baseline"
+ },
+ "fire-and-blood#18": {
+  "A": "branch",
+  "B": "baseline"
+ },
+ "fire-and-blood#19": {
+  "A": "baseline",
+  "B": "branch"
+ },
+ "fire-and-blood#20": {
+  "A": "branch",
+  "B": "baseline"
+ },
+ "fire-and-blood#21": {
+  "A": "branch",
+  "B": "baseline"
+ },
+ "fire-and-blood#22": {
+  "A": "branch",
+  "B": "baseline"
+ },
+ "fire-and-blood#23": {
+  "A": "branch",
+  "B": "baseline"
+ },
+ "fire-and-blood#24": {
+  "A": "branch",
+  "B": "baseline"
+ },
+ "fire-and-blood#25": {
+  "A": "baseline",
+  "B": "branch"
+ },
+ "fire-and-blood#26": {
+  "A": "branch",
+  "B": "baseline"
+ },
+ "fire-and-blood#27": {
+  "A": "baseline",
+  "B": "branch"
+ },
+ "fire-and-blood#28": {
+  "A": "branch",
+  "B": "baseline"
+ },
+ "fire-and-blood#29": {
+  "A": "branch",
+  "B": "baseline"
+ },
+ "fire-and-blood#30": {
+  "A": "branch",
+  "B": "baseline"
+ },
+ "napoleon#1": {
+  "A": "baseline",
+  "B": "branch"
+ },
+ "napoleon#2": {
+  "A": "branch",
+  "B": "baseline"
+ },
+ "napoleon#3": {
+  "A": "branch",
+  "B": "baseline"
+ },
+ "napoleon#4": {
+  "A": "baseline",
+  "B": "branch"
+ },
+ "napoleon#5": {
+  "A": "branch",
+  "B": "baseline"
+ },
+ "napoleon#6": {
+  "A": "branch",
+  "B": "baseline"
+ },
+ "napoleon#7": {
+  "A": "baseline",
+  "B": "branch"
+ },
+ "napoleon#8": {
+  "A": "baseline",
+  "B": "branch"
+ },
+ "napoleon#9": {
+  "A": "baseline",
+  "B": "branch"
+ },
+ "napoleon#10": {
+  "A": "baseline",
+  "B": "branch"
+ },
+ "napoleon#11": {
+  "A": "baseline",
+  "B": "branch"
+ },
+ "napoleon#12": {
+  "A": "branch",
+  "B": "baseline"
+ },
+ "napoleon#13": {
+  "A": "branch",
+  "B": "baseline"
+ },
+ "napoleon#14": {
+  "A": "baseline",
+  "B": "branch"
+ },
+ "napoleon#15": {
+  "A": "branch",
+  "B": "baseline"
+ },
+ "napoleon#16": {
+  "A": "baseline",
+  "B": "branch"
+ },
+ "napoleon#17": {
+  "A": "baseline",
+  "B": "branch"
+ },
+ "napoleon#18": {
+  "A": "baseline",
+  "B": "branch"
+ },
+ "napoleon#19": {
+  "A": "branch",
+  "B": "baseline"
+ },
+ "napoleon#20": {
+  "A": "branch",
+  "B": "baseline"
+ },
+ "napoleon#21": {
+  "A": "baseline",
+  "B": "branch"
+ },
+ "napoleon#22": {
+  "A": "baseline",
+  "B": "branch"
+ },
+ "napoleon#23": {
+  "A": "branch",
+  "B": "baseline"
+ },
+ "napoleon#24": {
+  "A": "branch",
+  "B": "baseline"
+ },
+ "napoleon#25": {
+  "A": "branch",
+  "B": "baseline"
+ },
+ "napoleon#26": {
+  "A": "baseline",
+  "B": "branch"
+ },
+ "napoleon#27": {
+  "A": "branch",
+  "B": "baseline"
+ },
+ "napoleon#28": {
+  "A": "baseline",
+  "B": "branch"
+ },
+ "napoleon#29": {
+  "A": "branch",
+  "B": "baseline"
+ },
+ "napoleon#30": {
+  "A": "baseline",
+  "B": "branch"
+ }
+}

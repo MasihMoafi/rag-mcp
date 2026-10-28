@@ -1,0 +1,76 @@
+{"collection": "fire-and-blood", "n": 18, "grade": "exact", "best_rank": 2, "why": "Names the Seven Speakers who won the Faithful for Jaehaerys and Alysanne."}
+{"collection": "fire-and-blood", "n": 19, "grade": "partial", "best_rank": 1, "why": "Describes the Butcher's Ball fight on a ridge but never names Crossed Elms."}
+{"collection": "fire-and-blood", "n": 20, "grade": "exact", "best_rank": 1, "why": "States Vermithor bent his neck to blacksmith's bastard Hugh the Hammer, or Hard Hugh."}
+{"collection": "fire-and-blood", "n": 21, "grade": "partial", "best_rank": 3, "why": "Names the three council lords who died, but not the replacements (Rodrik Arryn, Martyn Tyrell)."}
+{"collection": "fire-and-blood", "n": 22, "grade": "partial", "best_rank": 1, "why": "Covers Rhaenyra's grief after Lucerys, but not her hardened heart or resolve for fire and blood."}
+{"collection": "fire-and-blood", "n": 23, "grade": "exact", "best_rank": 3, "why": "States Addam came to prove his loyalty by destroying the Two Betrayers and their dragons, riding Seasmoke."}
+{"collection": "fire-and-blood", "n": 24, "grade": "exact", "best_rank": 1, "why": "States the Widow's Law reaffirmed inheritance and required heirs to maintain widows; rank 2 ties it to the women's courts."}
+{"collection": "fire-and-blood", "n": 25, "grade": "exact", "best_rank": 4, "why": "States the firstborn daughter would be fostered at Winterfell to marry Cregan's heir; rank 1 names the pact."}
+{"collection": "fire-and-blood", "n": 26, "grade": "partial", "best_rank": 1, "why": "Covers the false murder rumor, but not the riot or the Storming of the Dragonpit."}
+{"collection": "fire-and-blood", "n": 27, "grade": "partial", "best_rank": 2, "why": "Describes her cooking from within, but neither the worms nor Barth's Valyria theory."}
+{"collection": "fire-and-blood", "n": 28, "grade": "partial", "best_rank": 1, "why": "Says Vhagar was the last of Aegon's three dragons, but no passage covers the battle or her death."}
+{"collection": "fire-and-blood", "n": 29, "grade": "partial", "best_rank": 1, "why": "Says Larys ordered Aegon II's death and Aegon the Younger arrived, but not the betrayal of the greens."}
+{"collection": "fire-and-blood", "n": 30, "grade": "exact", "best_rank": 1, "why": "States the ball humiliated Peake when the king chose Daenaera over Myrielle; rank 5 shows the twins undid it."}
+{"collection": "mixed-codebase", "n": 1, "grade": "exact", "best_rank": 2, "why": "Shows PROMOTION_MIN_RECALL_COUNT = 2, lowered from 3 because nothing was recalled more than twice."}
+{"collection": "mixed-codebase", "n": 2, "grade": "exact", "best_rank": 1, "why": "promotion_eligible requires unique_query_count >= PROMOTION_MIN_UNIQUE_QUERIES (2 per rank 2)."}
+{"collection": "mixed-codebase", "n": 3, "grade": "exact", "best_rank": 4, "why": "rate_limits_ok uses unwrap_or(true), so a failed or missing check proceeds."}
+{"collection": "mixed-codebase", "n": 4, "grade": "exact", "best_rank": 1, "why": "Shows config.memories.min_rate_limit_remaining_percent."}
+{"collection": "mixed-codebase", "n": 5, "grade": "exact", "best_rank": 1, "why": "Shows const FILENAME = \"memory-sweeps.md\"."}
+{"collection": "mixed-codebase", "n": 6, "grade": "exact", "best_rank": 1, "why": "The comment gives the git-workspace dirtiness reason verbatim."}
+{"collection": "mixed-codebase", "n": 7, "grade": "exact", "best_rank": 1, "why": "Shows body.push_str(\"No raw memories yet.\")."}
+{"collection": "mixed-codebase", "n": 8, "grade": "exact", "best_rank": 2, "why": "Rank 1 gives the 62-character alphanumeric alphabet; rank 2 gives the 4-character hash (split across two passages)."}
+{"collection": "mixed-codebase", "n": 9, "grade": "exact", "best_rank": 1, "why": "Shows ROLLOUT_SLUG_MAX_LEN = 60."}
+{"collection": "mixed-codebase", "n": 10, "grade": "exact", "best_rank": 1, "why": "The doc comment lists the four steps in order."}
+{"collection": "mixed-codebase", "n": 11, "grade": "exact", "best_rank": 1, "why": "The schema lists the three required fields with additionalProperties false."}
+{"collection": "mixed-codebase", "n": 12, "grade": "miss", "best_rank": null, "why": "No passage mentions dropping developer-role messages."}
+{"collection": "mixed-codebase", "n": 13, "grade": "exact", "best_rank": 1, "why": "Says to replace secrets with [REDACTED_SECRET] (prompt template)."}
+{"collection": "mixed-codebase", "n": 14, "grade": "partial", "best_rank": 1, "why": "Shows the RETENTION_DAYS cutoff, but not the .md suffix, the resources/ directory or the instructions.md requirement."}
+{"collection": "mixed-codebase", "n": 15, "grade": "exact", "best_rank": 1, "why": "The parser shows the path:start-end|note=[...] format; rank 2 shows an example line."}
+{"collection": "mixed-codebase", "n": 16, "grade": "exact", "best_rank": 1, "why": "Same text as prose without the [ARG-FR-n] labels; separates content from format (answer taken from spilled CSV column)."}
+{"collection": "mixed-codebase", "n": 17, "grade": "exact", "best_rank": 1, "why": "The comment says the earlier version dropped \"Utilisez l'outil disponible\", the scored tool instruction."}
+{"collection": "mixed-codebase", "n": 18, "grade": "exact", "best_rank": 1, "why": "The comment explains both docstrings and why both French arms use the neutral one."}
+{"collection": "mixed-codebase", "n": 19, "grade": "exact", "best_rank": 1, "why": "The docstring gives the near-0/1 rates and the zero-width interval at 10/10."}
+{"collection": "mixed-codebase", "n": 20, "grade": "exact", "best_rank": 1, "why": "The docstring says Fisher rather than chi-square because the counts are small."}
+{"collection": "mixed-codebase", "n": 21, "grade": "exact", "best_rank": 1, "why": "Shows tally de-duplicating on (arm, seed); a later record overwrites (answer taken from spilled CSV)."}
+{"collection": "mixed-codebase", "n": 22, "grade": "exact", "best_rank": 4, "why": "Rank 4 gives MIN_EVIDENCE_PT 7.9 and MIN_ANY_PT 6.9; rank 1 gives the two-promises reason."}
+{"collection": "mixed-codebase", "n": 23, "grade": "exact", "best_rank": 1, "why": "The docstring says poppler does not descend into Form XObjects; MuPDF reports the text."}
+{"collection": "mixed-codebase", "n": 24, "grade": "exact", "best_rank": 1, "why": "Says Accelerator = GPU T4 x2."}
+{"collection": "mixed-codebase", "n": 25, "grade": "exact", "best_rank": 1, "why": "The comment says Ollama's installer now requires zstd, which Kaggle lacks, so the install fails silently."}
+{"collection": "mixed-codebase", "n": 26, "grade": "exact", "best_rank": 1, "why": "Shows MODEL = \"gpt-oss:20b\"."}
+{"collection": "mixed-codebase", "n": 27, "grade": "exact", "best_rank": 1, "why": "Says about 13GB, fits one T4, one server per GPU, halves the wall clock."}
+{"collection": "mixed-codebase", "n": 28, "grade": "exact", "best_rank": 1, "why": "The table lists the four core arms with their conditions."}
+{"collection": "mixed-codebase", "n": 29, "grade": "exact", "best_rank": 1, "why": "95% Wilson interval, with the normal-interval reason (answer taken from spilled CSV)."}
+{"collection": "mixed-codebase", "n": 30, "grade": "exact", "best_rank": 3, "why": "Two-sided Fisher exact tests because the counts are small (answer taken from spilled CSV)."}
+{"collection": "mixed-codebase", "n": 31, "grade": "exact", "best_rank": 1, "why": "The table gives 7% for the simulation effect at n=10."}
+{"collection": "mixed-codebase", "n": 32, "grade": "exact", "best_rank": 5, "why": "N_SEEDS = 100; 4 core arms x 100 = 400 runs (answer taken from spilled CSV)."}
+{"collection": "mixed-codebase", "n": 33, "grade": "exact", "best_rank": 1, "why": "Gives the os.system bug and the child-process fix; rank 2 shows Popen and /api/tags polling."}
+{"collection": "napoleon", "n": 1, "grade": "exact", "best_rank": 1, "why": "Quotes 'True character always pierces through in moments of crisis'; the secret-passions part is absent."}
+{"collection": "napoleon", "n": 2, "grade": "exact", "best_rank": 2, "why": "Defines destiny as self-fulfillment and fate as necessity beyond reach that binds acts in a chain."}
+{"collection": "napoleon", "n": 3, "grade": "exact", "best_rank": 5, "why": "Mystery of the social order, and equality with Heaven prevents the rich being massacred; rank 4 has the vaccine."}
+{"collection": "napoleon", "n": 4, "grade": "exact", "best_rank": 4, "why": "Rule by civil qualities and a nation united by property outweighs soldiers; rank 3 says the civilian sees the common good."}
+{"collection": "napoleon", "n": 5, "grade": "exact", "best_rank": 1, "why": "No social revolution without terror; terror is an inevitable phase (volcano image absent)."}
+{"collection": "napoleon", "n": 6, "grade": "exact", "best_rank": 1, "why": "Dreamers seeking a general constitutional pattern who ignore human character; power rests on material strength."}
+{"collection": "napoleon", "n": 7, "grade": "exact", "best_rank": 1, "why": "Loves power as a musician loves his violin, for sounds, chords and harmonies."}
+{"collection": "napoleon", "n": 8, "grade": "miss", "best_rank": null, "why": "None covers his intentions being cleared by the necessity of dictatorship against anarchy."}
+{"collection": "napoleon", "n": 9, "grade": "exact", "best_rank": 1, "why": "Says men are moved by two levers only: fear and self-interest."}
+{"collection": "napoleon", "n": 10, "grade": "partial", "best_rank": 1, "why": "Political testament passages are about other things; equality and love of distinctions never appear."}
+{"collection": "napoleon", "n": 11, "grade": "partial", "best_rank": 1, "why": "Has the quote, but not Vienna 1805 or Murat; the passage says he never knew who she was."}
+{"collection": "napoleon", "n": 12, "grade": "partial", "best_rank": 1, "why": "Shows he read 'your grandfather's book' cover to cover (rank 4 names Necker), but not the title."}
+{"collection": "napoleon", "n": 13, "grade": "exact", "best_rank": 1, "why": "Says the Emperor named it the Battle of Austerlitz."}
+{"collection": "napoleon", "n": 14, "grade": "exact", "best_rank": 1, "why": "Larrey, his surgeon general, 'the most virtuous man I have ever known'."}
+{"collection": "napoleon", "n": 15, "grade": "exact", "best_rank": 1, "why": "Says he made the Moniteur the soul and chief strength of his government."}
+{"collection": "napoleon", "n": 16, "grade": "exact", "best_rank": 1, "why": "States the sum of six thousand francs for electricity and galvanism."}
+{"collection": "napoleon", "n": 17, "grade": "exact", "best_rank": 1, "why": "'An agreed-upon fiction', with material fact and moral intent."}
+{"collection": "napoleon", "n": 18, "grade": "exact", "best_rank": 2, "why": "'I come from Nantes in Brittany.'"}
+{"collection": "napoleon", "n": 19, "grade": "exact", "best_rank": 1, "why": "Achilles, son of a goddess and a mortal, symbolizes the genius of war."}
+{"collection": "napoleon", "n": 20, "grade": "exact", "best_rank": 1, "why": "This sacred squadron, commanded by General Grouchy."}
+{"collection": "napoleon", "n": 21, "grade": "exact", "best_rank": 4, "why": "Supports the second party because the rich owners and priests can win over the masses."}
+{"collection": "napoleon", "n": 22, "grade": "exact", "best_rank": 3, "why": "Duroc, the man he loved most, and how quickly he moved on; rank 2 has the bulletin and 'another life'."}
+{"collection": "napoleon", "n": 23, "grade": "exact", "best_rank": 1, "why": "Calculating all possibilities, then an almost exact allowance for accident; a decimal may alter everything."}
+{"collection": "napoleon", "n": 24, "grade": "partial", "best_rank": 2, "why": "Gives 'Jerusalem in France' and usury (rank 5), but not turning Sanhedrin replies into theological rulings."}
+{"collection": "napoleon", "n": 25, "grade": "exact", "best_rank": 4, "why": "Believers not reasoners; weakness of brains and mobility of ideas need resignation through a charitable religion."}
+{"collection": "napoleon", "n": 26, "grade": "partial", "best_rank": 4, "why": "Finds the Trojan Horse section, but the river-weight and Tenedos-scouting arguments are absent."}
+{"collection": "napoleon", "n": 27, "grade": "partial", "best_rank": 2, "why": "Says English riches come from commerce, and the Continental System is mentioned; 'something imaginary' and the collapse aim are absent."}
+{"collection": "napoleon", "n": 28, "grade": "exact", "best_rank": 1, "why": "Lists the three aims for a hereditary nobility."}
+{"collection": "napoleon", "n": 29, "grade": "exact", "best_rank": 1, "why": "No defiles at the rear and retreat was impracticable; rank 5 says this caused the victory through obstinacy."}
+{"collection": "napoleon", "n": 30, "grade": "partial", "best_rank": 1, "why": "Shows the 29th Bulletin, the frost and the lost horses, but not the 'nature had not tempered' contrast or the health line."}

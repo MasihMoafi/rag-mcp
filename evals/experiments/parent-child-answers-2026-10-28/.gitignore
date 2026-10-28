@@ -1,0 +1,6 @@
+index-*/
+config-*.json
+answers.jsonl
+grading-packet.jsonl
+run.log
+traces/

@@ -1,0 +1,122 @@
+{
+ "baseline": {
+  "partial": 20,
+  "exact": 39,
+  "miss": 1
+ },
+ "branch": {
+  "partial": 12,
+  "exact": 48
+ },
+ "per_collection": {
+  "napoleon": {
+   "baseline": {
+    "partial": 8,
+    "exact": 21,
+    "miss": 1
+   },
+   "branch": {
+    "partial": 3,
+    "exact": 27
+   }
+  },
+  "fire-and-blood": {
+   "baseline": {
+    "exact": 18,
+    "partial": 12
+   },
+   "branch": {
+    "exact": 21,
+    "partial": 9
+   }
+  }
+ },
+ "better": [
+  [
+   "fire-and-blood",
+   28,
+   "partial",
+   "exact",
+   "Rank 1 says Vhagar died above the Gods Eye and 'thus passed the last living creature from the days of Aegon's Conquest'."
+  ],
+  [
+   "napoleon",
+   8,
+   "miss",
+   "partial",
+   "Rank 1 has Napoleon on historians disputing his true intentions, but not the defence that his dictatorship was needed against anarchy."
+  ],
+  [
+   "fire-and-blood",
+   4,
+   "partial",
+   "exact",
+   "Rank 3 says, as with the Winter Wolves, old, unwed and childless men left so their kin might survive, seeking a worthy end."
+  ],
+  [
+   "fire-and-blood",
+   30,
+   "partial",
+   "exact",
+   "Passages show Peake grooming Myrielle, over a thousand rival maids at the ball, the twins' arrival undoing his scheme, and the king choosing Daenaera."
+  ],
+  [
+   "napoleon",
+   26,
+   "partial",
+   "exact",
+   "Rank 1 gives the Tenedos scouting absurdity and the weight/two rivers in one day argument."
+  ],
+  [
+   "napoleon",
+   11,
+   "partial",
+   "exact",
+   "Rank 1 gives Vienna 1805, Murat's introduction, and the 'no smell' quote."
+  ],
+  [
+   "napoleon",
+   30,
+   "partial",
+   "exact",
+   "Ranks 1, 2 and 5 cover 30,000 horses dead, army paralyzed, the tempered/untempered contrast, and 'health never better'."
+  ],
+  [
+   "napoleon",
+   10,
+   "partial",
+   "exact",
+   "Rank 1 states the two passions: love of equality and love of distinctions."
+  ],
+  [
+   "napoleon",
+   5,
+   "partial",
+   "exact",
+   "Rank 2 gives terror as an inevitable phase and the volcanic-eruption convulsion needing direction."
+  ],
+  [
+   "fire-and-blood",
+   27,
+   "partial",
+   "exact",
+   "Ranks 3 and 4 give the cooking-from-within symptoms, the things inside her, and Barth's Valyria chimeras theory."
+  ],
+  [
+   "napoleon",
+   24,
+   "partial",
+   "exact",
+   "Ranks 3 and 5 give replacing shameful practices with honorable industriousness and converting Sanhedrin replies into theological rulings."
+  ]
+ ],
+ "worse": [
+  [
+   "fire-and-blood",
+   9,
+   "exact",
+   "partial",
+   "Rank 4 has the Shepherd calling dragons demons from the seven hells summoned by Valyria and warning of a second doom unless they perish."
+  ]
+ ]
+}

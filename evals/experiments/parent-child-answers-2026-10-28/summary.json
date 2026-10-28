@@ -1,0 +1,24 @@
+{
+ "off": {
+  "correct": 21,
+  "partial": 1
+ },
+ "on": {
+  "correct": 21,
+  "abstained": 1
+ },
+ "changes": [
+  [
+   "10b",
+   "correct",
+   "abstained",
+   "Says the sources do not answer the question."
+  ],
+  [
+   "p4",
+   "partial",
+   "correct",
+   "Bases the decision on evaluation failures and ROI, and does not give the passage's test: complex queries are common and failures affect business outcomes."
+  ]
+ ]
+}

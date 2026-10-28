@@ -1,0 +1,77 @@
+{"collection": "attention", "n": 1, "grade": "partial", "best_rank": 1, "why": "Rank 1 gives the parallelization motive; no passage states the constant path length for long-range dependencies."}
+{"collection": "attention", "n": 2, "grade": "exact", "best_rank": 4, "why": "Rank 4 says multi-head attention lets the model jointly attend to different representation subspaces, which single-head averaging inhibits."}
+{"collection": "attention", "n": 3, "grade": "exact", "best_rank": 3, "why": "Rank 3 says the model is auto-regressive, consuming previously generated symbols as input for the next."}
+{"collection": "attention", "n": 4, "grade": "exact", "best_rank": 1, "why": "Rank 1 states PE(pos+k) is a linear function of PE(pos) for any fixed offset k."}
+{"collection": "attention", "n": 5, "grade": "exact", "best_rank": 1, "why": "Rank 1 says label smoothing hurts perplexity but improves accuracy and BLEU."}
+{"collection": "attention", "n": 6, "grade": "exact", "best_rank": 1, "why": "Rank 1 says operations grow linearly for ConvS2S and are constant in the Transformer."}
+{"collection": "attention", "n": 7, "grade": "exact", "best_rank": 2, "why": "Rank 2 explains large dot products push softmax into small-gradient regions, counteracted by scaling."}
+{"collection": "attention", "n": 8, "grade": "exact", "best_rank": 5, "why": "Rank 5 says heads learn different tasks related to syntactic and semantic structure, from inspecting attention distributions."}
+{"collection": "attention", "n": 9, "grade": "exact", "best_rank": 1, "why": "Rank 1 says sinusoids may let the model extrapolate to longer sequences."}
+{"collection": "attention", "n": 10, "grade": "exact", "best_rank": 2, "why": "Rank 2 describes the decoder's third encoder-attention sub-layer and masked self-attention."}
+{"collection": "attention", "n": 11, "grade": "exact", "best_rank": 1, "why": "Rank 1 states BLEU 28.4."}
+{"collection": "attention", "n": 12, "grade": "exact", "best_rank": 1, "why": "Rank 1 states 8 NVIDIA P100 GPUs."}
+{"collection": "attention", "n": 13, "grade": "exact", "best_rank": 1, "why": "Rank 1 states dff = 2048."}
+{"collection": "attention", "n": 14, "grade": "exact", "best_rank": 1, "why": "Rank 1 states the Adam optimizer was used."}
+{"collection": "attention", "n": 15, "grade": "exact", "best_rank": 1, "why": "Rank 1 states warmup_steps = 4000."}
+{"collection": "attention", "n": 16, "grade": "exact", "best_rank": 1, "why": "Rank 1 states beam size of 4 for translation."}
+{"collection": "attention", "n": 17, "grade": "exact", "best_rank": 1, "why": "Rank 1 holds Table 1 with self-attention complexity O(n^2 · d)."}
+{"collection": "attention", "n": 18, "grade": "exact", "best_rank": 1, "why": "Rank 1 states N = 6 identical layers."}
+{"collection": "attention", "n": 19, "grade": "exact", "best_rank": 1, "why": "Rank 1 gives the tensor2tensor code link."}
+{"collection": "attention", "n": 20, "grade": "exact", "best_rank": 1, "why": "Rank 1 states Pdrop = 0.1 for the base model."}
+{"collection": "attention", "n": 21, "grade": "exact", "best_rank": 1, "why": "Rank 1 says the dot products are divided by sqrt(dk)."}
+{"collection": "attention", "n": 22, "grade": "partial", "best_rank": 1, "why": "Rank 1 is the Positional Encoding section saying position information must be injected, but cuts off before saying encodings are added to embeddings."}
+{"collection": "attention", "n": 23, "grade": "exact", "best_rank": 1, "why": "Rank 1 states BLEU 41.8 after 3.5 days of training."}
+{"collection": "attention", "n": 24, "grade": "exact", "best_rank": 4, "why": "Rank 4 describes masking illegal softmax inputs to minus infinity."}
+{"collection": "attention", "n": 25, "grade": "exact", "best_rank": 2, "why": "Rank 2 lists Transformer (4 layers) semi-supervised at 92.7."}
+{"collection": "attention", "n": 26, "grade": "exact", "best_rank": 1, "why": "Rank 1 says the same weight matrix is shared between both embedding layers and the pre-softmax linear transformation."}
+{"collection": "attention", "n": 27, "grade": "exact", "best_rank": 1, "why": "Rank 1 captions Figure 4 as heads involved in anaphora resolution."}
+{"collection": "attention", "n": 28, "grade": "exact", "best_rank": 2, "why": "Rank 2 holds Table 3 row (A) with h=1 at BLEU 24.9; rank 1 adds it is 0.9 BLEU worse."}
+{"collection": "attention", "n": 29, "grade": "exact", "best_rank": 1, "why": "Rank 1 holds Table 1 with maximum path length O(n) for recurrent and O(1) for self-attention."}
+{"collection": "attention", "n": 30, "grade": "exact", "best_rank": 1, "why": "Rank 1 says dk = dv = dmodel/h = 64 keeps cost similar to single-head attention."}
+{"collection": "brain-and-behavior", "n": 1, "grade": "exact", "best_rank": 5, "why": "Rank 5 states the mission sentence verbatim."}
+{"collection": "brain-and-behavior", "n": 2, "grade": "exact", "best_rank": 1, "why": "Rank 1 states that interacting simple parts lead to complex emergent properties."}
+{"collection": "brain-and-behavior", "n": 3, "grade": "exact", "best_rank": 1, "why": "Rank 1 says the state of the physical material determines the state of the thoughts."}
+{"collection": "brain-and-behavior", "n": 4, "grade": "exact", "best_rank": 2, "why": "Rank 2 gives Wilson's argument that the brain promotes survival and multiplication of the genes; the follow-on sentence about reason is not shown."}
+{"collection": "brain-and-behavior", "n": 5, "grade": "exact", "best_rank": 1, "why": "Rank 1 states the dilemma: taking in new information without interfering with what is already stored."}
+{"collection": "brain-and-behavior", "n": 6, "grade": "exact", "best_rank": 1, "why": "Rank 1 defines the hard problem as understanding why brain areas correlate with consciousness."}
+{"collection": "brain-and-behavior", "n": 7, "grade": "partial", "best_rank": 5, "why": "Rank 5 mentions predictions sent down to the LGN and a recurrent network building models, but not the reverse hierarchy best-guess idea."}
+{"collection": "brain-and-behavior", "n": 8, "grade": "exact", "best_rank": 4, "why": "Rank 4 says recombining past details builds future scenarios to meet survival needs, at the cost of reconstruction errors."}
+{"collection": "brain-and-behavior", "n": 9, "grade": "partial", "best_rank": 1, "why": "Rank 1 gives the inherited hunter-gatherer brain part; the two-system tug-of-war is only hinted at by the heading."}
+{"collection": "brain-and-behavior", "n": 10, "grade": "exact", "best_rank": 1, "why": "Rank 1 defines conation and contrasts it with cognition via emotion versus perception."}
+{"collection": "brain-and-behavior", "n": 11, "grade": "exact", "best_rank": 1, "why": "Rank 1 says the BigBrain atlas used sections at 20 micrometers resolution."}
+{"collection": "brain-and-behavior", "n": 12, "grade": "exact", "best_rank": 1, "why": "Rank 1 says the substantia nigra is the main source of dopamine."}
+{"collection": "brain-and-behavior", "n": 13, "grade": "exact", "best_rank": 1, "why": "Rank 1 names the locus coeruleus (\"blue place\") sending alerting signals."}
+{"collection": "brain-and-behavior", "n": 14, "grade": "exact", "best_rank": 1, "why": "Rank 1 says the rounded convolutions are called gyri."}
+{"collection": "brain-and-behavior", "n": 15, "grade": "exact", "best_rank": 1, "why": "Rank 1 says tetrodotoxin blocks the voltage-gated Na channel; rank 2 ties it to fugu."}
+{"collection": "brain-and-behavior", "n": 16, "grade": "exact", "best_rank": 1, "why": "Rank 1 calls the gaps between myelin segments nodes of Ranvier."}
+{"collection": "brain-and-behavior", "n": 17, "grade": "exact", "best_rank": 1, "why": "Rank 1 names acetylcholinesterase at the neuromuscular junction."}
+{"collection": "brain-and-behavior", "n": 18, "grade": "exact", "best_rank": 1, "why": "Rank 1 cites Miller's magical number seven, plus or minus two."}
+{"collection": "brain-and-behavior", "n": 19, "grade": "exact", "best_rank": 3, "why": "Rank 3 says amyloid plaques are made of beta-amyloid peptide."}
+{"collection": "brain-and-behavior", "n": 20, "grade": "exact", "best_rank": 1, "why": "Rank 1 names chorea as the dancelike movements."}
+{"collection": "brain-and-behavior", "n": 21, "grade": "partial", "best_rank": 1, "why": "Rank 1 explains the BrainPort tongue grid fed by a camera, but no passage names sensory substitution."}
+{"collection": "brain-and-behavior", "n": 22, "grade": "exact", "best_rank": 4, "why": "Rank 4 says EEG preparatory activity came over 1 second before movement, before the intention itself."}
+{"collection": "brain-and-behavior", "n": 23, "grade": "exact", "best_rank": 4, "why": "Rank 4 says left-hand input goes to the right hemisphere and never reaches the verbal left hemisphere."}
+{"collection": "brain-and-behavior", "n": 24, "grade": "exact", "best_rank": 3, "why": "Rank 3 says dopamine is suggested as the brain's common currency for evaluating rewards."}
+{"collection": "brain-and-behavior", "n": 25, "grade": "miss", "best_rank": null, "why": "No passage mentions the Ultimatum Game; rank 4 gives a lateral-versus-medial pattern only for delay discounting."}
+{"collection": "brain-and-behavior", "n": 26, "grade": "exact", "best_rank": 1, "why": "Rank 1 says S.M. lacks both amygdalae and is the \"woman without fear\"; rank 4 adds the loss of fear."}
+{"collection": "brain-and-behavior", "n": 27, "grade": "exact", "best_rank": 2, "why": "Rank 2 links incongruent Stroop trials to ACC activation and a sense of mental effort; rank 5 adds that ACC damage removes that feeling."}
+{"collection": "brain-and-behavior", "n": 28, "grade": "exact", "best_rank": 1, "why": "Rank 1 says children master false beliefs by about five while people with autism may fail even as adults."}
+{"collection": "brain-and-behavior", "n": 29, "grade": "exact", "best_rank": 1, "why": "Rank 1 says mirror interoceptors in the anterior insula could represent one's own or others' emotions, citing disgust."}
+{"collection": "brain-and-behavior", "n": 30, "grade": "partial", "best_rank": 1, "why": "Rank 1 says connectivity hubs resemble the default network and amyloid map, but no passage lists the specific regions."}
+{"collection": "fire-and-blood", "n": 1, "grade": "exact", "best_rank": 4, "why": "Rank 4 quotes \"better to forestall rebellions than to put them down\" and the loyalty aim; rank 3 adds smallfolk grievances."}
+{"collection": "fire-and-blood", "n": 2, "grade": "exact", "best_rank": 4, "why": "Rank 4 contrasts the stern, poison-dabbling Visenya with the playful, music-loving, flying Rhaenys."}
+{"collection": "fire-and-blood", "n": 3, "grade": "exact", "best_rank": 4, "why": "Rank 4 says Targaryens are exempt from the Faith's incest laws because of their Valyrian roots, looks and dragons."}
+{"collection": "fire-and-blood", "n": 4, "grade": "exact", "best_rank": 5, "why": "Rank 5 says winter armies left home so kin might survive to spring and marched for a worthy end; the older and childless detail is cut off."}
+{"collection": "fire-and-blood", "n": 5, "grade": "exact", "best_rank": 1, "why": "Rank 1 quotes Cole saying Rhaenyra's court would turn the Red Keep into a brothel where no wife or daughter is safe."}
+{"collection": "fire-and-blood", "n": 6, "grade": "exact", "best_rank": 3, "why": "Rank 3 cites losing all four brothers and watching his mother fed to a dragon, leaving him joyless."}
+{"collection": "fire-and-blood", "n": 7, "grade": "partial", "best_rank": 5, "why": "Rank 5 names the First Quarrel and rank 2 shows the rift starting, but no passage mentions Saera's exile."}
+{"collection": "fire-and-blood", "n": 8, "grade": "exact", "best_rank": 2, "why": "Rank 2 says the king's secret marriage and the other Three Brides weddings left scars between the king, Hand and Queen Regent."}
+{"collection": "fire-and-blood", "n": 9, "grade": "exact", "best_rank": 4, "why": "Rank 4 has the Shepherd preaching that dragons are demons from the seven hells and a second doom is at hand."}
+{"collection": "fire-and-blood", "n": 10, "grade": "exact", "best_rank": 1, "why": "Rank 1 says the Council set the precedent that the throne cannot pass to or through a woman, regardless of seniority."}
+{"collection": "fire-and-blood", "n": 11, "grade": "exact", "best_rank": 2, "why": "Rank 2 says Visenya carried the Valyrian longsword Dark Sister."}
+{"collection": "fire-and-blood", "n": 12, "grade": "exact", "best_rank": 1, "why": "Rank 1 says the dragonkeepers called Caraxes the Blood Wyrm."}
+{"collection": "fire-and-blood", "n": 13, "grade": "exact", "best_rank": 2, "why": "Rank 2 names Princess Meria Martell, the Yellow Toad of Dorne."}
+{"collection": "fire-and-blood", "n": 14, "grade": "exact", "best_rank": 1, "why": "Rank 1 says Elissa used the egg gold to build the Sun Chaser."}
+{"collection": "fire-and-blood", "n": 15, "grade": "partial", "best_rank": 1, "why": "Rank 1 describes Hobert Hightower's death by a gentle poison in the wine, but no passage names the Tears of Lys."}
+{"collection": "fire-and-blood", "n": 16, "grade": "exact", "best_rank": 1, "why": "Rank 1 says Pate of Longleaf killed Lord Jason and was dubbed Longleaf the Lionslayer."}
+{"collection": "fire-and-blood", "n": 17, "grade": "exact", "best_rank": 1, "why": "Rank 1 names Sandoq the Shadow, mute, stepping onto the drawbridge."}

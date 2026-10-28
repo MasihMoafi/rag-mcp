@@ -1,0 +1,66 @@
+{
+ "before": {
+  "1": {
+   "answered": 1,
+   "engine_busy": 0,
+   "other": 0,
+   "seconds": 5.38
+  },
+  "2": {
+   "answered": 1,
+   "engine_busy": 1,
+   "other": 0,
+   "seconds": 4.77
+  },
+  "5": {
+   "answered": 1,
+   "engine_busy": 4,
+   "other": 0,
+   "seconds": 4.86
+  },
+  "10": {
+   "answered": 1,
+   "engine_busy": 9,
+   "other": 0,
+   "seconds": 4.85
+  },
+  "20": {
+   "answered": 1,
+   "engine_busy": 19,
+   "other": 0,
+   "seconds": 5.01
+  }
+ },
+ "after": {
+  "1": {
+   "answered": 1,
+   "engine_busy": 0,
+   "other": 0,
+   "seconds": 4.89
+  },
+  "2": {
+   "answered": 2,
+   "engine_busy": 0,
+   "other": 0,
+   "seconds": 8.99
+  },
+  "5": {
+   "answered": 5,
+   "engine_busy": 0,
+   "other": 0,
+   "seconds": 21.32
+  },
+  "10": {
+   "answered": 10,
+   "engine_busy": 0,
+   "other": 0,
+   "seconds": 41.66
+  },
+  "20": {
+   "answered": 20,
+   "engine_busy": 0,
+   "other": 0,
+   "seconds": 82.26
+  }
+ }
+}
