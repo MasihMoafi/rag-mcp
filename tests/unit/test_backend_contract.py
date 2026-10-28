@@ -178,7 +178,8 @@ def test_lancedb_record_batches_and_fts_contract(dense, fts_failure, capsys):
     if dense:
         for record in expected:
             record['vector'] = [float(len(record['content']))]
-    assert writes == [('test', dict(data=expected, mode='overwrite'))]
+    # A rebuild writes a staging table and moves it into place once complete.
+    assert writes == [('test__rebuild', dict(data=expected, mode='overwrite'))]
     # Both the raw text and the identifier-split column are indexed, without
     # stemming or stop-word removal, so code tokens survive analysis.
     options = {'replace': True, 'with_position': True, 'stem': False,
