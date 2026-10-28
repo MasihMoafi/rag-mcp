@@ -5,7 +5,7 @@ type: scoped hybrid-RAG CLI and MCP server for agents and document workflows
 
 <div align="center">
 
-<img src="assets/retrieval-hero.svg" alt="rag-mcp retrieval reliability: two best of six recorded corpora" width="720">
+<img src="assets/retrieval-hero.svg" alt="rag-mcp retrieval, October 2026: 127 of 153 questions exact, against 107 in August" width="720">
 
 <br>
 
@@ -69,22 +69,36 @@ rag-mcp/
 
 ## Benchmark & Retrieval Evaluations
 
-Evaluated against the **[open-rag-eval](https://github.com/vectara/open-rag-eval)** taxonomy ($top\_k=5$, isolated local retrieval with no reranker, local `qwen3-embedding:8b` via Ollama + BM25 hybrid search). Full methodology in [`evals/README.md`](evals/README.md):
+Measured on 28 October 2026: 153 questions with known answers over five collections (a paper, a textbook, a biography, a novel and a mixed Rust, Python and notebook codebase). For each question the top 5 passages were graded **exact** (a passage states the answer), **partial** or **miss**. One grading model and rubric (Opus 5.5 subagents) graded this run and also regraded the passages saved from the August run, so both runs share one judge. The report, per-question grades and run traces are in [`evals/experiments/report-2026-10-28/`](evals/experiments/report-2026-10-28/).
 
-| Corpus / Domain | Total Queries | Strict Relevance (Score 3 / Exact) | Lenient Relevance (Score $\ge$ 2 / Full+Partial) | Miss Rate (Score $\le$ 1 / Miss) |
-| :--- | :--- | :--- | :--- | :--- |
-| **Attention Paper** (Scientific / AI) | 30 | **86.7%** (26/30) | **96.7%** (29/30) | 3.3% (1/30) |
-| **Brain & Behavior** (Neuroscience) | 30 | **76.7%** (23/30) | **93.3%** (28/30) | 6.7% (2/30) |
-| **Napoleon V2** (1000-char hybrid) | 30 | **66.7%** (20/30) | **90.0%** (27/30) | 10.0% (3/30) |
-| **Napoleon V1** (300-char chunks) | 30 | **53.3%** (16/30) | **83.3%** (25/30) | 16.7% (5/30) |
-| **Fire & Blood** (Narrative Fiction) | 30 | **46.7%** (14/30) | **80.0%** (24/30) | 20.0% (6/30) |
-| **Mixed Codebase** (Py/Rust/IPYNB) | 33 | **90.9%** (30/33) | **100.0%** (33/33) | 0.0% (0/33) |
-| **Elpis Memories Crate** (Rust) | 15 | **73.3%** (11/15) | **100.0%** (15/15) | 0.0% (0/15) |
-| **rag-mcp Codebase** (Python Server) | 15 | **80.0%** (12/15) | **93.3%** (14/15) | 6.7% (1/15) |
-| **Notebook Corpus** (JSON/Code) | 10 | **100.0%** (10/10) | **100.0%** (10/10) | 0.0% (0/10) |
-| **Overall Baseline** | **203** | **74.9%** (152/203) | **92.1%** (187/203) | 7.9% (16/203) |
+![Exact answers per collection, August vs October 2026](assets/retrieval-comparison.svg)
 
-### Multi-Domain Scaling Experiment
+| Collection | Questions | Exact, Aug 2026 | Exact, Oct 2026 | Exact or partial, Oct 2026 |
+| :--- | :---: | :---: | :---: | :---: |
+| Attention paper | 30 | 27 | **28** | 30 |
+| Brain and Behavior | 30 | 25 | **25** | 29 |
+| Napoleon | 30 | 14 | **22** | 29 |
+| Fire and Blood | 30 | 16 | **21** | 30 |
+| Mixed codebase | 33 | 25 | **31** | 32 |
+| **Total** | **153** | 107 (69.9%) | **127 (83.0%)** | **150 (98.0%)** |
+
+- **Setups.** August: Qwen3 Embedding 0.6B (local), a MiniLM-L6 reranker and 1,000-character chunks. October: BM25 plus Qwen3 Embedding 8B, rank fusion to 50 candidates, Cohere Rerank 4 Fast to 5, and 700-character chunks.
+- **Not chance.** 27 questions are exact only in October and 7 only in August (exact sign test, p = 0.0008).
+- **Replaced.** The September table of "203 questions" is gone: its rows added up to 223, and its passages were not saved, so it cannot be regraded.
+
+### Structured PDF parsing
+
+Since 28 October, PDFs are read as paragraphs and chapter headings (running headers, page numbers and font ligature glyphs removed), and book-length text is cut in 1,600-character windows. On the two books (60 questions, graded blind) exact answers rose from 39 to 48: 10 questions gained, 1 lost (p = 0.0117). Evidence: [`evals/experiments/structured-chunking-2026-10-28/`](evals/experiments/structured-chunking-2026-10-28/).
+
+![Books: flat text vs structured parsing](assets/retrieval-structured-parsing.svg)
+
+### Concurrent queries
+
+A search that arrives while another runs now waits up to 10 minutes instead of failing. With 20 searches started at once, 20 are answered (before: 1). They run one after another, about 4 seconds each. Evidence: [`evals/experiments/concurrency-2026-10-28/`](evals/experiments/concurrency-2026-10-28/).
+
+### Multi-Domain Scaling Experiment (August 2026)
+
+Graded by Gemini 3.7 Flash with a hit-at-5 measure. The October regrade of the same saved passages is in the table above.
 
 Detailed evaluation log: [`evals/experiments/experiment-unified-scaling/experiment.md`](evals/experiments/experiment-unified-scaling/experiment.md) and [`Napoleon Experiment Log`](evals/experiments/experiment-unified-scaling/data/napoleon/experiment_log.md).
 
@@ -385,37 +399,7 @@ No third-party logo or benchmark — the image above is the actual [retrieval-ac
 
 ## Retrieval accuracy
 
-![Retrieval reliability across six recorded corpora, showing exact full-answer and full-or-partial rates](assets/retrieval-comparison.svg)
-
-Recorded, reproducible retrieval runs live under [`evals/`](evals/) — not part of CI, kept
-as evidence. Every point in the chart is a question-level grade from a recorded
-`query_knowledge_base` run, graded against a known answer — not simulated.
-
-The top result is a single real directory containing
-a 29-file Rust crate, 6 Python scripts, and a Jupyter notebook, searched with `doc_path`
-pointed at the whole directory — the server has to find the right file among three
-languages, not just the right passage in one document. The other five rows are
-single-document or project-scoped runs: a notebook, two books, a paper, a novel, and
-the rag-mcp codebase itself.
-
-The chart reports exact full answers separately from answers that were full or partial.
-The codebase and structured-document rows are easier to retrieve exactly; the long
-narrative rows contain more interpretive answers spread across passages, which makes
-chunk-based retrieval less reliable. This is a description of these recorded runs, not
-a claim about every corpus or a benchmark against other retrieval tools.
-
-[Per-question results for every corpus](evals/) — including where each miss actually failed
-(vague topical overlap, a truncated chunk, or the fact genuinely absent from top-k).
-
-An earlier, now-superseded Napoleon run with reranking manually disabled scored 93.3% —
-that number describes raw BM25+vector retrieval in isolation, not this server as it actually
-runs, and is kept in [`evals/experiments/experiment-isolated-scaling/data/napoleon/experiment_log.md`](evals/experiments/experiment-isolated-scaling/data/napoleon/experiment_log.md)
-only for its chunk-size finding (1000 characters beat 300). The earlier separate Rust-only
-and notebook-only runs are likewise superseded by the combined directory test above and kept
-under `evals/elpis-memories-crate/` and `evals/notebook/` only as raw evidence.
-
-This is six recorded corpora at one point in time — not a benchmark against other
-retrieval tools.
+The current measurement is under [Benchmark & Retrieval Evaluations](#benchmark--retrieval-evaluations). Per-question results for every recorded run are under [`evals/`](evals/).
 
 ## The problem
 
