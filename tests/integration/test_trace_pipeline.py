@@ -124,7 +124,7 @@ def test_warm_requests_and_parallel_readers_keep_complete_traces(pipeline):
     with ThreadPoolExecutor(max_workers=4) as pool:
         parallel = list(pool.map(query, range(30)))
     assert sequential == [{'result': 'Friday.'}] * 30
-    assert all(value == {'result': 'Friday.'} or 'Another engine query is running' in value.get('error', '') for value in parallel)
+    assert parallel == [{'result': 'Friday.'}] * 30  # parallel callers queue for the engine instead of failing
     records = [json.loads(path.read_text()) for path in directory.glob('trace-*.json')]
     assert len(records) == 61
     assert len({r['trace_id'] for r in records}) == 61

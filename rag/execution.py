@@ -18,6 +18,11 @@ from rag.workspaces import WorkspaceStore
 from rag.run_results import RunResultStore
 
 
+# A query that arrives while another runs waits its turn this long, then reports engine_busy
+# (Masih, 28 Oct 2026: accept multiple requests instead of refusing them).
+ENGINE_WAIT_SECONDS = 600
+
+
 class RunInputError(ValueError):
     def __init__(self, message, code):
         super().__init__(message)
@@ -182,7 +187,7 @@ def execute_run(query: str, doc_path: str = "", extensions: list[str] | None = N
     try:
         store = workspace_store or WorkspaceStore()
         store.root.mkdir(parents=True, exist_ok=True, mode=0o700)
-        with tracing.execution_context(observe, cancelled), tracing.request_trace(run_id), FileLock(store.root / '.execution.lock', timeout=0), frozen_settings(), _runtime_manifest_recorded(result):
+        with tracing.execution_context(observe, cancelled), tracing.request_trace(run_id), FileLock(store.root / '.execution.lock', timeout=ENGINE_WAIT_SECONDS), frozen_settings(), _runtime_manifest_recorded(result):
             tracing.annotate(client=client, workspace_id=workspace_id or None)
             if mode not in {'answer', 'retrieve'}:
                 raise RunInputError('Unsupported run mode.', 'invalid_mode')
@@ -247,7 +252,7 @@ def execute_run(query: str, doc_path: str = "", extensions: list[str] | None = N
     except RunInputError as error:
         result.update(error=str(error), code=error.code)
     except Timeout:
-        result.update(error='Another engine query is running. Wait for it to finish or cancel it.', code='engine_busy')
+        result.update(error='Another engine query is still running after the wait limit. Retry when it finishes or cancel it.', code='engine_busy')
     except Exception:
         result.update(status='error', error='Query execution failed. Check the local engine diagnostics.', answer=None)
         evidence.clear()
