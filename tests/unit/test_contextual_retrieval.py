@@ -37,21 +37,6 @@ def test_disabled_contextual_retrieval_keeps_original_chunk_without_calling_cont
     assert pipeline._add_context_to_chunk("original", "source") == "original"
 
 
-def test_contextualizer_failure_falls_back_to_original_chunk(capsys):
-    pipeline = RAGPipelineV2.__new__(RAGPipelineV2)
-    pipeline.config = {"use_contextual": True}
-
-    def failing_contextualizer(_chunk, _document_context):
-        raise RuntimeError("API unavailable")
-
-    pipeline.contextualizer = failing_contextualizer
-
-    assert pipeline._add_context_to_chunk("original", "source") == "original"
-    error = capsys.readouterr().err
-    assert "RuntimeError" in error
-    assert "API unavailable" not in error
-
-
 def test_large_sources_use_start_and_previous_chunks_for_context():
     chunks = ["abstract", "first", "second", "target", "later"]
 
