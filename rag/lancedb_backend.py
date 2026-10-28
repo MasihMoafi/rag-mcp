@@ -13,6 +13,7 @@ from __future__ import annotations
 import contextvars
 import os
 import re
+import shutil
 import sys
 from typing import Any, Callable, Dict, List
 
@@ -164,15 +165,31 @@ class LanceDBBackend:
                 raise RuntimeError("Embedding batch preparation failed.") from None
 
         # mode="overwrite" keeps every earlier version's data files and FTS indexes, so each
-        # refresh grew the scope directory by a whole copy of the index. Start from a fresh table.
-        if getattr(self, "table", None) is not None:
-            self.db.drop_table(self.table_name)
+        # refresh grew the scope directory by a whole copy of the index. Build a fresh table under
+        # a staging name and move it into place once complete, so a provider failure mid-build
+        # leaves the current table untouched. OSS LanceDB cannot rename a table; a local table is
+        # its directory, so the move is a directory move. A connection with nothing on disk
+        # (in-memory, or a test double) keeps the built table as it is.
+        staging_name = f"{self.table_name}__rebuild"
+        root = getattr(self, "persist_path", None)
+        staging_dir = os.path.join(root, f"{staging_name}.lance") if root else None
+        if staging_dir and os.path.isdir(staging_dir):
+            shutil.rmtree(staging_dir)
         try:
-            self.table = self.db.create_table(self.table_name, data=batches(), mode="overwrite")
-        except Exception:
+            built = self.db.create_table(staging_name, data=batches(), mode="overwrite")
+        except BaseException:
+            if staging_dir and os.path.isdir(staging_dir):
+                shutil.rmtree(staging_dir, ignore_errors=True)
             if batch_error is not None:
                 raise batch_error from None
             raise
+        if getattr(self, "table", None) is not None:
+            self.db.drop_table(self.table_name)
+        if staging_dir and os.path.isdir(staging_dir):
+            shutil.move(staging_dir, os.path.join(root, f"{self.table_name}.lance"))
+            self.table = self.db.open_table(self.table_name)
+        else:
+            self.table = built
         sys.stderr.write(f"[LanceDB] Created table '{self.table_name}' with {total} records.\n")
 
         # Create Full Text Search (FTS) index using Tantivy
