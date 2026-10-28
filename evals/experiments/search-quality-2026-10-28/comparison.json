@@ -1,0 +1,122 @@
+{
+ "runs": {
+  "aug_isolated": {
+   "attention": {
+    "n": 30,
+    "exact": 27,
+    "partial": 2,
+    "miss": 1
+   },
+   "brain-and-behavior": {
+    "n": 30,
+    "exact": 25,
+    "partial": 4,
+    "miss": 1
+   },
+   "napoleon": {
+    "n": 30,
+    "exact": 14,
+    "partial": 11,
+    "miss": 5
+   },
+   "fire-and-blood": {
+    "n": 30,
+    "exact": 16,
+    "partial": 11,
+    "miss": 3
+   },
+   "mixed-codebase": {
+    "n": 33,
+    "exact": 25,
+    "partial": 8,
+    "miss": 0
+   },
+   "all": {
+    "n": 153,
+    "exact": 107,
+    "partial": 36,
+    "miss": 10
+   }
+  },
+  "aug_unified": {
+   "attention": {
+    "n": 30,
+    "exact": 27,
+    "partial": 2,
+    "miss": 1
+   },
+   "brain-and-behavior": {
+    "n": 30,
+    "exact": 23,
+    "partial": 6,
+    "miss": 1
+   },
+   "napoleon": {
+    "n": 30,
+    "exact": 15,
+    "partial": 12,
+    "miss": 3
+   },
+   "fire-and-blood": {
+    "n": 30,
+    "exact": 15,
+    "partial": 12,
+    "miss": 3
+   },
+   "mixed-codebase": {
+    "n": 33,
+    "exact": 25,
+    "partial": 8,
+    "miss": 0
+   },
+   "all": {
+    "n": 153,
+    "exact": 105,
+    "partial": 40,
+    "miss": 8
+   }
+  },
+  "today": {
+   "attention": {
+    "n": 30,
+    "exact": 28,
+    "partial": 2,
+    "miss": 0
+   },
+   "brain-and-behavior": {
+    "n": 30,
+    "exact": 25,
+    "partial": 4,
+    "miss": 1
+   },
+   "napoleon": {
+    "n": 30,
+    "exact": 22,
+    "partial": 7,
+    "miss": 1
+   },
+   "fire-and-blood": {
+    "n": 30,
+    "exact": 21,
+    "partial": 9,
+    "miss": 0
+   },
+   "mixed-codebase": {
+    "n": 33,
+    "exact": 31,
+    "partial": 1,
+    "miss": 1
+   },
+   "all": {
+    "n": 153,
+    "exact": 127,
+    "partial": 23,
+    "miss": 3
+   }
+  }
+ },
+ "paired_today_vs_aug_isolated": {
+  "better": 31,
+  "worse": 7
+ }
+}

@@ -1,0 +1,77 @@
+{"collection": "attention", "n": 1, "grade": "exact", "best_rank": 3, "why": "Passage states more parallelization and path reduced to a constant number of operations."}
+{"collection": "attention", "n": 2, "grade": "exact", "best_rank": 3, "why": "Passage says multi-head lets model jointly attend to different representation subspaces, which single-head averaging inhibits."}
+{"collection": "attention", "n": 3, "grade": "exact", "best_rank": 1, "why": "Passage says model consumes previously generated symbols as additional input when generating the next."}
+{"collection": "attention", "n": 4, "grade": "exact", "best_rank": 1, "why": "Passage gives the hypothesis that PE(pos+k) is a linear function of PE(pos)."}
+{"collection": "attention", "n": 5, "grade": "exact", "best_rank": 1, "why": "Passage says label smoothing hurts perplexity but improves accuracy and BLEU."}
+{"collection": "attention", "n": 6, "grade": "exact", "best_rank": 1, "why": "Passage says operations grow linearly for ConvS2S while the Transformer reduces them to a constant number."}
+{"collection": "attention", "n": 7, "grade": "exact", "best_rank": 1, "why": "Passage says scaling by 1/sqrt(dk) counteracts large dot products pushing softmax into small-gradient regions."}
+{"collection": "attention", "n": 8, "grade": "miss", "best_rank": null, "why": "No passage mentions inspecting attention distributions or interpretability."}
+{"collection": "attention", "n": 9, "grade": "exact", "best_rank": 2, "why": "Passage says sinusoids may let the model extrapolate to longer sequence lengths."}
+{"collection": "attention", "n": 10, "grade": "exact", "best_rank": 3, "why": "Passage describes the decoder's third sub-layer over encoder output and its masked self-attention."}
+{"collection": "attention", "n": 11, "grade": "exact", "best_rank": 3, "why": "Passage says the big Transformer set a new state-of-the-art BLEU of 28.4 on English-to-German."}
+{"collection": "attention", "n": 12, "grade": "exact", "best_rank": 1, "why": "Passage says training used eight P100 GPUs."}
+{"collection": "attention", "n": 13, "grade": "exact", "best_rank": 1, "why": "Passage states the inner layer has dimensionality dff = 2048."}
+{"collection": "attention", "n": 14, "grade": "exact", "best_rank": 2, "why": "Passage says the Adam optimizer was used."}
+{"collection": "attention", "n": 15, "grade": "exact", "best_rank": 1, "why": "Passage states warmup_steps = 4000."}
+{"collection": "attention", "n": 16, "grade": "partial", "best_rank": 2, "why": "Passage opens Section 6.1 machine translation results but no passage gives beam size 4; r1 gives the parsing beam of 21."}
+{"collection": "attention", "n": 17, "grade": "exact", "best_rank": 3, "why": "Table 1 lists Self-Attention complexity per layer as O(n^2 · d)."}
+{"collection": "attention", "n": 18, "grade": "exact", "best_rank": 1, "why": "Passages state encoder and decoder each have N = 6 layers."}
+{"collection": "attention", "n": 19, "grade": "exact", "best_rank": 2, "why": "Passage says tensor2tensor replaced the earlier codebase used for the research."}
+{"collection": "attention", "n": 20, "grade": "exact", "best_rank": 2, "why": "Passage states the base model uses Pdrop = 0.1."}
+{"collection": "attention", "n": 21, "grade": "exact", "best_rank": 2, "why": "Passage says dot products are divided by sqrt(dk)."}
+{"collection": "attention", "n": 22, "grade": "exact", "best_rank": 1, "why": "Passage says positional encodings are added to the input embeddings to convey order."}
+{"collection": "attention", "n": 23, "grade": "exact", "best_rank": 1, "why": "Passage says 41.8 BLEU on English-to-French after training 3.5 days."}
+{"collection": "attention", "n": 24, "grade": "exact", "best_rank": 1, "why": "Passage describes masking out (setting to -inf) softmax inputs for illegal connections."}
+{"collection": "attention", "n": 25, "grade": "exact", "best_rank": 1, "why": "Table 4 lists the semi-supervised Transformer (4 layers) at 92.7 F1."}
+{"collection": "attention", "n": 26, "grade": "exact", "best_rank": 1, "why": "Passage says the same weight matrix is shared between both embedding layers and the pre-softmax linear transformation."}
+{"collection": "attention", "n": 27, "grade": "partial", "best_rank": 3, "why": "Passage is the attention-visualization appendix but shows Figure 3 long-distance dependencies, not Figure 4 anaphora."}
+{"collection": "attention", "n": 28, "grade": "exact", "best_rank": 1, "why": "Table 3 row (A) with h=1 shows BLEU 24.9."}
+{"collection": "attention", "n": 29, "grade": "exact", "best_rank": 4, "why": "Table 1 lists maximum path length O(n) for Recurrent and O(1) for Self-Attention."}
+{"collection": "attention", "n": 30, "grade": "exact", "best_rank": 1, "why": "Passage says the reduced per-head dimension (dmodel/h = 64) keeps cost similar to single-head attention."}
+{"collection": "brain-and-behavior", "n": 1, "grade": "exact", "best_rank": 1, "why": "Passage states the field seeks to determine how the brain processes information, builds memories, navigates decisions and produces a human being."}
+{"collection": "brain-and-behavior", "n": 2, "grade": "exact", "best_rank": 1, "why": "Passage says interacting simple parts lead to complex emergent properties not belonging to any component."}
+{"collection": "brain-and-behavior", "n": 3, "grade": "exact", "best_rank": 2, "why": "Passage states the state of the physical material determines the state of the thoughts."}
+{"collection": "brain-and-behavior", "n": 4, "grade": "exact", "best_rank": 1, "why": "Passage quotes Wilson that the brain exists to promote survival and multiplication of the genes directing its assembly."}
+{"collection": "brain-and-behavior", "n": 5, "grade": "exact", "best_rank": 2, "why": "Passage defines the dilemma as taking in new information without interfering with what is stored."}
+{"collection": "brain-and-behavior", "n": 6, "grade": "partial", "best_rank": 5, "why": "Passage is on consciousness as an unsolved problem but does not state identifying correlating areas and then why they correlate."}
+{"collection": "brain-and-behavior", "n": 7, "grade": "exact", "best_rank": 3, "why": "Passage describes the reverse hierarchy that sends a best guess down to lower areas to check details."}
+{"collection": "brain-and-behavior", "n": 8, "grade": "partial", "best_rank": 2, "why": "Glossary says memory recombines past events to imagine the future, but no passage gives the survival-prediction benefit; r1 cuts off before the explanation."}
+{"collection": "brain-and-behavior", "n": 9, "grade": "exact", "best_rank": 1, "why": "Passage states the inherited-brains view and the tug-of-war between ancient intuitive and recent deliberative systems."}
+{"collection": "brain-and-behavior", "n": 10, "grade": "exact", "best_rank": 1, "why": "Passage defines conation and says it draws on interoceptive inputs called emotion as cognition draws on perception."}
+{"collection": "brain-and-behavior", "n": 11, "grade": "exact", "best_rank": 1, "why": "Figure 1.3 caption says BigBrain was reconstructed at a resolution of 20 micrometers."}
+{"collection": "brain-and-behavior", "n": 12, "grade": "exact", "best_rank": 1, "why": "Passage says the substantia nigra is the main source of dopamine."}
+{"collection": "brain-and-behavior", "n": 13, "grade": "exact", "best_rank": 1, "why": "Passage names the locus coeruleus (\"blue place\") as sending alerting signals."}
+{"collection": "brain-and-behavior", "n": 14, "grade": "exact", "best_rank": 1, "why": "Passage says the rounded convolutions of the cortex are called gyri."}
+{"collection": "brain-and-behavior", "n": 15, "grade": "exact", "best_rank": 3, "why": "Passage says fugu contains tetrodotoxin, which prevents action potentials; r2 adds it blocks voltage-gated Na channels."}
+{"collection": "brain-and-behavior", "n": 16, "grade": "exact", "best_rank": 1, "why": "Passage says the gaps between myelinated segments are called nodes of Ranvier."}
+{"collection": "brain-and-behavior", "n": 17, "grade": "exact", "best_rank": 1, "why": "Glossary defines acetylcholinesterase as the synaptic-cleft enzyme that breaks down acetylcholine."}
+{"collection": "brain-and-behavior", "n": 18, "grade": "exact", "best_rank": 4, "why": "Passage cites Miller's magical number seven plus or minus two for working memory."}
+{"collection": "brain-and-behavior", "n": 19, "grade": "exact", "best_rank": 1, "why": "Passage says amyloid plaques are made of beta-amyloid peptide."}
+{"collection": "brain-and-behavior", "n": 20, "grade": "exact", "best_rank": 1, "why": "Passage says Huntington called the movements chorea, from the Greek for dance."}
+{"collection": "brain-and-behavior", "n": 21, "grade": "exact", "best_rank": 1, "why": "Passage describes the tongue electrode grid mirroring a forehead camera; r4 adds sensory substitution and the brain shaping itself around input."}
+{"collection": "brain-and-behavior", "n": 22, "grade": "partial", "best_rank": 2, "why": "Passage describes Libet's 1983 EEG setup but cuts off before the finding of preparatory activity before intention."}
+{"collection": "brain-and-behavior", "n": 23, "grade": "exact", "best_rank": 2, "why": "Passage says left-hand input goes to the right hemisphere and never reaches the verbal left hemisphere specialized for language."}
+{"collection": "brain-and-behavior", "n": 24, "grade": "exact", "best_rank": 2, "why": "Passage says dopamine has been suggested as the brain's common currency for evaluating rewards."}
+{"collection": "brain-and-behavior", "n": 25, "grade": "miss", "best_rank": null, "why": "No passage mentions the Ultimatum Game or the dorsomedial versus lateral prefrontal finding."}
+{"collection": "brain-and-behavior", "n": 26, "grade": "exact", "best_rank": 1, "why": "Passage says in rare Urbach-Wiethe cases the amygdala alone is destroyed, with S.M. the famous \"woman without fear\"."}
+{"collection": "brain-and-behavior", "n": 27, "grade": "exact", "best_rank": 1, "why": "Passage says incongruent Stroop trials activate the ACC with a sense of effort; r4 says ACC-damaged patients lose that feeling."}
+{"collection": "brain-and-behavior", "n": 28, "grade": "exact", "best_rank": 1, "why": "Passage says only after age five do children reliably pass Sally-Anne; r3 says people with autism are \"mind-blind\"."}
+{"collection": "brain-and-behavior", "n": 29, "grade": "exact", "best_rank": 1, "why": "Passage says mirror interoceptors in the anterior insula could represent own or others' emotions, and disgust observed or felt activates it."}
+{"collection": "brain-and-behavior", "n": 30, "grade": "partial", "best_rank": 1, "why": "Passage says connectivity hubs resemble the default network and amyloid maps but names none of the specific regions."}
+{"collection": "fire-and-blood", "n": 1, "grade": "partial", "best_rank": 4, "why": "Passage covers Aegon's travel habits but never states the progresses were meant to forestall rebellion or hear grievances."}
+{"collection": "fire-and-blood", "n": 2, "grade": "exact", "best_rank": 5, "why": "Passage describes Visenya as a stern warrior who delved into poisons and dark arts; r4 shows Rhaenys as patron of bards whose songs shaped popular views."}
+{"collection": "fire-and-blood", "n": 3, "grade": "exact", "best_rank": 3, "why": "Passage says Valyrian-blooded Targaryens were held exempt from Faith doctrines and incest prohibitions."}
+{"collection": "fire-and-blood", "n": 4, "grade": "partial", "best_rank": 2, "why": "Passages show the Winter Wolves fighting but none gives their motive of sparing kin's food and seeking a worthy death."}
+{"collection": "fire-and-blood", "n": 5, "grade": "miss", "best_rank": null, "why": "No passage mentions fears of the Red Keep becoming a brothel under Rhaenyra and Daemon."}
+{"collection": "fire-and-blood", "n": 6, "grade": "exact", "best_rank": 2, "why": "Passage says the Broken King failed to save his brother and mother from grisly deaths; r1 describes his grief and joylessness."}
+{"collection": "fire-and-blood", "n": 7, "grade": "partial", "best_rank": 2, "why": "Passage names the First Quarrel and Alysanne's exile on Dragonstone but not its cause, the refusal to bring Saera home."}
+{"collection": "fire-and-blood", "n": 8, "grade": "exact", "best_rank": 3, "why": "Passage says the Three Brides marriages set the king and queen against the Hand and Queen Regent for the rest of the regency."}
+{"collection": "fire-and-blood", "n": 9, "grade": "exact", "best_rank": 1, "why": "Passage shows the Shepherd as a Seven-preaching populist whose followers slew the dragons; r5 shows his anti-dragon incitement, though \"demons\" and Doom wording is absent."}
+{"collection": "fire-and-blood", "n": 10, "grade": "exact", "best_rank": 1, "why": "Passage states the Council set the precedent that the throne could not pass to or through a woman."}
+{"collection": "fire-and-blood", "n": 11, "grade": "exact", "best_rank": 2, "why": "Passage says Visenya carried the Valyrian longsword Dark Sister."}
+{"collection": "fire-and-blood", "n": 12, "grade": "exact", "best_rank": 1, "why": "Passage says the Dragonkeepers called Caraxes the Blood Wyrm."}
+{"collection": "fire-and-blood", "n": 13, "grade": "exact", "best_rank": 2, "why": "Passage names Meria Martell as the Yellow Toad of Dorne."}
+{"collection": "fire-and-blood", "n": 14, "grade": "exact", "best_rank": 2, "why": "Passage says Elissa used the dragon-egg gold to build the Sun Chaser."}
+{"collection": "fire-and-blood", "n": 15, "grade": "partial", "best_rank": 2, "why": "Passage covers Ser Hobert at Tumbleton but no passage mentions poison or the Tears of Lys."}
+{"collection": "fire-and-blood", "n": 16, "grade": "exact", "best_rank": 4, "why": "Passage says Pate of Longleaf mortally wounded Lord Jason and was dubbed Longleaf the Lionslayer."}
+{"collection": "fire-and-blood", "n": 17, "grade": "exact", "best_rank": 2, "why": "Passage shows Sandoq the Shadow silently defending the gates of Maegor's Holdfast."}

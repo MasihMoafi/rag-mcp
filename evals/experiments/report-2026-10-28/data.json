@@ -1,0 +1,520 @@
+{
+ "search": {
+  "runs": {
+   "August, isolated": {
+    "n": 153,
+    "exact": 107,
+    "partial": 36,
+    "miss": 10,
+    "exact_ci": [
+     0.6225,
+     0.7664
+    ],
+    "found_ci": [
+     0.8839,
+     0.9641
+    ]
+   },
+   "August, merged": {
+    "n": 153,
+    "exact": 105,
+    "partial": 40,
+    "miss": 8,
+    "exact_ci": [
+     0.6089,
+     0.7545
+    ],
+    "found_ci": [
+     0.9002,
+     0.9733
+    ]
+   },
+   "Today": {
+    "n": 153,
+    "exact": 127,
+    "partial": 23,
+    "miss": 3,
+    "exact_ci": [
+     0.7626,
+     0.8813
+    ],
+    "found_ci": [
+     0.9439,
+     0.9933
+    ]
+   }
+  },
+  "by_collection": {
+   "Attention paper": {
+    "August, isolated": {
+     "n": 30,
+     "exact": 27,
+     "partial": 2,
+     "miss": 1,
+     "exact_ci": [
+      0.7438,
+      0.9654
+     ],
+     "found_ci": [
+      0.8333,
+      0.9941
+     ]
+    },
+    "August, merged": {
+     "n": 30,
+     "exact": 27,
+     "partial": 2,
+     "miss": 1,
+     "exact_ci": [
+      0.7438,
+      0.9654
+     ],
+     "found_ci": [
+      0.8333,
+      0.9941
+     ]
+    },
+    "Today": {
+     "n": 30,
+     "exact": 28,
+     "partial": 2,
+     "miss": 0,
+     "exact_ci": [
+      0.7868,
+      0.9815
+     ],
+     "found_ci": [
+      0.8865,
+      1.0
+     ]
+    }
+   },
+   "Brain and Behavior": {
+    "August, isolated": {
+     "n": 30,
+     "exact": 25,
+     "partial": 4,
+     "miss": 1,
+     "exact_ci": [
+      0.6644,
+      0.9266
+     ],
+     "found_ci": [
+      0.8333,
+      0.9941
+     ]
+    },
+    "August, merged": {
+     "n": 30,
+     "exact": 23,
+     "partial": 6,
+     "miss": 1,
+     "exact_ci": [
+      0.5907,
+      0.8821
+     ],
+     "found_ci": [
+      0.8333,
+      0.9941
+     ]
+    },
+    "Today": {
+     "n": 30,
+     "exact": 25,
+     "partial": 4,
+     "miss": 1,
+     "exact_ci": [
+      0.6644,
+      0.9266
+     ],
+     "found_ci": [
+      0.8333,
+      0.9941
+     ]
+    }
+   },
+   "Napoleon": {
+    "August, isolated": {
+     "n": 30,
+     "exact": 14,
+     "partial": 11,
+     "miss": 5,
+     "exact_ci": [
+      0.3023,
+      0.6386
+     ],
+     "found_ci": [
+      0.6644,
+      0.9266
+     ]
+    },
+    "August, merged": {
+     "n": 30,
+     "exact": 15,
+     "partial": 12,
+     "miss": 3,
+     "exact_ci": [
+      0.3315,
+      0.6685
+     ],
+     "found_ci": [
+      0.7438,
+      0.9654
+     ]
+    },
+    "Today": {
+     "n": 30,
+     "exact": 22,
+     "partial": 7,
+     "miss": 1,
+     "exact_ci": [
+      0.5555,
+      0.8582
+     ],
+     "found_ci": [
+      0.8333,
+      0.9941
+     ]
+    }
+   },
+   "Fire and Blood": {
+    "August, isolated": {
+     "n": 30,
+     "exact": 16,
+     "partial": 11,
+     "miss": 3,
+     "exact_ci": [
+      0.3614,
+      0.6977
+     ],
+     "found_ci": [
+      0.7438,
+      0.9654
+     ]
+    },
+    "August, merged": {
+     "n": 30,
+     "exact": 15,
+     "partial": 12,
+     "miss": 3,
+     "exact_ci": [
+      0.3315,
+      0.6685
+     ],
+     "found_ci": [
+      0.7438,
+      0.9654
+     ]
+    },
+    "Today": {
+     "n": 30,
+     "exact": 21,
+     "partial": 9,
+     "miss": 0,
+     "exact_ci": [
+      0.5212,
+      0.8334
+     ],
+     "found_ci": [
+      0.8865,
+      1.0
+     ]
+    }
+   },
+   "Mixed codebase": {
+    "August, isolated": {
+     "n": 33,
+     "exact": 25,
+     "partial": 8,
+     "miss": 0,
+     "exact_ci": [
+      0.5898,
+      0.8717
+     ],
+     "found_ci": [
+      0.8957,
+      1.0
+     ]
+    },
+    "August, merged": {
+     "n": 33,
+     "exact": 25,
+     "partial": 8,
+     "miss": 0,
+     "exact_ci": [
+      0.5898,
+      0.8717
+     ],
+     "found_ci": [
+      0.8957,
+      1.0
+     ]
+    },
+    "Today": {
+     "n": 33,
+     "exact": 31,
+     "partial": 1,
+     "miss": 1,
+     "exact_ci": [
+      0.8039,
+      0.9832
+     ],
+     "found_ci": [
+      0.8468,
+      0.9946
+     ]
+    }
+   }
+  },
+  "paired_exact": {
+   "today_only": 27,
+   "august_only": 7,
+   "p": 0.0008
+  },
+  "better_worse": {
+   "better": 31,
+   "worse": 7
+  },
+  "transitions": {
+   "exact": {
+    "exact": 100,
+    "partial": 6,
+    "miss": 1
+   },
+   "partial": {
+    "exact": 23,
+    "partial": 13,
+    "miss": 0
+   },
+   "miss": {
+    "exact": 4,
+    "partial": 4,
+    "miss": 2
+   }
+  }
+ },
+ "structured": {
+  "baseline": {
+   "n": 60,
+   "exact": 39,
+   "partial": 20,
+   "miss": 1,
+   "exact_ci": [
+    0.5236,
+    0.7583
+   ],
+   "found_ci": [
+    0.9114,
+    0.9971
+   ]
+  },
+  "branch": {
+   "n": 60,
+   "exact": 48,
+   "partial": 12,
+   "miss": 0,
+   "exact_ci": [
+    0.6822,
+    0.8817
+   ],
+   "found_ci": [
+    0.9398,
+    1.0
+   ]
+  },
+  "by_book": {
+   "Napoleon": {
+    "baseline": {
+     "n": 30,
+     "exact": 21,
+     "partial": 8,
+     "miss": 1,
+     "exact_ci": [
+      0.5212,
+      0.8334
+     ],
+     "found_ci": [
+      0.8333,
+      0.9941
+     ]
+    },
+    "branch": {
+     "n": 30,
+     "exact": 27,
+     "partial": 3,
+     "miss": 0,
+     "exact_ci": [
+      0.7438,
+      0.9654
+     ],
+     "found_ci": [
+      0.8865,
+      1.0
+     ]
+    }
+   },
+   "Fire and Blood": {
+    "baseline": {
+     "n": 30,
+     "exact": 18,
+     "partial": 12,
+     "miss": 0,
+     "exact_ci": [
+      0.4232,
+      0.7541
+     ],
+     "found_ci": [
+      0.8865,
+      1.0
+     ]
+    },
+    "branch": {
+     "n": 30,
+     "exact": 21,
+     "partial": 9,
+     "miss": 0,
+     "exact_ci": [
+      0.5212,
+      0.8334
+     ],
+     "found_ci": [
+      0.8865,
+      1.0
+     ]
+    }
+   }
+  },
+  "paired_exact": {
+   "branch_only": 10,
+   "baseline_only": 1,
+   "p": 0.0117
+  },
+  "transitions": {
+   "exact": {
+    "exact": 38,
+    "partial": 1,
+    "miss": 0
+   },
+   "partial": {
+    "exact": 10,
+    "partial": 10,
+    "miss": 0
+   },
+   "miss": {
+    "exact": 0,
+    "partial": 1,
+    "miss": 0
+   }
+  }
+ },
+ "parent_child": {
+  "off": {
+   "correct": 21,
+   "partial": 1
+  },
+  "on": {
+   "correct": 21,
+   "abstained": 1
+  },
+  "changed": [
+   [
+    "10b",
+    "correct",
+    "abstained"
+   ],
+   [
+    "p4",
+    "partial",
+    "correct"
+   ]
+  ]
+ },
+ "concurrency": {
+  "before": {
+   "1": {
+    "answered": 1,
+    "engine_busy": 0,
+    "other": 0,
+    "seconds": 5.38
+   },
+   "2": {
+    "answered": 1,
+    "engine_busy": 1,
+    "other": 0,
+    "seconds": 4.77
+   },
+   "5": {
+    "answered": 1,
+    "engine_busy": 4,
+    "other": 0,
+    "seconds": 4.86
+   },
+   "10": {
+    "answered": 1,
+    "engine_busy": 9,
+    "other": 0,
+    "seconds": 4.85
+   },
+   "20": {
+    "answered": 1,
+    "engine_busy": 19,
+    "other": 0,
+    "seconds": 5.01
+   }
+  },
+  "after": {
+   "1": {
+    "answered": 1,
+    "engine_busy": 0,
+    "other": 0,
+    "seconds": 4.89
+   },
+   "2": {
+    "answered": 2,
+    "engine_busy": 0,
+    "other": 0,
+    "seconds": 8.99
+   },
+   "5": {
+    "answered": 5,
+    "engine_busy": 0,
+    "other": 0,
+    "seconds": 21.32
+   },
+   "10": {
+    "answered": 10,
+    "engine_busy": 0,
+    "other": 0,
+    "seconds": 41.66
+   },
+   "20": {
+    "answered": 20,
+    "engine_busy": 0,
+    "other": 0,
+    "seconds": 82.26
+   }
+  }
+ },
+ "spend": [
+  [
+   "Search quality, 153 questions",
+   0.29,
+   "OpenRouter usage, failed first attempts included"
+  ],
+  [
+   "Structured parsing, 60 questions",
+   0.12,
+   "own count: 60 reranks"
+  ],
+  [
+   "Parent\u2013child, 44 answers",
+   0.13,
+   "OpenRouter usage readings over all five attempts (upper end; they lag)"
+  ],
+  [
+   "Concurrency, keyword only",
+   0.0,
+   "no key in the processes"
+  ]
+ ]
+}

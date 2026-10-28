@@ -1,0 +1,18 @@
+{
+ "date": "2026-10-28",
+ "code_commit": "0ad942ad4bdcc22793e06e17e561371f8a59a018",
+ "questions": 153,
+ "search": {
+  "keyword": "BM25",
+  "embedding": "qwen/qwen3-embedding-8b (OpenRouter)",
+  "fusion": "RRF, 50 candidates",
+  "reranker": "cohere/rerank-4-fast, top 5"
+ },
+ "graders": "two Opus 5.5 subagents on the Claude subscription",
+ "key": "OPENROUTER_API_KEY",
+ "spend_usd_reported": 0.29,
+ "deviations": [
+  "Brain and Behavior imported as rag-extracted text: its PDF is past the 16 MB import limit",
+  "20 results kept from the first attempt (same settings and index; shared workspace store)"
+ ]
+}
