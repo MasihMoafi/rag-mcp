@@ -59,13 +59,17 @@ def _safe_dir_name(path: str, embedding: Optional[Dict[str, str]] = None) -> str
     return f"{base}_{h}"
 
 
+from .chunking import LONG_CHUNK_OVERLAP, LONG_CHUNK_SIZE, LONG_DOCUMENT_CHARS
+
+
 def build_source_stamp(config, embedding, contextual):
     """The exact stamp a workspace query compares with its published index."""
     return {
         "version": 3,
-        "parsing_version": 8,
+        "parsing_version": 9,
         "storage": {name: config[name] for name in ("backend", "distance_metric")},
-        "chunking": {"version": 2, "size": config["chunk_size"], "overlap": config["chunk_overlap"]},
+        "chunking": {"version": 3, "size": config["chunk_size"], "overlap": config["chunk_overlap"],
+                     "long_document": [LONG_DOCUMENT_CHARS, LONG_CHUNK_SIZE, LONG_CHUNK_OVERLAP]},
         "sources": source_snapshot(config["document_paths"]),
         "embedding": {
             name: embedding.get(name, "")
