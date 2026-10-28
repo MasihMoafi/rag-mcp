@@ -409,7 +409,7 @@ a claim about every corpus or a benchmark against other retrieval tools.
 
 An earlier, now-superseded Napoleon run with reranking manually disabled scored 93.3% —
 that number describes raw BM25+vector retrieval in isolation, not this server as it actually
-runs, and is kept in [`evals/napoleon/experiment_log.md`](evals/napoleon/experiment_log.md)
+runs, and is kept in [`evals/experiments/experiment-isolated-scaling/data/napoleon/experiment_log.md`](evals/experiments/experiment-isolated-scaling/data/napoleon/experiment_log.md)
 only for its chunk-size finding (1000 characters beat 300). The earlier separate Rust-only
 and notebook-only runs are likewise superseded by the combined directory test above and kept
 under `evals/elpis-memories-crate/` and `evals/notebook/` only as raw evidence.
