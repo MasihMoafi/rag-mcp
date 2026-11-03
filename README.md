@@ -51,17 +51,13 @@ rag-mcp/
 │   ├── integration/                    # LanceDB CRUD, MCP tool contracts, parsing & file scope tests
 │   └── benchmarks/                     # GPU empirical throughput sweeps & OOM ladder benchmarks
 │
-├── evals/                              # Evaluation Datasets & Scaling Experiments
-│   ├── datasets/                       # 8 Clean ground-truth evaluation corpora & CSV query files
-│   │   ├── attention/                  # Attention Is All You Need (AI / scientific paper)
-│   │   ├── brain-and-behavior/         # Neuroscience textbook (dense structured academic text)
-│   │   ├── fire-and-blood/             # George R.R. Martin fantasy novel (narrative fiction)
-│   │   ├── napoleon/                   # Historical biography & philosophy
-│   │   ├── mixed-codebase/             # Multi-language codebase (Python, Rust, Notebooks)
-│   │   ├── elpis-memories-crate/       # Rust systems codebase
-│   │   └── notebook/                   # JSON / Jupyter scientific notebooks
-│   └── experiments/                    # Multi-Domain Scaling Benchmarks
-│       └── experiment-unified-scaling/ # Scaling experiment logs, candidate outputs & LLM judge evals
+├── evals/                              # Evaluations; each run in its own folder
+│   ├── experiments/                    # One folder per run (search quality, chunking, concurrency, scaling...)
+│   ├── code-retrieval/                 # Does `rag search` find the right passage for a coding agent
+│   ├── calibration/                    # Hand-graded support reviews (attention, napoleon)
+│   ├── paidrun.py                      # Guards for paid runs: smoke test, spend cap, isolated stores
+│   ├── run_diagnostic.py               # One-off retrieval diagnostics
+│   └── check_release.py                # Release checks
 │
 ├── server.py                           # FastMCP server entry point exposing tools to coding agents
 └── pyproject.toml                      # Project metadata, dependencies (LanceDB, PyTorch, PyMuPDF)
@@ -213,7 +209,7 @@ rag config embedding qwen/qwen3-embedding-4b       # approved OpenRouter embeddi
 rag config embedding local-embedding --runtime "LM Studio"  # detected local model and loopback endpoint
 ```
 
-The same three settings are in the `rag` menu ("Change settings"), and `rag connect claude` / `rag connect codex` install a `/rag` command in the agent (Claude Code: `/rag top5`, `/rag --reranker fastembed`, `/rag embedding bge-m3`, or plain words like `/rag use the ollama model`; Codex: `/prompts:rag …`). The MCP server also exposes `get_rag_settings` and `set_rag_settings`, so any agent can change these when asked in chat. API keys are never taken through chat; `rag setup` in a terminal handles them.
+The same three settings are in the `rag` menu ("Change settings"), and `rag connect claude --install-prompt` / `rag connect codex --install-prompt` also install a `/rag` command in the agent (Claude Code: `/rag top5`, `/rag --reranker fastembed`, `/rag embedding bge-m3`, or plain words like `/rag use the ollama model`; Codex: `/prompts:rag …`). The MCP server also exposes `get_rag_settings` and `set_rag_settings`, so any agent can change these when asked in chat. API keys are never taken through chat; `rag setup` in a terminal handles them.
 
 `rag capabilities` (or `--json`) reports the configured lexical, embedding,
 reranking, and generation stages. Studio's paired Configuration panel and MCP
@@ -501,8 +497,8 @@ RAG_MCP_EMBED_MODEL = "qwen3-embedding:8b"
 
 `openai_compatible` is the one non-local option: it leaves the machine. One client
 implementation covers real OpenAI, Ollama's own `/v1` endpoint, and Qwen/DashScope's and
-Gemini's OpenAI-compatible modes — install the optional `openai` package
-(`uv sync --extra openai`), then set `RAG_MCP_EMBED_PROVIDER=openai_compatible`,
+Gemini's OpenAI-compatible modes — the `openai` client is already a core dependency;
+set `RAG_MCP_EMBED_PROVIDER=openai_compatible`,
 `RAG_MCP_EMBED_MODEL` to the provider's model name, `RAG_MCP_EMBED_API_KEY`, and
 `RAG_MCP_EMBED_BASE_URL` if the provider isn't OpenAI itself. The client construction is
 verified, and OpenRouter has live embedding evidence described below; other provider
