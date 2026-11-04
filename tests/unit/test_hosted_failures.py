@@ -224,3 +224,22 @@ def test_a_synthesized_answer_is_never_requested_twice(monkeypatch):
     with pytest.raises(RuntimeError, match='HTTP 503'):
         hosted._post('/chat/completions', {'model': 'm', 'messages': [{'content': 'question'}]}, key='fake', timeout=1)
     assert len(calls) == 1 and sleeps == []
+
+
+def test_a_cited_answer_names_each_source_document_without_its_path(monkeypatch):
+    # 4 Nov: asked to cite article names, the answer could only say "passage 2".
+    monkeypatch.setenv('OPENROUTER_API_KEY', 'fake')
+    captured = {}
+
+    def response(path, payload, **kwargs):
+        captured.update(payload)
+        return {'choices': [{'finish_reason': 'stop', 'message': {'content': 'Cited.'}}]}
+
+    monkeypatch.setattr(hosted, '_post', response)
+    hosted.synthesize_answer('What does a skill description contain? Cite the article names.', [
+        {'content': 'Should include specific keywords.', 'location': 'L4-L6',
+         'file_path': '/home/someone/vault/Agent Skills Specification.md'},
+    ], {})
+    evidence = captured['messages'][1]['content']
+    assert 'Source document: Agent Skills Specification.md' in evidence
+    assert '/home/someone' not in evidence

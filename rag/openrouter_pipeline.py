@@ -46,6 +46,15 @@ def _restore_pdf_pages(passage: Mapping[str, Any], content: str,
 
 def _answer_evidence(passage: Mapping[str, Any], *, source_details: bool,
                      pdf_cache: dict[str, str]) -> str:
+    """Add the source document's name (never its private path) and its location, so a cited answer can say which
+    document a quote came from (4 Nov: asked to cite article names, an answer could only say "passage 2")."""
+    evidence = _located_evidence(passage, source_details=source_details, pdf_cache=pdf_cache)
+    name = os.path.basename(str(passage.get('name') or passage.get('file_path') or '')).strip()
+    return f'Source document: {name}\n{evidence}' if source_details and name else evidence
+
+
+def _located_evidence(passage: Mapping[str, Any], *, source_details: bool,
+                      pdf_cache: dict[str, str]) -> str:
     """Add available source locations without private paths or scores."""
     content = str(passage.get('content') or '').strip()
     if not source_details:
