@@ -22,7 +22,7 @@ jobs:
       - uses: astral-sh/setup-uv@v6
         with:
           version: '0.8.22'
-      - run: uv sync --frozen --python ${{ matrix.python }} --group dev
+      - run: uv sync --frozen --python ${{ matrix.python }} --group dev --extra qdrant
       - name: Run complete keyless suite with external network blocked
         shell: bash
         run: |
@@ -43,14 +43,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # `src` replaces the action's default (the whole repository), so eval data and notebooks are not linted.
       - uses: astral-sh/ruff-action@v3
         with:
           version: '0.17.1'
-          args: check --isolated --select E9,F63,F7,F82 .
+          args: check --isolated --select E9,F63,F7,F82
+          src: rag utils server.py tests scripts
       - uses: astral-sh/ruff-action@v3
         with:
           version: '0.17.1'
-          args: check --isolated --select E4,E7,E9,F rag/server.py rag/cli.py rag/keys.py rag/cli_agents.py rag/settings.py
+          args: check --isolated --select E4,E7,E9,F
+          src: rag/server.py rag/cli.py rag/keys.py rag/cli_agents.py rag/settings.py
 
   types:
     runs-on: ubuntu-latest
