@@ -79,42 +79,24 @@ def _fastembed_cache_dir(environ: Mapping[str, str] | None = None) -> str:
     )
 
 
-class _hf_online:
-    """The MCP server pins Hugging Face to offline mode for the PyTorch stack; a small
-    ONNX model still has to download once. Lift the pin only while it loads."""
-
-    def __enter__(self):
-        self.saved = {name: os.environ.pop(name, None) for name in ("HF_HUB_OFFLINE", "TRANSFORMERS_OFFLINE")}
-        try:
-            import huggingface_hub.constants as constants
-
-            self.constants, self.was = constants, constants.HF_HUB_OFFLINE
-            constants.HF_HUB_OFFLINE = False
-        except Exception:
-            self.constants = None
-        return self
-
-    def __exit__(self, *_):
-        for name, value in self.saved.items():
-            if value is not None:
-                os.environ[name] = value
-        if self.constants is not None:
-            self.constants.HF_HUB_OFFLINE = self.was
+def _fastembed_offline() -> bool:
+    return any(os.environ.get(name, '').strip().upper() in {'1', 'ON', 'YES', 'TRUE'}
+               for name in ('HF_HUB_OFFLINE', 'TRANSFORMERS_OFFLINE'))
 
 
 class FastEmbedWrapper:
     """Small ONNX models via fastembed: CPU-only, downloaded once, no PyTorch."""
 
     def __init__(self, model_name: str):
-        with _hf_online():
-            try:
-                from fastembed import TextEmbedding
-            except ImportError as error:
-                raise RuntimeError(
-                    "The local embedding model needs the fastembed package. Reinstall ragmcp or run `rag setup`."
-                ) from error
-            self.model_name = model_name
-            self.model = TextEmbedding(model_name=model_name, cache_dir=_fastembed_cache_dir())
+        try:
+            from fastembed import TextEmbedding
+        except ImportError as error:
+            raise RuntimeError(
+                "The local embedding model needs the fastembed package. Reinstall ragmcp or run `rag setup`."
+            ) from error
+        self.model_name = model_name
+        self.model = TextEmbedding(model_name=model_name, cache_dir=_fastembed_cache_dir(),
+                                   local_files_only=_fastembed_offline())
 
     def embed_documents(self, texts):
         return [vector.tolist() for vector in self.model.embed(texts, batch_size=64)]
@@ -301,13 +283,13 @@ class FastEmbedReranker:
     """ONNX cross-encoder via fastembed: reranking without PyTorch."""
 
     def __init__(self, model_name: str):
-        with _hf_online():
-            try:
-                from fastembed.rerank.cross_encoder import TextCrossEncoder
-            except ImportError as error:
-                raise RuntimeError("The local reranker needs the fastembed package. Reinstall ragmcp.") from error
-            self.model_name = model_name
-            self.model = TextCrossEncoder(model_name=model_name, cache_dir=_fastembed_cache_dir())
+        try:
+            from fastembed.rerank.cross_encoder import TextCrossEncoder
+        except ImportError as error:
+            raise RuntimeError("The local reranker needs the fastembed package. Reinstall ragmcp.") from error
+        self.model_name = model_name
+        self.model = TextCrossEncoder(model_name=model_name, cache_dir=_fastembed_cache_dir(),
+                                      local_files_only=_fastembed_offline())
 
     def predict(self, pairs):
         """Same shape as sentence-transformers' CrossEncoder.predict: one score per (query, passage)."""
@@ -320,12 +302,12 @@ class FastEmbedReranker:
 def api_key_from_environment(base_url: str | None) -> str | None:
     """Keys never have to be copied into the config file: match the endpoint to its usual variable."""
     from urllib.parse import urlsplit
-    host = (base_url or "").lower()
-    if urlsplit(host).hostname in {'localhost', '127.0.0.1', '::1'}:
+    host = urlsplit(base_url or "").hostname or ""
+    if host in {'localhost', '127.0.0.1', '::1'}:
         return None
     names = (
-        ("OPENROUTER_API_KEY",) if "openrouter" in host
-        else ("GEMINI_API_KEY", "GOOGLE_API_KEY") if "googleapis" in host
+        ("OPENROUTER_API_KEY",) if host == "openrouter.ai"
+        else ("GEMINI_API_KEY", "GOOGLE_API_KEY") if host == "generativelanguage.googleapis.com"
         else ("OPENAI_API_KEY",)
     )
     for name in names:
@@ -351,7 +333,9 @@ def build_embedder(config: Mapping[str, Any], device: str = "cpu"):
         local = urlsplit(base_url or '').hostname in {'localhost', '127.0.0.1', '::1'}
         return OpenAICompatibleWrapper(
             model_name or "text-embedding-3-small",
-            api_key='local' if local else config.get("embed_api_key") or api_key_from_environment(base_url),
+            api_key='local' if local else (config.get("embed_api_key") or
+                (config.get("openrouter_api_key") if urlsplit(base_url or '').hostname == 'openrouter.ai' else None)
+                or api_key_from_environment(base_url)),
             base_url=base_url,
         )
     if provider == "sentencetransformer":

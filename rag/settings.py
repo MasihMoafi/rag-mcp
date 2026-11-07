@@ -76,7 +76,8 @@ def frozen_settings():
     environ = dict(os.environ)
     saved = load_settings(environ)
     values = {**_merged_config(DEFAULTS, ENV_KEYS, str, environ, saved=saved),
-              **_resolved_retrieval_config(environ, saved)}
+              **_resolved_retrieval_config(environ, saved),
+              'openrouter_api_key': str(saved.get('openrouter_api_key') or '').strip()}
     token = _query_settings.set(values)
     try:
         yield
@@ -209,18 +210,24 @@ def _merged_config(defaults, env_keys, value_types, environ, *, saved=None):
 
 def embedding_config(environ: Mapping[str, str] | None = None) -> dict[str, str]:
     """Defaults, then the saved file, then RAG_MCP_* environment overrides."""
-    return _merged_config(DEFAULTS, ENV_KEYS, str, environ)
+    config = _merged_config(DEFAULTS, ENV_KEYS, str, environ)
+    frozen = _query_settings.get() if environ is None else None
+    config['openrouter_api_key'] = (frozen['openrouter_api_key'] if frozen is not None else
+                                    str(load_settings(environ).get('openrouter_api_key') or '').strip())
+    return config
 
 
 def _resolved_retrieval_config(environ: Mapping[str, str], saved: Mapping[str, Any]) -> dict[str, str]:
+    from urllib.parse import urlsplit
     config = _merged_config(RETRIEVAL_DEFAULTS, RETRIEVAL_ENV, (str, int), environ, saved=saved)
     explicit = (str(saved.get('reranker_type') or '').strip()
                 or environ.get(RETRIEVAL_ENV['reranker_type'], '').strip())
     if not explicit:
         embedding = _merged_config(DEFAULTS, ENV_KEYS, str, environ, saved=saved)
-        has_key = (environ.get('OPENROUTER_API_KEY', '').strip()
+        has_key = (str(saved.get('openrouter_api_key') or '').strip()
+                   or environ.get('OPENROUTER_API_KEY', '').strip()
                    or (embedding['embed_api_key'].strip()
-                       if 'openrouter.ai' in embedding['embed_base_url'].lower() else ''))
+                       if urlsplit(embedding['embed_base_url']).hostname == 'openrouter.ai' else ''))
         if not has_key:
             config['reranker_type'] = 'off'
     if config['reranker_type'] in {'disabled', 'none', 'off'}:
