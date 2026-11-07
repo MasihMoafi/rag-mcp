@@ -1,5 +1,6 @@
 import io
 import json
+from contextlib import nullcontext
 from pathlib import Path
 
 import pytest
@@ -89,7 +90,8 @@ def test_api_key_is_selected_independently_of_ollama_recommendation(tmp_path, mo
 
 @pytest.mark.parametrize("command", ["serve", "studio"])
 @pytest.mark.parametrize("port", [47831, 47839])
-def test_companion_startup_links_the_actual_port(command, port):
+def test_companion_startup_links_the_actual_port(command, port, monkeypatch):
+    monkeypatch.setattr("rag.studio_bundle.serve_studio", lambda *args, **kwargs: nullcontext("http://127.0.0.1:3000"))
     class Server:
         server_port = port
         closed = False

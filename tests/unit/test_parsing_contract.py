@@ -110,7 +110,8 @@ def test_pdf_document_is_closed_when_page_extraction_fails(monkeypatch):
 
 
 @pytest.mark.parametrize("text,expected_calls", [("text", 0), ("", 1), (" \n", 1)])
-def test_pdf_dispatch_preserves_overrides_and_fallback(pipeline, text, expected_calls):
+def test_pdf_dispatch_preserves_overrides_and_fallback(pipeline, text, expected_calls, monkeypatch):
+    monkeypatch.setattr('rag.parsing.importlib.util.find_spec', lambda name: object())
     pipeline._extract_text_from_pdf = Mock(return_value=text)
     pipeline._extract_text_with_unstructured = Mock(return_value="OCR")
     result = pipeline._extract_content("input.PDF")
@@ -120,7 +121,8 @@ def test_pdf_dispatch_preserves_overrides_and_fallback(pipeline, text, expected_
 
 
 @pytest.mark.parametrize('fallback', ['', '   ', 'recovered text'])
-def test_pdf_failure_requires_nonempty_fallback(pipeline, fallback):
+def test_pdf_failure_requires_nonempty_fallback(pipeline, fallback, monkeypatch):
+    monkeypatch.setattr('rag.parsing.importlib.util.find_spec', lambda name: object())
     error = RuntimeError('damaged page')
     pipeline._extract_text_from_pdf = Mock(side_effect=error)
     pipeline._extract_text_with_unstructured = Mock(return_value=fallback)

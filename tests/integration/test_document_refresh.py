@@ -12,6 +12,8 @@ from rag import fetch
 def local_search(tmp_path, monkeypatch):
     monkeypatch.setenv("RAG_MCP_DATA_DIR", str(tmp_path / "index"))
     monkeypatch.setenv("RAG_MCP_CONFIG", str(tmp_path / "config.json"))
+    monkeypatch.setenv("RAG_MCP_WORKSPACE_DIR", str(tmp_path / "workspaces"))
+    monkeypatch.setenv("RAG_MCP_TRACE_DIR", str(tmp_path / "traces"))
     monkeypatch.setenv("RAG_MCP_EMBED_PROVIDER", "none")
     monkeypatch.setenv("RAG_MCP_RERANKER_TYPE", "off")
     monkeypatch.setenv("RAG_MCP_RERANK_TOP_K", "5")

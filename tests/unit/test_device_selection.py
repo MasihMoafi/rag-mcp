@@ -1,18 +1,28 @@
-from unittest.mock import patch
+from types import SimpleNamespace
+from unittest.mock import Mock
 
 import pytest
 
 from rag.core import select_device
 
 
-def test_select_device_falls_back_without_changing_the_machine():
-    with patch("rag.core.torch.cuda.is_available", return_value=False), patch(
-        "rag.core.torch.backends.mps.is_available", return_value=False
-    ):
-        assert select_device() == "cpu"
+def test_select_device_falls_back_without_changing_the_machine(monkeypatch):
+    from rag import core
 
-    with patch("rag.core.torch.cuda.is_available", return_value=True):
-        assert select_device() == "cuda"
+    cuda = Mock(return_value=False)
+    mps = Mock(return_value=False)
+    monkeypatch.setattr(core, "torch", SimpleNamespace(
+        cuda=SimpleNamespace(is_available=cuda),
+        backends=SimpleNamespace(mps=SimpleNamespace(is_available=mps)),
+    ))
+    assert select_device() == "cpu"
+    cuda.return_value = True
+    assert select_device() == "cuda"
+    cuda.return_value = False
+    mps.return_value = True
+    assert select_device() == "mps"
+    monkeypatch.setattr(core, "torch", None)
+    assert select_device() == "cpu"
 
 
 def test_remote_only_pipeline_does_not_probe_local_accelerators(tmp_path, monkeypatch):
