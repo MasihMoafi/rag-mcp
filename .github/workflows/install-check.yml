@@ -1,0 +1,23 @@
+name: Install check
+
+# Installs the published wheel on a clean machine exactly as the README says, so a broken install line is caught.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: astral-sh/setup-uv@v6
+      - name: Install the release wheel
+        run: uv tool install https://github.com/MasihMoafi/rag-mcp/releases/download/v0.2.0/ragmcp-0.2.0-py3-none-any.whl
+      - name: The rag command runs
+        run: |
+          rag --help
+          rag capabilities

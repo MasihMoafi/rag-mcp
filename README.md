@@ -141,16 +141,20 @@ Cohere returned all 50 scores, five passages reached DeepSeek, and the public
 result contained only the correct answer. OpenRouter reported a total cost of
 $0.00214904. This is a wiring check, not a retrieval-quality benchmark.
 
-Prerequisite for every path: [`uv`](https://docs.astral.sh/uv/getting-started/installation/), the Python package runner. The npm package is a thin launcher that calls it. `rag studio` also needs Node.js 22 or newer to run the Studio shipped in the Python package.
+Prerequisite: [`uv`](https://docs.astral.sh/uv/getting-started/installation/), the Python package runner. `rag studio` also needs Node.js 22 or newer to run the Studio shipped in the Python package. `ragmcp` is not on PyPI or npm yet; install the wheel from the [latest release](https://github.com/MasihMoafi/rag-mcp/releases/latest):
+
+```bash
+uv tool install https://github.com/MasihMoafi/rag-mcp/releases/download/v0.2.0/ragmcp-0.2.0-py3-none-any.whl
+```
 
 The configured answer profile sends document chunks and queries to OpenRouter for
 embedding, reranking, and synthesis. Source files and indexes remain local. Do not
 use this hosted profile for material that cannot be sent to the configured provider.
 
 ```bash
-uvx ragmcp setup                                    # pick an embedding model once
-uvx ragmcp query "What changed?" --path ./docs       # explicit document scope
-uvx ragmcp query "What does the book say?" --path ./book --type md  # exclude HTML and other formats
+rag setup                                    # pick an embedding model once
+rag query "What changed?" --path ./docs       # explicit document scope
+rag query "What does the book say?" --path ./book --type md  # exclude HTML and other formats
 ```
 
 `rag config context_radius 1` adds one indexed neighbouring chunk on each side
@@ -163,15 +167,9 @@ setup. For a saved-page folder containing Markdown chapters plus HTML and asset
 copies, use `--type md` deliberately; an oversized mixed folder is rejected
 before any model probe or index build.
 
-```bash
-npx ragmcp setup                                    # same, from the Node ecosystem
-pnpm dlx ragmcp query "What changed?" --path ./docs
-```
-
-Install permanently and use plain `rag`:
+More commands:
 
 ```bash
-uv tool install ragmcp        # or: pipx install ragmcp · npm install -g ragmcp
 rag                           # interactive menu: ↑/↓ to choose, Enter to select
 rag setup                     # choose a provider first, then one of its real embedding models
 rag setup --auto              # take the recommendation without questions
@@ -235,7 +233,7 @@ credential entry.
 
 `rag setup --provider <none|fastembed|ollama|openai_compatible|sentencetransformer> [--model M] [--base-url URL] [--api-key KEY] [--ollama-url URL]` sets the same choice without questions. The saved choice lives in `~/.config/rag/config.json` (owner-readable only); `RAG_MCP_EMBED_*` environment variables override it per process.
 
-Extras: `ragmcp[full]` adds PyTorch, sentence-transformers and the cross-encoder reranker (GPU); `ragmcp[office]` parses DOCX/PPTX/XLSX/CSV; `ragmcp[qdrant]` adds the Qdrant backend; `ragmcp[anthropic]` enables contextual retrieval. With npm: `RAGMCP_EXTRAS=full npx ragmcp ...`.
+Extras: `ragmcp[full]` adds PyTorch, sentence-transformers and the cross-encoder reranker (GPU); `ragmcp[office]` parses DOCX/PPTX/XLSX/CSV; `ragmcp[qdrant]` adds the Qdrant backend; `ragmcp[anthropic]` enables contextual retrieval. Install with one: `uv tool install "ragmcp[full] @ https://github.com/MasihMoafi/rag-mcp/releases/download/v0.2.0/ragmcp-0.2.0-py3-none-any.whl"`.
 
 `rag studio` starts the bundled Studio and its authenticated loopback companion, then opens the
 local pairing URL. Use `--web-port` to change Studio's port, `--port` for the companion, or
@@ -345,7 +343,7 @@ uv sync --all-extras --group dev
 .venv/bin/python -m pytest tests/ -v
 ```
 
-Any MCP client can register the stdio server as the command `rag` with the single argument `mcp` (after `uv tool install ragmcp`), or as `uvx` with arguments `ragmcp mcp` without installing.
+Any MCP client can register the stdio server as the command `rag` with the single argument `mcp` after installing the wheel from the latest release (see Quick start).
 
 ### Claude Code
 
