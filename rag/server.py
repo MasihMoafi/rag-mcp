@@ -717,7 +717,7 @@ def _validate_rag_scope(path: Path, extensions: list[str] | None = None) -> _Sco
 
 def _query_failure(stage: str, exc: Exception, advice: str) -> str:
     # Exception messages and provider payloads must never enter logs or traces.
-    known = (ValueError, TypeError, RuntimeError, OSError, ImportError, TimeoutError)
+    known = (ValueError, TypeError, RuntimeError, OSError, ImportError, TimeoutError, UnicodeDecodeError)
     error_class = type(exc).__name__ if type(exc) in known else 'OtherError'
     tracing.annotate(failure_stage=stage, failure_class=error_class)
     tracing.fail_current()
