@@ -12,6 +12,10 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  quality:
+    if: vars.PUBLISH_ENABLED == 'true'
+    uses: ./.github/workflows/python-quality.yml
+
   build:
     if: vars.PUBLISH_ENABLED == 'true'
     runs-on: ubuntu-latest
@@ -44,9 +48,48 @@ jobs:
           path: dist/*
           if-no-files-found: error
 
-  publish-pypi:
+  installed-artifact:
     if: vars.PUBLISH_ENABLED == 'true'
     needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '10'
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: '0.8.22'
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-artifacts
+          path: dist
+      - name: Verify and install the exact artifacts
+        run: |
+          cd dist
+          sha256sum -c SHA256SUMS
+          uv venv --python 3.13 "$RUNNER_TEMP/rag-installed"
+          uv pip install --python "$RUNNER_TEMP/rag-installed/bin/python" ./*.whl
+          uvx --from ./*.whl rag --help > /dev/null
+      - name: Exercise installed launcher and MCP search
+        run: |
+          export WHEEL=$(echo "$GITHUB_WORKSPACE"/dist/*.whl)
+          export NPM_TGZ=$(echo "$GITHUB_WORKSPACE"/dist/*.tgz)
+          export FACTS="$GITHUB_WORKSPACE/tests/install/facts.md"
+          cd "$RUNNER_TEMP"
+          env -u PYTHONPATH bash "$GITHUB_WORKSPACE/tests/install/smoke.sh"
+
+  publish-pypi:
+    if: vars.PUBLISH_ENABLED == 'true'
+    needs: [build, quality, installed-artifact]
     runs-on: ubuntu-latest
     environment: pypi
     permissions:

@@ -330,12 +330,18 @@ def build_embedder(config: Mapping[str, Any], device: str = "cpu"):
     if provider == "openai_compatible":
         base_url = config.get("embed_base_url") or None
         from urllib.parse import urlsplit
-        local = urlsplit(base_url or '').hostname in {'localhost', '127.0.0.1', '::1'}
+        host = urlsplit(base_url or '').hostname
+        local = host in {'localhost', '127.0.0.1', '::1'}
+        from rag.settings import resolve_openrouter_key
+        if local:
+            api_key = 'local'
+        elif host == 'openrouter.ai':
+            api_key = resolve_openrouter_key(config) or None
+        else:
+            api_key = config.get('embed_api_key') or api_key_from_environment(base_url)
         return OpenAICompatibleWrapper(
             model_name or "text-embedding-3-small",
-            api_key='local' if local else (config.get("embed_api_key") or
-                (config.get("openrouter_api_key") if urlsplit(base_url or '').hostname == 'openrouter.ai' else None)
-                or api_key_from_environment(base_url)),
+            api_key=api_key,
             base_url=base_url,
         )
     if provider == "sentencetransformer":

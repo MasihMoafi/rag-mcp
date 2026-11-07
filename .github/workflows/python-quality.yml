@@ -1,6 +1,7 @@
 name: Python quality
 
 on:
+  workflow_call:
   push:
   pull_request:
 

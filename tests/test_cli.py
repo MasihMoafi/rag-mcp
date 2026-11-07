@@ -551,13 +551,8 @@ def test_connect_claude_registers_the_server_in_user_scope(tmp_path: Path):
     assert code == 0
     assert "description:" in (tmp_path / ".claude" / "commands" / "rag.md").read_text()
     lines = calls.read_text().splitlines()
-    assert lines[:3] == [
-        "mcp",
-        "get",
-        "rag",
-    ]  # reads the current entry so it can be restored
-    assert lines[3:9] == ["mcp", "add", "rag", "-s", "user", "--"]
-    assert Path(lines[10]).name == "server.py"
+    assert lines[:6] == ["mcp", "add", "rag", "-s", "user", "--"]
+    assert Path(lines[7]).name == "server.py"
     assert "remove" not in lines
     assert "Connected Claude Code" in output.getvalue()
 

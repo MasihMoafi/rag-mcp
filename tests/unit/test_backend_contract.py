@@ -1,15 +1,19 @@
+from importlib.util import find_spec
 from threading import Barrier, Lock
 from types import SimpleNamespace
 
 import pytest
 
-pytest.importorskip("qdrant_client")  # optional extra: ragmcp[qdrant]
-
 from rag.lancedb_backend import LanceDBBackend
-from rag.qdrant_backend import QdrantVectorDB
+
+if find_spec('qdrant_client'):
+    from rag.qdrant_backend import QdrantVectorDB
+else:
+    QdrantVectorDB = None
 
 
-@pytest.fixture(params=[LanceDBBackend, QdrantVectorDB])
+@pytest.fixture(params=[LanceDBBackend, pytest.param(QdrantVectorDB, marks=pytest.mark.skipif(
+    QdrantVectorDB is None, reason='qdrant_client is optional'))])
 def backend(request):
     return request.param.__new__(request.param)
 
@@ -276,6 +280,7 @@ def test_lancedb_record_batches_and_fts_contract(dense, fts_failure, capsys):
     assert len(writes) == 1
 
 
+@pytest.mark.skipif(QdrantVectorDB is None, reason='qdrant_client is optional')
 def test_qdrant_payloads_keep_metadata_ids_and_batches():
     backend = QdrantVectorDB.__new__(QdrantVectorDB)
     backend.collection_name = "test"
@@ -305,6 +310,7 @@ def test_qdrant_payloads_keep_metadata_ids_and_batches():
 
 
 @pytest.mark.parametrize("api", ["search", "query_points"])
+@pytest.mark.skipif(QdrantVectorDB is None, reason='qdrant_client is optional')
 def test_qdrant_search_preserves_payload_precedence_and_defaults(api):
     backend = QdrantVectorDB.__new__(QdrantVectorDB)
     backend.collection_name = "test"

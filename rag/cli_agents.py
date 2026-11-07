@@ -9,7 +9,7 @@ import subprocess
 import sys
 from collections.abc import Mapping
 from pathlib import Path
-from typing import Any, TextIO
+from typing import Any, TextIO, cast
 
 
 def server_command(environ: Mapping[str, str]) -> list[str]:
@@ -43,6 +43,7 @@ def _replace_registration(
     restore: list[str] | None,
     environ: Mapping[str, str],
     stderr: TextIO,
+    old_entry: dict[str, Any] | None = None,
 ) -> int:
     """Register `rag`, replacing an existing entry without ever losing it.
 
@@ -56,7 +57,10 @@ def _replace_registration(
     if remove is None or restore is None:
         print((added.stderr or added.stdout).strip(), file=stderr)
         return added.returncode
-    _run(remove, environ)
+    removed = _run(remove, environ)
+    if removed.returncode:
+        print((removed.stderr or removed.stdout).strip(), file=stderr)
+        return removed.returncode
     retried = _run(add, environ)
     if retried.returncode == 0:
         return 0
@@ -64,30 +68,25 @@ def _replace_registration(
     print((retried.stderr or retried.stdout).strip(), file=stderr)
     if restored.returncode != 0:
         print(
-            "The previous rag registration could not be restored: " + " ".join(restore),
+            "The previous rag registration could not be restored. Exact entry: " + json.dumps(old_entry),
             file=stderr,
         )
+        print((restored.stderr or restored.stdout).strip(), file=stderr)
     return retried.returncode
 
 
-def _claude_entry(
-    executable: str, environ: Mapping[str, str]
-) -> dict[str, object] | None:
-    """The current `rag` stdio entry in Claude Code, from `claude mcp get rag`, or None."""
-    current = _run([executable, "mcp", "get", "rag"], environ)
-    if current.returncode != 0:
+def _claude_entry(environ: Mapping[str, str], scope: str) -> dict[str, Any] | None:
+    """Read the original entry at its actual scope; CLI display omits fields."""
+    home = Path(environ.get('HOME') or Path.home())
+    path = Path.cwd() / '.mcp.json' if scope == 'project' else home / '.claude.json'
+    try:
+        data = json.loads(path.read_text(encoding='utf-8'))
+        if scope == 'local':
+            data = data['projects'][str(Path.cwd())]
+        entry = data['mcpServers']['rag']
+    except (OSError, ValueError, KeyError, TypeError):
         return None
-    fields: dict[str, str] = {}
-    for line in current.stdout.splitlines():
-        key, _, value = line.strip().partition(":")
-        fields[key.strip().lower()] = value.strip()
-    if fields.get("type", "stdio") != "stdio" or not fields.get("command"):
-        return None
-    return {
-        "type": "stdio",
-        "command": fields["command"],
-        "args": shlex.split(fields.get("args", "")),
-    }
+    return cast(dict[str, Any], entry) if isinstance(entry, dict) else None
 
 
 def connect_codex(
@@ -110,27 +109,48 @@ def connect_codex(
         env=dict(environ),
     )
     restore: list[str] | None = None
+    entry: dict[str, Any] | None = None
     if current.returncode == 0:
-        transport: dict[str, Any]
+        transport: dict[str, Any] = {}
         try:
-            transport = json.loads(current.stdout)["transport"]
+            decoded: Any = json.loads(current.stdout)
+            if isinstance(decoded, dict):
+                entry = cast(dict[str, Any], decoded)
+                raw_transport: Any = entry.get('transport')
+                if isinstance(raw_transport, dict):
+                    transport = cast(dict[str, Any], raw_transport)
         except (json.JSONDecodeError, KeyError, TypeError):
-            transport = {}
+            pass
         if (
             transport.get("command") == command[0]
             and transport.get("args") == command[1:]
         ):
             print("Codex is already connected to this RAG server.", file=stdout)
             return 0
-        if transport.get("command"):
-            old = [transport["command"], *transport.get("args", [])]
-            restore = [executable, "mcp", "add", "rag", "--", *old]
+        extras = {k: v for k, v in transport.items() if k not in {'type', 'command', 'args', 'env'} and v}
+        extras.update({k: v for k, v in (entry or {}).items()
+                       if k not in {'name', 'transport', 'disabled_reason', 'enabled'} and v is not None})
+        if entry and entry.get('enabled') is False:
+            extras['enabled'] = False
+        raw_env: Any = transport.get('env') or {}
+        env_vars = cast(dict[object, object], raw_env) if isinstance(raw_env, dict) else {}
+        old_command: Any = transport.get('command')
+        old_args: Any = transport.get('args') or []
+        if (isinstance(old_command, str) and isinstance(old_args, list) and
+                all(isinstance(arg, str) for arg in cast(list[Any], old_args)) and
+                not extras and isinstance(raw_env, dict) and all(
+                isinstance(k, str) and isinstance(v, str) for k, v in env_vars.items())):
+            old = [old_command, *cast(list[str], old_args)]
+            flags = [item for key, value in cast(dict[str, str], env_vars).items()
+                     for item in ('--env', f'{key}={value}')]
+            restore = [executable, "mcp", "add", "rag", *flags, "--", *old]
     code = _replace_registration(
         [executable, "mcp", "add", "rag", "--", *command],
         [executable, "mcp", "remove", "rag"],
         restore,
         environ,
         stderr,
+        entry,
     )
     if code != 0:
         return code
@@ -166,7 +186,7 @@ def connect_claude(
         )
         print("  " + " ".join(command), file=stderr)
         return 1
-    entry = _claude_entry(executable, environ)
+    entry = _claude_entry(environ, scope)
     restore = (
         [executable, "mcp", "add-json", "rag", json.dumps(entry), "-s", scope]
         if entry
@@ -178,6 +198,7 @@ def connect_claude(
         restore,
         environ,
         stderr,
+        entry,
     )
     if code != 0:
         return code

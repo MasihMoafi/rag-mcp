@@ -22,6 +22,8 @@ def test_explicit_files_obey_scan_filters(tmp_path, monkeypatch):
             server._validate_rag_scope(tmp_path / name)
     with pytest.raises(ValueError):
         server._validate_rag_scope(tmp_path / '.private' / 'secret.md')
+    with pytest.raises(ValueError):
+        server._validate_rag_scope(tmp_path / '.private')
     monkeypatch.setenv('RAG_MCP_MAX_TOKENS', '1')
     with pytest.raises(ValueError, match='token limit'):
         server._validate_rag_scope(tmp_path / 'large.md')

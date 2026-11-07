@@ -221,17 +221,23 @@ def embedding_config(environ: Mapping[str, str] | None = None) -> dict[str, str]
     return config
 
 
-def _resolved_retrieval_config(environ: Mapping[str, str], saved: Mapping[str, Any]) -> dict[str, str]:
+def resolve_openrouter_key(config: Mapping[str, Any], environ: Mapping[str, str] | None = None) -> str:
+    """Resolve the dedicated key, legacy OpenRouter embedding key, then environment."""
     from urllib.parse import urlsplit
+    env = os.environ if environ is None else environ
+    dedicated = str(config.get('openrouter_api_key') or '').strip()
+    legacy = (str(config.get('embed_api_key') or '').strip()
+              if urlsplit(str(config.get('embed_base_url') or '')).hostname == 'openrouter.ai' else '')
+    return dedicated or legacy or env.get('OPENROUTER_API_KEY', '').strip()
+
+
+def _resolved_retrieval_config(environ: Mapping[str, str], saved: Mapping[str, Any]) -> dict[str, str]:
     config = _merged_config(RETRIEVAL_DEFAULTS, RETRIEVAL_ENV, (str, int), environ, saved=saved)
     explicit = (str(saved.get('reranker_type') or '').strip()
                 or environ.get(RETRIEVAL_ENV['reranker_type'], '').strip())
     if not explicit:
         embedding = _merged_config(DEFAULTS, ENV_KEYS, str, environ, saved=saved)
-        has_key = (str(saved.get('openrouter_api_key') or '').strip()
-                   or environ.get('OPENROUTER_API_KEY', '').strip()
-                   or (embedding['embed_api_key'].strip()
-                       if urlsplit(embedding['embed_base_url']).hostname == 'openrouter.ai' else ''))
+        has_key = resolve_openrouter_key({**embedding, 'openrouter_api_key': saved.get('openrouter_api_key')}, environ)
         if not has_key:
             config['reranker_type'] = 'off'
     if config['reranker_type'] in {'disabled', 'none', 'off'}:
@@ -373,7 +379,12 @@ def finish_setup(
         stdout.write("Checking the embedding model...\n")
         stdout.flush()
         try:
-            dimensions = verify(config)
+            probe_config = dict(config)
+            from urllib.parse import urlsplit
+            if urlsplit(config.get('embed_base_url', '')).hostname == 'openrouter.ai':
+                probe_config['openrouter_api_key'] = resolve_openrouter_key(
+                    {**embedding_config(environ), **config}, environ)
+            dimensions = verify(probe_config)
         except Exception as error:  # shown to the user; nothing is saved
             stderr.write(f"Could not embed a test sentence: {error}\nNothing was saved.\n")
             return 1

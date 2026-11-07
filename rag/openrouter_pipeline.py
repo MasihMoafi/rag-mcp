@@ -79,16 +79,9 @@ def _located_evidence(passage: Mapping[str, Any], *, source_details: bool,
 
 
 def openrouter_key(config: Mapping[str, Any]) -> str:
-    """Reuse the configured OpenRouter embedding key, else its environment key."""
-    dedicated = str(config.get("openrouter_api_key") or "").strip()
-    if dedicated:
-        return dedicated
-    configured = str(config.get("embed_api_key") or "").strip()
-    from urllib.parse import urlsplit
-    base_url = str(config.get("embed_base_url") or "")
-    if configured and urlsplit(base_url).hostname == "openrouter.ai":
-        return configured
-    key = os.environ.get("OPENROUTER_API_KEY", "").strip()
+    """Return the shared OpenRouter credential or explain how to configure it."""
+    from rag.settings import resolve_openrouter_key
+    key = resolve_openrouter_key(config)
     if key:
         return key
     raise ValueError("OpenRouter needs OPENROUTER_API_KEY or an OpenRouter key saved by `rag setup`.")
