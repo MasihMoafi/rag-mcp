@@ -308,7 +308,8 @@ def api_key_from_environment(base_url: str | None) -> str | None:
     names = (
         ("OPENROUTER_API_KEY",) if host == "openrouter.ai"
         else ("GEMINI_API_KEY", "GOOGLE_API_KEY") if host == "generativelanguage.googleapis.com"
-        else ("OPENAI_API_KEY",)
+        else ("OPENAI_API_KEY",) if host in {'api.openai.com', ''}
+        else ()
     )
     for name in names:
         value = os.environ.get(name, "").strip()
@@ -328,17 +329,21 @@ def build_embedder(config: Mapping[str, Any], device: str = "cpu"):
     if provider == "ollama":
         return DirectOllamaGPUWrapper(model_name or "nomic-embed-text", config.get("ollama_url") or "http://localhost:11434")
     if provider == "openai_compatible":
-        base_url = config.get("embed_base_url") or None
+        base_url = config.get("embed_base_url") or 'https://api.openai.com/v1'
         from urllib.parse import urlsplit
         host = urlsplit(base_url or '').hostname
         local = host in {'localhost', '127.0.0.1', '::1'}
-        from rag.settings import resolve_openrouter_key
+        from rag.settings import resolve_openrouter_embedding_key
         if local:
             api_key = 'local'
         elif host == 'openrouter.ai':
-            api_key = resolve_openrouter_key(config) or None
+            api_key = resolve_openrouter_embedding_key(config) or None
+            if not api_key:
+                raise ValueError('Configure an OpenRouter API key for this embedding endpoint.')
         else:
             api_key = config.get('embed_api_key') or api_key_from_environment(base_url)
+            if not api_key and host not in {'api.openai.com', None}:
+                raise ValueError('Configure an API key explicitly for this embedding endpoint.')
         return OpenAICompatibleWrapper(
             model_name or "text-embedding-3-small",
             api_key=api_key,

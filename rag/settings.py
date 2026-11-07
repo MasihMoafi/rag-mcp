@@ -231,6 +231,15 @@ def resolve_openrouter_key(config: Mapping[str, Any], environ: Mapping[str, str]
     return dedicated or legacy or env.get('OPENROUTER_API_KEY', '').strip()
 
 
+def resolve_openrouter_embedding_key(config: Mapping[str, Any], environ: Mapping[str, str] | None = None) -> str:
+    from urllib.parse import urlsplit
+    env = os.environ if environ is None else environ
+    explicit = env.get('RAG_MCP_EMBED_API_KEY', '').strip()
+    selected = (str(config.get('embed_api_key') or '').strip()
+                if urlsplit(str(config.get('embed_base_url') or '')).hostname == 'openrouter.ai' else '')
+    return explicit or selected or resolve_openrouter_key(config, environ)
+
+
 def _resolved_retrieval_config(environ: Mapping[str, str], saved: Mapping[str, Any]) -> dict[str, str]:
     config = _merged_config(RETRIEVAL_DEFAULTS, RETRIEVAL_ENV, (str, int), environ, saved=saved)
     explicit = (str(saved.get('reranker_type') or '').strip()
@@ -375,14 +384,20 @@ def finish_setup(
     verify: Callable[[Mapping[str, str]], int] | None = None,
 ) -> int:
     """Embed one probe sentence with the chosen model, then save the choice."""
+    from urllib.parse import urlsplit
+    config = dict(config)
+    if urlsplit(config.get('embed_base_url', '')).hostname == 'openrouter.ai' and config.get('embed_api_key'):
+        override = (os.environ if environ is None else environ).get('RAG_MCP_EMBED_API_KEY', '').strip()
+        if override and override != config['embed_api_key']:
+            stderr.write('Unset RAG_MCP_EMBED_API_KEY before saving a different setup key. Nothing was saved.\n')
+            return 1
     if verify is not None and has_embedding(config):
         stdout.write("Checking the embedding model...\n")
         stdout.flush()
         try:
             probe_config = dict(config)
-            from urllib.parse import urlsplit
             if urlsplit(config.get('embed_base_url', '')).hostname == 'openrouter.ai':
-                probe_config['openrouter_api_key'] = resolve_openrouter_key(
+                probe_config['openrouter_api_key'] = resolve_openrouter_embedding_key(
                     {**embedding_config(environ), **config}, environ)
             dimensions = verify(probe_config)
         except Exception as error:  # shown to the user; nothing is saved

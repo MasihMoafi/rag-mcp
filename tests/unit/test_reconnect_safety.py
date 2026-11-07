@@ -44,6 +44,8 @@ def fake_client(monkeypatch, agent, *, reject_new):
             return subprocess.CompletedProcess(args, 0, "", "")
         if "add-json" in args:
             entry = json.loads(args[args.index("rag") + 1])
+            if 'rag' in registry or (entry['command'] == 'new-server' and reject_new):
+                return subprocess.CompletedProcess(args, 1, '', 'add failed')
             registry["rag"] = [entry["command"], *entry["args"]]
             return subprocess.CompletedProcess(args, 0, "", "")
         command = "new-server" if "new-server" in args else "old-server"
@@ -97,7 +99,10 @@ def test_claude_failed_replacement_restores_complete_json_entry(tmp_path, monkey
             registry.pop('rag', None)
             return subprocess.CompletedProcess(args, 0, '', '')
         if 'add-json' in args:
-            registry['rag'] = json.loads(args[args.index('rag') + 1])
+            value = json.loads(args[args.index('rag') + 1])
+            if value['command'] == 'new-server':
+                return subprocess.CompletedProcess(args, 1, '', 'replacement failed')
+            registry['rag'] = value
             return subprocess.CompletedProcess(args, 0, '', '')
         return subprocess.CompletedProcess(args, 1, '', 'replacement failed')
 
@@ -116,7 +121,7 @@ def test_failed_restore_reports_exact_entry(tmp_path, monkeypatch):
                         subprocess.CompletedProcess(args, 0 if 'remove' in args else 1, '', 'failed'))
     stderr = io.StringIO()
     assert cli_agents.connect_claude({'HOME': str(tmp_path)}, io.StringIO(), stderr) != 0
-    assert json.dumps(entry) in stderr.getvalue()
+    assert 'could not be restored' in stderr.getvalue()
 
 
 @pytest.mark.parametrize('cwd', [None, '/restricted/work'])
@@ -159,4 +164,59 @@ def test_codex_failed_restore_reports_exact_entry(monkeypatch):
     monkeypatch.setattr(cli_agents.subprocess, 'run', run)
     stderr = io.StringIO()
     assert cli_agents.connect_codex({}, io.StringIO(), stderr) != 0
-    assert json.dumps(entry) in stderr.getvalue()
+    assert 'could not be restored' in stderr.getvalue()
+
+
+@pytest.mark.parametrize('agent', ['codex', 'claude'])
+def test_replacement_preserves_restriction_and_refuses_secrets(agent, monkeypatch):
+    entry = {'command': 'old-server', 'args': ['mcp'], 'env': {'RAG_MCP_ALLOWED_ROOTS': '/restricted'}}
+    calls = []
+    monkeypatch.setattr(cli_agents.shutil, 'which', lambda *a, **k: agent)
+    monkeypatch.setattr(cli_agents, 'server_command', lambda _: ['new-server', 'mcp'])
+    monkeypatch.setattr(cli_agents, '_claude_entry', lambda *_: entry)
+    def run(args, **kwargs):
+        calls.append(args)
+        if 'get' in args:
+            return subprocess.CompletedProcess(args, 0, json.dumps({'transport': entry}), '')
+        if 'remove' in args:
+            return subprocess.CompletedProcess(args, 0, '', '')
+        if len([c for c in calls if 'add' in c or 'add-json' in c]) == 1:
+            return subprocess.CompletedProcess(args, 1, '', 'exists')
+        return subprocess.CompletedProcess(args, 0, '', '')
+    monkeypatch.setattr(cli_agents.subprocess, 'run', run)
+    assert cli_agents.connect_agent(agent, {}, io.StringIO(), io.StringIO()) == 0
+    assert any('/restricted' in str(c) and 'new-server' in str(c) for c in calls)
+    entry['env']['API_TOKEN'] = 'super-secret-value'
+    calls.clear()
+    err = io.StringIO()
+    assert cli_agents.connect_agent(agent, {}, io.StringIO(), err) != 0
+    assert not any('remove' in c for c in calls)
+    assert 'super-secret-value' not in str(calls) + err.getvalue()
+
+
+def test_claude_refuses_opaque_entry_fields_that_could_contain_secrets(monkeypatch):
+    entry = {'command': 'old-server', 'args': ['mcp'], 'headers': {'Authorization': 'opaque-secret'}}
+    monkeypatch.setattr(cli_agents.shutil, 'which', lambda *a, **k: 'claude')
+    monkeypatch.setattr(cli_agents, '_claude_entry', lambda *_: entry)
+    calls = []
+    monkeypatch.setattr(cli_agents.subprocess, 'run', lambda args, **kwargs: calls.append(args))
+    err = io.StringIO()
+    assert cli_agents.connect_claude({}, io.StringIO(), err) != 0
+    assert calls == []
+    assert 'opaque-secret' not in err.getvalue()
+
+
+@pytest.mark.parametrize('agent', ['codex', 'claude'])
+def test_reconnect_refuses_opaque_arguments(monkeypatch, agent):
+    entry = {'command': 'old-server', 'args': ['--token', 'opaque-secret']}
+    calls = []
+    monkeypatch.setattr(cli_agents.shutil, 'which', lambda *a, **k: agent)
+    monkeypatch.setattr(cli_agents, '_claude_entry', lambda *_: entry)
+    def run(args, **kwargs):
+        calls.append(args)
+        return subprocess.CompletedProcess(args, 0, json.dumps({'transport': entry}), '')
+    monkeypatch.setattr(cli_agents.subprocess, 'run', run)
+    err = io.StringIO()
+    assert cli_agents.connect_agent(agent, {}, io.StringIO(), err) != 0
+    assert not any('remove' in call for call in calls)
+    assert 'opaque-secret' not in str(calls) + err.getvalue()

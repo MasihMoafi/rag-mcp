@@ -56,7 +56,7 @@ def test_each_tool_rejects_invalid_arguments_over_stdio(tmp_path):
     assert len(replies) == len(calls)
     for (name, _), reply in zip(INVALID_CALLS, replies[1:-1]):
         assert reply['error']['code'] == -32602, (name, reply)
-        assert 'arguments.' in reply['error']['message'], (name, reply)
+        assert 'arguments' in reply['error']['message'], (name, reply)
     assert replies[-1]['result'] == {}
     assert not (tmp_path / 'workspaces').exists()
 
@@ -112,3 +112,19 @@ def test_non_object_tool_response_fails_closed_and_server_continues(monkeypatch,
         'text': 'RAG tool returned an invalid response.'}], 'isError': True}
     assert 'unexpected private data' not in output
     assert second['result'] == {}
+
+
+def test_scoped_query_requires_exactly_one_scope():
+    for scope in ({'doc_path': '/tmp/doc'}, {'workspace_id': 'book'}):
+        assert server._parse_tool_arguments('query_knowledge_base', {'query': 'q', **scope})
+    for scope in ({}, {'doc_path': '/tmp/doc', 'workspace_id': 'book'}):
+        with pytest.raises(ValueError):
+            server._parse_tool_arguments('query_knowledge_base', {'query': 'q', **scope})
+
+
+def test_search_source_ids_are_bounded_and_unique():
+    base = {'workspace_id': 'book', 'query': 'q'}
+    assert server._parse_tool_arguments('search_workspace', {**base, 'source_ids': [str(i) for i in range(1000)]})
+    for ids in ([str(i) for i in range(1001)], ['a', 'a'], ['a', 1]):
+        with pytest.raises(ValueError):
+            server._parse_tool_arguments('search_workspace', {**base, 'source_ids': ids})

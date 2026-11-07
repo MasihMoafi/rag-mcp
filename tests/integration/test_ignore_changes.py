@@ -105,3 +105,32 @@ def test_import_rechecks_ignore_rules_before_publish(tmp_path, monkeypatch):
     with pytest.raises(ValueError, match='changed during import'):
         workspace_import.import_workspace_sources(store, 'book', folder)
     assert not (store.root / 'book' / 'manifest.json').exists()
+
+
+def test_index_changes_invalidate_cached_ignore_decision(tmp_path):
+    subprocess.run(['git', 'init', '-q', str(tmp_path)], check=True)
+    doc = tmp_path / 'document.md'
+    doc.write_text('content')
+    subprocess.run(['git', '-C', str(tmp_path), 'add', 'document.md'], check=True)
+    (tmp_path / '.gitignore').write_text('document.md\n')
+    assert str(doc) in server._validate_rag_scope(tmp_path).files
+    subprocess.run(['git', '-C', str(tmp_path), 'rm', '--cached', '-q', 'document.md'], check=True)
+    assert str(doc) not in server._validate_rag_scope(tmp_path).files
+
+
+def test_failed_git_check_is_not_cached_or_treated_as_unignored(tmp_path, monkeypatch):
+    subprocess.run(['git', 'init', '-q', str(tmp_path)], check=True)
+    (tmp_path / 'document.md').write_text('content')
+    (tmp_path / '.gitignore').write_text('document.md\n')
+    real_run = server.subprocess.run
+    failed = False
+    def run(*args, **kwargs):
+        nonlocal failed
+        if 'check-ignore' in args[0] and not failed:
+            failed = True
+            raise OSError('git unavailable')
+        return real_run(*args, **kwargs)
+    monkeypatch.setattr(server.subprocess, 'run', run)
+    with pytest.raises(ValueError, match='ignore'):
+        server._validate_rag_scope(tmp_path)
+    assert str(tmp_path / 'document.md') not in server._validate_rag_scope(tmp_path).files

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import shlex
 import shutil
 import subprocess
@@ -10,6 +11,30 @@ import sys
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, TextIO, cast
+
+_SAFE_ENV = {'RAG_MCP_ALLOWED_ROOTS', 'RAG_MCP_WORKSPACE_ROOT'}
+
+
+def _safe_old_args(args: object) -> bool:
+    if not isinstance(args, list):
+        return False
+    values = cast(list[object], args)
+    return all(isinstance(value, str) and (
+        value in {'mcp', '-m', 'rag.cli', 'rag', '--from'}
+        or value.endswith('/server.py')
+        or re.fullmatch(r'ragmcp==[0-9A-Za-z.+_-]+', value) is not None
+    ) for value in values)
+
+
+def _safe_entry_env(entry: dict[str, Any] | None) -> dict[str, str] | None:
+    raw: Any = (entry or {}).get('env', {}) or {}
+    if not isinstance(raw, dict):
+        return None
+    values = cast(dict[object, object], raw)
+    if any(not isinstance(k, str) or not isinstance(v, str) or k not in _SAFE_ENV
+           for k, v in values.items()):
+        return None
+    return cast(dict[str, str], values)
 
 
 def server_command(environ: Mapping[str, str]) -> list[str]:
@@ -55,23 +80,22 @@ def _replace_registration(
     if added.returncode == 0:
         return 0
     if remove is None or restore is None:
-        print((added.stderr or added.stdout).strip(), file=stderr)
+        print('Could not register the RAG server; the existing entry was left unchanged.', file=stderr)
         return added.returncode
     removed = _run(remove, environ)
     if removed.returncode:
-        print((removed.stderr or removed.stdout).strip(), file=stderr)
+        print('Could not remove the existing RAG registration.', file=stderr)
         return removed.returncode
     retried = _run(add, environ)
     if retried.returncode == 0:
         return 0
     restored = _run(restore, environ)
-    print((retried.stderr or retried.stdout).strip(), file=stderr)
+    print('Could not register the replacement RAG server.', file=stderr)
     if restored.returncode != 0:
         print(
-            "The previous rag registration could not be restored. Exact entry: " + json.dumps(old_entry),
+            "The previous rag registration could not be restored. Restore it manually in your client configuration.",
             file=stderr,
         )
-        print((restored.stderr or restored.stdout).strip(), file=stderr)
     return retried.returncode
 
 
@@ -110,6 +134,7 @@ def connect_codex(
     )
     restore: list[str] | None = None
     entry: dict[str, Any] | None = None
+    flags: list[str] = []
     if current.returncode == 0:
         transport: dict[str, Any] = {}
         try:
@@ -133,19 +158,26 @@ def connect_codex(
         if entry and entry.get('enabled') is False:
             extras['enabled'] = False
         raw_env: Any = transport.get('env') or {}
+        safe_env = _safe_entry_env(transport)
+        if safe_env is None:
+            print('The existing registration contains environment values that cannot be passed safely. Update the client configuration manually.', file=stderr)
+            return 1
         env_vars = cast(dict[object, object], raw_env) if isinstance(raw_env, dict) else {}
         old_command: Any = transport.get('command')
         old_args: Any = transport.get('args') or []
         if (isinstance(old_command, str) and isinstance(old_args, list) and
-                all(isinstance(arg, str) for arg in cast(list[Any], old_args)) and
+                _safe_old_args(cast(object, old_args)) and
                 not extras and isinstance(raw_env, dict) and all(
                 isinstance(k, str) and isinstance(v, str) for k, v in env_vars.items())):
             old = [old_command, *cast(list[str], old_args)]
             flags = [item for key, value in cast(dict[str, str], env_vars).items()
                      for item in ('--env', f'{key}={value}')]
             restore = [executable, "mcp", "add", "rag", *flags, "--", *old]
+        if restore is None:
+            print('The existing Codex registration cannot be preserved safely. Update it manually.', file=stderr)
+            return 1
     code = _replace_registration(
-        [executable, "mcp", "add", "rag", "--", *command],
+        [executable, "mcp", "add", "rag", *flags, "--", *command],
         [executable, "mcp", "remove", "rag"],
         restore,
         environ,
@@ -187,13 +219,21 @@ def connect_claude(
         print("  " + " ".join(command), file=stderr)
         return 1
     entry = _claude_entry(environ, scope)
+    if entry and (_safe_entry_env(entry) is None or not _safe_old_args(entry.get('args', []))
+                  or set(entry) - {'type', 'command', 'args', 'env', 'cwd'}):
+        print('The existing registration cannot be passed safely. Update the Claude configuration manually.', file=stderr)
+        return 1
     restore = (
         [executable, "mcp", "add-json", "rag", json.dumps(entry), "-s", scope]
         if entry
         else None
     )
+    replacement = ({**entry, 'command': server_command(environ)[0], 'args': server_command(environ)[1:]}
+                   if entry else None)
+    add = ([executable, 'mcp', 'add-json', 'rag', json.dumps(replacement), '-s', scope]
+           if replacement else [executable, *command[1:]])
     code = _replace_registration(
-        [executable, *command[1:]],
+        add,
         [executable, "mcp", "remove", "rag", "-s", scope],
         restore,
         environ,
