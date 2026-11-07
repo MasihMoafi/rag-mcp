@@ -4,6 +4,8 @@ Each answered question costs two paid model calls (answer, then judge), so check
 """
 from __future__ import annotations
 
+from typing import Any
+
 import json
 import os
 import stat
@@ -72,7 +74,7 @@ class EvaluationAnswerStore:
     def path(self, workspace_id, batch_id):
         return self.batches.path(workspace_id, batch_id).with_suffix('.answers.json')
 
-    def get(self, workspace_id, batch_id):
+    def get(self, workspace_id: str, batch_id: str) -> dict[str, Any]:
         self.batches.get(workspace_id, batch_id)
         path = self.path(workspace_id, batch_id)
         try:

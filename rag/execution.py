@@ -1,6 +1,8 @@
 """One orchestration entry point for CLI, MCP, and the paired Studio gateway."""
 from __future__ import annotations
 
+from typing import Any
+
 import math
 import json
 import re
@@ -75,13 +77,13 @@ def request_fingerprint(query, doc_path='', extensions=None, workspace_id='', so
 _EXTRACTED_TYPES = {'pdf', 'docx', 'html'}
 
 
-def public_response(result: dict) -> str:
+def public_response(result: dict[str, Any]) -> str:
     if result['status'] != 'success':
         return json.dumps({'error': result['error']})
     return json.dumps({'result': result['answer'], **({'reason': result['reason']} if result.get('reason') else {})})
 
 
-def retrieval_response(result: dict, *, include_content: bool = False) -> dict:
+def retrieval_response(result: dict[str, Any], *, include_content: bool = False) -> dict[str, Any]:
     """Project a private retrieval run for a local client or MCP host."""
     if result['status'] != 'success':
         return {'error': result['error'], 'run_id': result['run_id'], 'code': result.get('code')}
@@ -107,7 +109,7 @@ def execute_run(query: str, doc_path: str = "", extensions: list[str] | None = N
                 source_ids: list[str] | None = None, workspace_revision: str | None = None,
                 result_store: RunResultStore | None = None, mode: str = 'answer',
                 answer_model: str | None = None, configuration_revision: str | None = None,
-                request_hash_override: str | None = None) -> dict:
+                request_hash_override: str | None = None) -> dict[str, Any]:
     """Public adapters select answer/error; private callers can inspect actual evidence."""
     from rag import server
     run_id = run_id or uuid.uuid4().hex

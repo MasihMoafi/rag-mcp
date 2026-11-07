@@ -1,5 +1,11 @@
 {
-  "include": ["rag/keys.py", "rag/cli_agents.py", "rag/settings.py"],
+  "include": [
+    "rag/keys.py",
+    "rag/cli_agents.py",
+    "rag/settings.py",
+    "rag/server.py"
+  ],
   "typeCheckingMode": "strict",
-  "pythonVersion": "3.10"
+  "pythonVersion": "3.10",
+  "venv": ".venv"
 }
