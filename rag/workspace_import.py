@@ -27,7 +27,14 @@ _UNSPECIFIED_REVISION = object()
 def _open_source(path: Path) -> int:
     """Open every path component without following links, including directory swaps."""
     if not hasattr(os, 'O_NOFOLLOW') or not hasattr(os, 'O_DIRECTORY'):
-        raise ValueError('Safe file import is unavailable on this platform.')
+        descriptor = os.open(path, os.O_RDONLY)
+        try:
+            if path.resolve(strict=True) != path or not os.path.samestat(os.fstat(descriptor), os.stat(path)):
+                raise ValueError('A source changed during import. Retry with a stable folder.')
+            return descriptor
+        except BaseException:
+            os.close(descriptor)
+            raise
     directory = os.open(path.anchor, os.O_RDONLY | os.O_DIRECTORY)
     try:
         for part in path.parts[1:-1]:
@@ -87,7 +94,7 @@ def import_workspace_sources(store: WorkspaceStore, workspace_id: str, path: Pat
                     content = extract_content(str(snapshot))
                     empty = not snapshot.read_bytes().strip() if not content or not content.strip() else False
                 current = source.lstat()
-                if (current.st_dev, current.st_ino, current.st_mtime_ns, current.st_size) != (
+                if source.resolve(strict=True) != source or (current.st_dev, current.st_ino, current.st_mtime_ns, current.st_size) != (
                         before.st_dev, before.st_ino, before.st_mtime_ns, before.st_size):
                     raise ValueError('A source changed during import. Retry with a stable folder.')
         except (OSError, ValueError, RuntimeError) as error:

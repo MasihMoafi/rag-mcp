@@ -134,3 +134,22 @@ def test_failed_git_check_is_not_cached_or_treated_as_unignored(tmp_path, monkey
     with pytest.raises(ValueError, match='ignore'):
         server._validate_rag_scope(tmp_path)
     assert str(tmp_path / 'document.md') not in server._validate_rag_scope(tmp_path).files
+
+
+def test_scope_without_git_and_outside_repository(tmp_path, monkeypatch):
+    document = tmp_path / 'document.md'
+    document.write_text('content')
+    assert str(document) in server._validate_rag_scope(tmp_path).files
+    monkeypatch.setenv('PATH', str(tmp_path / 'empty-bin'))
+    assert str(document) in server._validate_rag_scope(tmp_path).files
+    assert server._validate_rag_scope(document) is None
+
+
+def test_scope_without_git_inside_repository(tmp_path, monkeypatch):
+    subprocess.run(['git', 'init', '-q', str(tmp_path)], check=True)
+    document = tmp_path / 'document.md'
+    document.write_text('content')
+    (tmp_path / '.gitignore').write_text('document.md\n')
+    assert str(document) not in server._validate_rag_scope(tmp_path).files
+    monkeypatch.setenv('PATH', str(tmp_path / 'empty-bin'))
+    assert str(document) in server._validate_rag_scope(tmp_path).files

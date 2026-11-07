@@ -3,14 +3,17 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import shlex
 import shutil
 import subprocess
 import sys
-from collections.abc import Mapping
+import tempfile
+from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import Any, TextIO, cast
+from utils.persistence import write_json_atomic
 
 _SAFE_ENV = {'RAG_MCP_ALLOWED_ROOTS', 'RAG_MCP_WORKSPACE_ROOT'}
 
@@ -57,9 +60,12 @@ def server_command(environ: Mapping[str, str]) -> list[str]:
 def _run(
     argv: list[str], environ: Mapping[str, str]
 ) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        argv, capture_output=True, check=False, text=True, env=dict(environ)
-    )
+    try:
+        return subprocess.run(
+            argv, capture_output=True, check=False, text=True, env=dict(environ)
+        )
+    except (OSError, subprocess.SubprocessError):
+        return subprocess.CompletedProcess(argv, 1, '', '')
 
 
 def _replace_registration(
@@ -69,6 +75,8 @@ def _replace_registration(
     environ: Mapping[str, str],
     stderr: TextIO,
     old_entry: dict[str, Any] | None = None,
+    prepare_recovery: Callable[[], Callable[[], tuple[bool, Path, Path]] | None] | None = None,
+    recovery_location: str = 'mcpServers.rag',
 ) -> int:
     """Register `rag`, replacing an existing entry without ever losing it.
 
@@ -82,6 +90,10 @@ def _replace_registration(
     if remove is None or restore is None:
         print('Could not register the RAG server; the existing entry was left unchanged.', file=stderr)
         return added.returncode
+    recover = prepare_recovery() if prepare_recovery else None
+    if recover is None:
+        print('Could not safely back up the existing RAG registration; it was left unchanged.', file=stderr)
+        return added.returncode
     removed = _run(remove, environ)
     if removed.returncode:
         print('Could not remove the existing RAG registration.', file=stderr)
@@ -92,17 +104,23 @@ def _replace_registration(
     restored = _run(restore, environ)
     print('Could not register the replacement RAG server.', file=stderr)
     if restored.returncode != 0:
-        print(
-            "The previous rag registration could not be restored. Restore it manually in your client configuration.",
-            file=stderr,
-        )
+        recovered, config_path, backup_path = recover()
+        if recovered:
+            print('The previous rag registration was restored from its backup.', file=stderr)
+        else:
+            print(f'The previous rag registration could not be restored. Copy {recovery_location} from {backup_path} into {config_path} at the same JSON location. The backup may contain secrets; do not share it.', file=stderr)
     return retried.returncode
+
+
+def _claude_config_path(environ: Mapping[str, str], scope: str) -> Path:
+    home = Path(environ.get('HOME') or Path.home())
+    config_dir = Path(environ.get('CLAUDE_CONFIG_DIR') or home)
+    return Path.cwd() / '.mcp.json' if scope == 'project' else config_dir / '.claude.json'
 
 
 def _claude_entry(environ: Mapping[str, str], scope: str) -> dict[str, Any] | None:
     """Read the original entry at its actual scope; CLI display omits fields."""
-    home = Path(environ.get('HOME') or Path.home())
-    path = Path.cwd() / '.mcp.json' if scope == 'project' else home / '.claude.json'
+    path = _claude_config_path(environ, scope)
     try:
         data = json.loads(path.read_text(encoding='utf-8'))
         if scope == 'local':
@@ -111,6 +129,41 @@ def _claude_entry(environ: Mapping[str, str], scope: str) -> dict[str, Any] | No
     except (OSError, ValueError, KeyError, TypeError):
         return None
     return cast(dict[str, Any], entry) if isinstance(entry, dict) else None
+
+
+def _prepare_claude_recovery(environ: Mapping[str, str], scope: str, entry: dict[str, Any]) -> Callable[[], tuple[bool, Path, Path]] | None:
+    path = _claude_config_path(environ, scope)
+    try:
+        if path.is_symlink():
+            return None
+        original = path.read_bytes()
+        decoded = json.loads(original)
+        container = decoded['projects'][str(Path.cwd())] if scope == 'local' else decoded
+        if container['mcpServers']['rag'] != entry:
+            return None
+        with tempfile.NamedTemporaryFile(dir=path.parent, prefix=f'.{path.name}.rag-backup-', delete=False) as backup:
+            backup_path = Path(backup.name)
+            backup.write(original)
+            backup.flush()
+            os.fsync(backup.fileno())
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+
+    def recover() -> tuple[bool, Path, Path]:
+        try:
+            if path.is_symlink():
+                return False, path, backup_path
+            data = json.loads(path.read_text(encoding='utf-8'))
+            container = data['projects'][str(Path.cwd())] if scope == 'local' else data
+            servers = container.setdefault('mcpServers', {})
+            if 'rag' in servers and servers['rag'] != entry:
+                return False, path, backup_path
+            servers['rag'] = entry
+            write_json_atomic(path, data)
+            return True, path, backup_path
+        except (OSError, ValueError, KeyError, TypeError, AttributeError):
+            return False, path, backup_path
+    return recover
 
 
 def connect_codex(
@@ -178,7 +231,7 @@ def connect_codex(
             return 1
     code = _replace_registration(
         [executable, "mcp", "add", "rag", *flags, "--", *command],
-        [executable, "mcp", "remove", "rag"],
+        None,
         restore,
         environ,
         stderr,
@@ -239,6 +292,8 @@ def connect_claude(
         environ,
         stderr,
         entry,
+        (lambda: _prepare_claude_recovery(environ, scope, entry)) if entry else None,
+        f'projects[{json.dumps(str(Path.cwd()))}].mcpServers.rag' if scope == 'local' else 'mcpServers.rag',
     )
     if code != 0:
         return code

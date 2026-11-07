@@ -25,7 +25,7 @@ def test_both_publications_depend_on_quality_and_installed_artifacts():
     release = yaml.safe_load((ROOT / '.github/workflows/release.yml').read_text())
     quality = yaml.safe_load((ROOT / '.github/workflows/python-quality.yml').read_text())
     jobs = release['jobs']
-    assert {'keyless', 'lint', 'types'} <= quality['jobs'].keys()
+    assert {'keyless', 'lint', 'types', 'default-store-no-git'} <= quality['jobs'].keys()
     assert set(quality['jobs']['keyless']['strategy']['matrix']['python']) == {'3.10', '3.13'}
     assert jobs['quality']['uses'] == './.github/workflows/python-quality.yml'
     for name in ('publish-pypi', 'publish-npm'):
@@ -57,9 +57,41 @@ def test_manual_release_rehearsal_runs_checks_but_never_publishes():
     assert 'workflow_dispatch' in build_commands
 
 
-def test_install_smoke_searches_after_provider_setup():
-    smoke = (ROOT / 'tests/install/smoke.sh').read_text()
-    after_setup = smoke.split('setup --provider openai_compatible', 1)[1]
-    assert '"$rag" search' in after_setup
-    assert '"passages"' in after_setup
-    assert '--skip-fastembed' not in (ROOT / 'tests/install/run.sh').read_text()
+def test_semantic_search_survives_a_lexical_miss(tmp_path, monkeypatch):
+    import json
+    import re
+    import httpx
+    import openai
+    from rag import fetch, settings
+    from rag.execution import execute_run
+    from rag.workspaces import WorkspaceStore
+
+    text = (ROOT / 'tests/install/facts.md').read_text()
+    query = 'nocturnal beacon'
+    assert set(re.findall(r'\w+', query)).isdisjoint(re.findall(r'\w+', text.lower()))
+    monkeypatch.setenv('HOME', str(tmp_path))
+    for name in ('RAG_MCP_CONFIG', 'RAG_MCP_DATA_DIR', 'RAG_MCP_WORKSPACE_DIR', 'RAG_MCP_TRACE_DIR', 'XDG_STATE_HOME', 'XDG_DATA_HOME', 'XDG_CONFIG_HOME'):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setitem(fetch.RAG_CONFIG_V2, 'backend', 'qdrant')
+    monkeypatch.setenv('RAG_MCP_RERANKER_TYPE', 'off')
+    settings.update_settings({'embed_provider': 'openai_compatible', 'embed_model': 'mock-embed',
+                              'embed_base_url': 'https://semantic.test/v1', 'embed_api_key': 'fixture'})
+    requests = []
+    def respond(request):
+        body = json.loads(request.content)
+        requests.append(body)
+        inputs = body['input'] if isinstance(body['input'], list) else [body['input']]
+        return httpx.Response(200, json={'model': 'mock-embed', 'data': [
+            {'index': index, 'embedding': [1.0, 0.0]} for index, _ in enumerate(inputs)]})
+    real_client = openai.OpenAI
+    monkeypatch.setattr(openai, 'OpenAI', lambda **kwargs: real_client(
+        **kwargs, http_client=httpx.Client(transport=httpx.MockTransport(respond))))
+    store = WorkspaceStore()
+    store.replace('smoke', 'Smoke', [{'id': 'facts', 'name': 'facts.md', 'source_type': 'text', 'content': text}])
+    try:
+        result = execute_run(query, workspace_id='smoke', mode='retrieve')
+        assert result['status'] == 'success', result['error']
+        assert any('Cedar Lantern' in passage['content'] for passage in result['retrieved_passages'])
+        assert any(query in (body['input'] if isinstance(body['input'], list) else [body['input']]) for body in requests)
+    finally:
+        fetch.reset_pipelines()

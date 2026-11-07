@@ -12,6 +12,7 @@ from functools import lru_cache
 import importlib
 import json
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -821,6 +822,8 @@ class _NotGitRepository(Exception):
 
 
 def _git_ignored_set(directory: str, global_ignore: str = '') -> frozenset[str]:
+    if shutil.which('git') is None:
+        return frozenset()
     path = Path(directory)
     signatures: list[tuple[str, int, int]] = []
     if global_ignore:
@@ -880,6 +883,8 @@ def _cached_git_ignored_set(directory: str, listing_mtime: int,
             text=True,
             timeout=30,
         )
+    except FileNotFoundError:
+        raise _NotGitRepository() from None
     except (OSError, subprocess.SubprocessError) as error:
         raise ValueError('Cannot check Git ignore rules.') from error
     # 0 = something ignored, 1 = nothing ignored.
@@ -914,12 +919,12 @@ def _allowed_extensions(extensions: list[str] | None) -> frozenset[str]:
 
 
 @tracing.traced('scope.discovery')
-def _validate_rag_scope(path: Path, extensions: list[str] | None = None) -> _ScopeManifest | None:
+def _validate_rag_scope(path: Path, extensions: list[str] | None = None, *, workspace_store: bool = False) -> _ScopeManifest | None:
     """Validate a scope and retain its safe file manifest for reuse."""
     allowed_extensions = _allowed_extensions(extensions)
     if not path.exists():
         raise ValueError(f"Path does not exist: {path}")
-    if any(part in _UNSAFE_PATH_COMPONENTS for part in path.parts):
+    if not workspace_store and any(part in _UNSAFE_PATH_COMPONENTS for part in path.parts):
         raise ValueError(
             "RAG will not scan dependency or build folders such as node_modules. "
             "Choose the project source folder instead."
@@ -928,9 +933,9 @@ def _validate_rag_scope(path: Path, extensions: list[str] | None = None) -> _Sco
         components = path.relative_to(workspace_root).parts
     except ValueError:
         components = path.parts[1:]
-    if any(part.startswith('.') for part in components):
+    if not workspace_store and any(part.startswith('.') for part in components):
         raise ValueError('The selected path is excluded from indexing.')
-    global_ignore = _global_git_exclude(str(path.parent if path.is_file() else path))
+    global_ignore = '' if workspace_store else _global_git_exclude(str(path.parent if path.is_file() else path))
     if path.is_file():
         extension = path.suffix.lower()
         if extension not in _INDEXABLE_EXTENSIONS:
@@ -955,7 +960,7 @@ def _validate_rag_scope(path: Path, extensions: list[str] | None = None) -> _Sco
     max_tokens = _configured_limit("RAG_MCP_MAX_TOKENS", _DEFAULT_MAX_TOKENS)
     max_files = _configured_limit("RAG_MCP_MAX_FILES", _DEFAULT_MAX_INDEXED_FILES)
     index_max_depth = _configured_limit("RAG_MCP_INDEX_MAX_DEPTH", _DEFAULT_INDEX_MAX_DEPTH)
-    cache_key = (str(path), tuple(sorted(allowed_extensions)), max_depth, max_tokens, max_files, index_max_depth)
+    cache_key = (str(path), tuple(sorted(allowed_extensions)), max_depth, max_tokens, max_files, index_max_depth, workspace_store)
     cached = _validated_scope_cache.get(cache_key)
     if cached is not None and cached.is_current():
         return cached
@@ -1005,10 +1010,10 @@ def _validate_rag_scope(path: Path, extensions: list[str] | None = None) -> _Sco
             if (
                 name.startswith(".")
                 or any(part in _INDEX_EXCLUDED_PATH_COMPONENTS for part in relative_parts[:-1])
-                or _matches_excluded_file(candidate)
+                or _matches_excluded_file(Path(name) if workspace_store else candidate)
             ):
                 continue
-            if _is_git_ignored(candidate, global_ignore):
+            if not workspace_store and _is_git_ignored(candidate, global_ignore):
                 continue
             estimated_tokens += candidate_stat.st_size // 4 + 1
             if estimated_tokens > max_tokens:
@@ -1029,7 +1034,7 @@ def _validate_rag_scope(path: Path, extensions: list[str] | None = None) -> _Sco
             (path_string, mtime_ns, size, is_file)
             for path_string, (mtime_ns, size, is_file) in watched_paths.items()
         ),
-        ignored=tuple((name, _git_ignored_set(name, global_ignore)) for name, (_, _, is_file) in watched_paths.items() if not is_file),
+        ignored=tuple((name, _git_ignored_set(name, global_ignore)) for name, (_, _, is_file) in watched_paths.items() if not is_file and not workspace_store),
     )
     _validated_scope_cache[cache_key] = manifest
     return manifest
@@ -1049,7 +1054,7 @@ def _query_knowledge_base(  # pyright: ignore[reportUnusedFunction] -- called by
     doc_path: str = "",
     extensions: list[str] | None = None,
     workspace_id: str = "",
-    *, selected_files: list[str] | None = None, all_sources: bool = False, cite_sources: bool = False, retrieval_only: bool = False, answer_model: str | None = None,
+    *, selected_files: list[str] | None = None, all_sources: bool = False, cite_sources: bool = False, retrieval_only: bool = False, answer_model: str | None = None, workspace_store: bool = False,
 ) -> str:
     """Load and run RAG only after an explicit tool call."""
     tracing.annotate(server_source_sha256_at_startup=_SERVER_SOURCE_SHA256)
@@ -1065,14 +1070,19 @@ def _query_knowledge_base(  # pyright: ignore[reportUnusedFunction] -- called by
     normalized_doc_path = ''
     if has_workspace:
         try:
-            normalized_doc_path = str(WorkspaceStore().resolve(workspace_id.strip()))
+            normalized_doc_path = str(WorkspaceStore().resolve(workspace_id.strip()).resolve())
             tracing.annotate(workspace_id=workspace_id.strip())
         except (ValueError, OSError):
             return json.dumps({"error": "workspace_id does not name an available local workspace"})
     try:
-        if not has_workspace:
+        if not has_workspace and not workspace_store:
             normalized_doc_path = _normalize_path(doc_path)
-        scope = _validate_rag_scope(Path(normalized_doc_path), extensions)
+        elif workspace_store:
+            normalized_doc_path = doc_path
+        if has_workspace or workspace_store:
+            scope = _validate_rag_scope(Path(normalized_doc_path), extensions, workspace_store=True)
+        else:
+            scope = _validate_rag_scope(Path(normalized_doc_path), extensions)
     except ValueError as error:
         # Scope validation owns these actionable messages; provider errors remain sanitized.
         return json.dumps({'error': str(error)})

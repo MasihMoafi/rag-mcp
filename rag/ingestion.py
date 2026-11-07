@@ -2,7 +2,10 @@
 
 import json
 import os
+from pathlib import Path
+import stat
 import sys
+import tempfile
 from typing import Dict, List
 from utils.persistence import write_json_atomic
 
@@ -90,7 +93,36 @@ def build_documents(self, files_to_process):
     document_contents = {}
 
     def process_file(file_path):
-        content = self._extract_content(file_path)
+        # Parse a stable copy of the descriptor opened without following links.
+        # A path can be swapped after scope validation and before ingestion.
+        from .workspace_import import _open_source
+
+        source = Path(os.path.abspath(file_path))
+        with os.fdopen(_open_source(source), 'rb') as stream:
+            before = os.fstat(stream.fileno())
+            if not stat.S_ISREG(before.st_mode):
+                raise ValueError('Source is not a regular file.')
+            with tempfile.TemporaryDirectory(prefix='rag-query-') as directory:
+                snapshot = Path(directory) / source.name
+                with snapshot.open('wb') as output:
+                    remaining = before.st_size + 1
+                    while remaining:
+                        block = stream.read(min(65536, remaining))
+                        if not block:
+                            break
+                        output.write(block)
+                        remaining -= len(block)
+                    if remaining == 0:
+                        raise ValueError('A source changed during query.')
+                after = os.fstat(stream.fileno())
+                current = source.stat()
+                if (source.resolve(strict=True) != source or not os.path.samestat(before, current)
+                        or (before.st_size, before.st_mtime_ns, before.st_ctime_ns)
+                        != (after.st_size, after.st_mtime_ns, after.st_ctime_ns)
+                        or (before.st_size, before.st_mtime_ns, before.st_ctime_ns)
+                        != (current.st_size, current.st_mtime_ns, current.st_ctime_ns)):
+                    raise ValueError('A source changed during query.')
+                content = self._extract_content(str(snapshot))
         if content:
             return file_path, content
         return None

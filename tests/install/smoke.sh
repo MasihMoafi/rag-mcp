@@ -34,6 +34,9 @@ python3 -c 'import sys; assert "astral.sh/uv" in open(sys.argv[1]).read()' "$scr
 "$rag" sources add smoke --path "$FACTS" --json > "$scratch/import.json"
 "$rag" search 'launch codename' --workspace smoke --json > "$scratch/search.json"
 python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); assert any("Cedar Lantern" in p["content"] for p in d["passages"])' "$scratch/search.json"
+python3 -c 'import re,sys; q=set(re.findall(r"\w+", "nocturnal beacon")); words=set(re.findall(r"\w+", open(sys.argv[1]).read().lower())); assert q.isdisjoint(words)' "$FACTS"
+"$rag" search 'nocturnal beacon' --workspace smoke --json > "$scratch/lexical-miss.json"
+python3 -c 'import json,sys; assert not json.load(open(sys.argv[1]))["passages"]' "$scratch/lexical-miss.json"
 if "$rag" query 'launch codename' --path "$FACTS" --format json > "$scratch/answer.json" 2> "$scratch/answer.err"; then
   echo 'FAIL: an answer with evidence succeeded without an OpenRouter key' >&2
   exit 1
@@ -47,9 +50,9 @@ python3 "$mock_script" 18089 "$scratch/mock.jsonl" &
 mock_pid=$!
 python3 -c 'import time,urllib.request; url="http://127.0.0.1:18089/v1/models"; exec("for i in range(50):\n try:\n  urllib.request.urlopen(url,timeout=1).close(); break\n except OSError:\n  time.sleep(.1)\nelse:\n raise RuntimeError(\"mock did not start\")")'
 env -u RAG_MCP_EMBED_PROVIDER "$rag" setup --provider openai_compatible --base-url http://127.0.0.1:18089/v1 --model mock-embed --api-key local > "$scratch/setup.log"
-python3 -c 'import json,sys; rows=[json.loads(line) for line in open(sys.argv[1])]; assert any(row["model"]=="mock-embed" and row["path"].endswith("/embeddings") for row in rows)' "$scratch/mock.jsonl"
-env -u RAG_MCP_EMBED_PROVIDER "$rag" search 'launch codename' --workspace smoke --json > "$scratch/vector-search.json"
+env -u RAG_MCP_EMBED_PROVIDER "$rag" search 'nocturnal beacon' --workspace smoke --json > "$scratch/vector-search.json"
 python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); assert any("Cedar Lantern" in p["content"] for p in d["passages"])' "$scratch/vector-search.json"
+python3 -c 'import json,sys; rows=[json.loads(line) for line in open(sys.argv[1])]; assert any(row["model"]=="mock-embed" and row["path"].endswith("/embeddings") and "nocturnal beacon" in row["input"] for row in rows)' "$scratch/mock.jsonl"
 if env -u RAG_MCP_EMBED_PROVIDER RAG_MCP_CONFIG="$scratch/bad-config.json" "$rag" setup --provider openai_compatible --base-url http://127.0.0.1:1/v1 --model nope --api-key local > "$scratch/bad-setup.log" 2>&1; then
   echo 'FAIL: unreachable provider setup succeeded' >&2
   exit 1

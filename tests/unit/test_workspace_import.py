@@ -205,8 +205,11 @@ def test_unparsable_source_names_the_file(tmp_path):
     assert not (store.root / 'corpus' / 'manifest.json').exists()
 
 
-def test_import_rejects_symlink_swap_after_scope_validation(tmp_path, monkeypatch):
+@pytest.mark.parametrize('fallback', [False, True])
+def test_import_rejects_symlink_swap_after_scope_validation(tmp_path, monkeypatch, fallback):
     from rag import workspace_import
+    if fallback:
+        _without_open_flags(monkeypatch, workspace_import)
     allowed = tmp_path / 'allowed'
     allowed.mkdir()
     source = allowed / 'chapter.md'
@@ -223,5 +226,48 @@ def test_import_rejects_symlink_swap_after_scope_validation(tmp_path, monkeypatc
     monkeypatch.setattr(workspace_import, '_validate_rag_scope', swap)
     store = WorkspaceStore(tmp_path / 'store')
     with pytest.raises(ValueError):
+        workspace_import.import_workspace_sources(store, 'book', source)
+    assert not (store.root / 'book' / 'manifest.json').exists()
+
+
+def _without_open_flags(monkeypatch, module):
+    import os
+    class PortableOS:
+        def __getattr__(self, name):
+            if name in {'O_NOFOLLOW', 'O_DIRECTORY'}:
+                raise AttributeError(name)
+            return getattr(os, name)
+    portable = PortableOS()
+    monkeypatch.setattr(module, 'os', portable)
+    return portable
+
+
+def test_import_without_nofollow_flags(tmp_path, monkeypatch):
+    from rag import workspace_import
+    _without_open_flags(monkeypatch, workspace_import)
+    source = tmp_path / 'chapter.md'
+    source.write_text('Portable source text.')
+    store = WorkspaceStore(tmp_path / 'store')
+    result = workspace_import.import_workspace_sources(store, 'book', source)
+    assert result['imported_count'] == 1
+    assert store.snapshot('book')['documents'][0]['content'] == 'Portable source text.'
+
+
+def test_import_without_nofollow_rechecks_path_after_open(tmp_path, monkeypatch):
+    import os
+    from rag import workspace_import
+    source = tmp_path / 'chapter.md'
+    source.write_text('Public text.')
+    secret = tmp_path / 'private.md'
+    secret.write_text('Private text.')
+    portable = _without_open_flags(monkeypatch, workspace_import)
+    def swap_after_open(path, flags):
+        descriptor = os.open(path, flags)
+        source.unlink()
+        source.symlink_to(secret)
+        return descriptor
+    portable.open = swap_after_open
+    store = WorkspaceStore(tmp_path / 'store')
+    with pytest.raises(ValueError, match='changed during import'):
         workspace_import.import_workspace_sources(store, 'book', source)
     assert not (store.root / 'book' / 'manifest.json').exists()
