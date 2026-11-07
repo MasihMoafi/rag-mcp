@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import getpass
 import json
 import os
 import re
@@ -229,7 +230,9 @@ def _parser() -> argparse.ArgumentParser:
     setup.add_argument("--provider", choices=user_settings.PROVIDERS, help="Skip the questions and set the provider directly")
     setup.add_argument("--model", default="", help="Embedding model name for the provider")
     setup.add_argument("--base-url", default="", dest="base_url", help="OpenAI-compatible endpoint URL")
-    setup.add_argument("--api-key", default="", dest="api_key", help="API key for openai_compatible")
+    key_input = setup.add_mutually_exclusive_group()
+    key_input.add_argument("--api-key", default="", dest="api_key", help="API key (visible in process lists and shell history)")
+    key_input.add_argument("--api-key-stdin", action="store_true", help="Read the API key from standard input")
     setup.add_argument("--ollama-url", default="", dest="ollama_url", help="Ollama URL (default http://localhost:11434)")
     setup.add_argument("--no-verify", action="store_true", dest="no_verify", help="Save without embedding a test sentence")
     setup.add_argument("--auto", action="store_true", help="Pick the best option this machine already has, no questions")
@@ -735,8 +738,17 @@ def _main(
         if args.provider is None:
             code = user_settings.run_setup(stdin=stdin, stdout=stdout, stderr=stderr, environ=environ, verify=verify)
             return code
-        if args.provider == "openai_compatible" and not args.api_key:
-            print("--api-key is required for openai_compatible.", file=stderr)
+        api_key = args.api_key
+        if api_key:
+            print("Warning: --api-key is visible in process lists and shell history.", file=stderr)
+        elif args.api_key_stdin:
+            api_key = stdin.readline().strip()
+        else:
+            api_key = environ.get("RAG_MCP_EMBED_API_KEY", "").strip()
+            if args.provider == "openai_compatible" and not api_key and stdin.isatty():
+                api_key = getpass.getpass("API key: ", stream=stderr).strip()
+        if args.provider == "openai_compatible" and not api_key:
+            print("--api-key is required for openai_compatible; use --api-key-stdin, RAG_MCP_EMBED_API_KEY, or a terminal prompt.", file=stderr)
             return 2
         config = dict(user_settings.DEFAULTS)
         config.update(
@@ -744,7 +756,7 @@ def _main(
                 "embed_provider": args.provider,
                 "embed_model": args.model or user_settings.default_model(args.provider),
                 "embed_base_url": args.base_url,
-                "embed_api_key": args.api_key,
+                "embed_api_key": api_key,
             }
         )
         if args.ollama_url:

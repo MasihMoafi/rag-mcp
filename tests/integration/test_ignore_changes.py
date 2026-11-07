@@ -168,6 +168,7 @@ def test_scope_without_git_inside_linked_worktree(tmp_path, monkeypatch):
 
 def test_scope_without_git_fails_closed_on_git_directory_marker(tmp_path, monkeypatch):
     (tmp_path / '.git').mkdir()
+    (tmp_path / '.git' / 'HEAD').write_text('ref: refs/heads/main\n')  # a real repository
     (tmp_path / 'secret.md').write_text('secret')
     monkeypatch.setenv('PATH', str(tmp_path / 'empty-bin'))
     with pytest.raises(ValueError, match='install git so .gitignore rules are honoured'):

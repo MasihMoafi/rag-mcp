@@ -272,7 +272,7 @@ def read_documents(self):
         ):
             raise ValueError("Metadata does not match stored documents")
     except (OSError, ValueError) as error:
-        print(f"[RAG] Cannot reuse document metadata; rebuilding from sources: {error}", file=sys.stderr)
+        print(f"[RAG] Cannot reuse document metadata; rebuilding from sources: {type(error).__name__}", file=sys.stderr)
         raise RebuildRequired("Document metadata needs recovery") from error
     return docs
 

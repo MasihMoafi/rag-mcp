@@ -822,16 +822,20 @@ class _NotGitRepository(Exception):
     pass
 
 
+def _is_git_repository_marker(marker: Path) -> bool:
+    if marker.is_dir():
+        return (marker / 'HEAD').is_file()
+    try:
+        return marker.is_file() and marker.read_text(encoding='utf-8').startswith('gitdir:')
+    except (OSError, UnicodeError):
+        return False
+
+
 def _git_ignored_set(directory: str, global_ignore: str = '') -> frozenset[str]:
     if shutil.which('git') is None:
         path = Path(directory)
         for parent in (path, *path.parents):
-            marker = parent / '.git'
-            # The filesystem sandbox mounts an empty, read-only /tmp/.git placeholder;
-            # it is not a repository marker and otherwise makes every temporary folder one.
-            if marker == Path('/tmp/.git') and marker.is_mount() and not (marker / 'HEAD').exists():
-                continue
-            if marker.is_file() or marker.is_dir():
+            if _is_git_repository_marker(parent / '.git'):
                 raise ValueError('Cannot check ignore rules; install git so .gitignore rules are honoured.')
         return frozenset()
     path = Path(directory)
@@ -977,6 +981,8 @@ def _validate_rag_scope(path: Path, extensions: list[str] | None = None, *, work
 
     estimated_tokens = 0
     indexed_files: list[str] = []
+    noise_files: list[tuple[str, int]] = []
+    has_non_noise = False
     watched_paths: dict[str, tuple[int, int, bool]] = {}
     def fail_scan(error: OSError) -> None:
         raise error
@@ -1002,7 +1008,7 @@ def _validate_rag_scope(path: Path, extensions: list[str] | None = None, *, work
             candidate = current_path / name
             if candidate.is_symlink():
                 continue
-            if candidate.suffix.lower() not in allowed_extensions:
+            if candidate.suffix.lower() not in _INDEXABLE_EXTENSIONS:
                 continue
             candidate_stat = candidate.stat()
             watched_paths[str(candidate)] = (
@@ -1020,10 +1026,16 @@ def _validate_rag_scope(path: Path, extensions: list[str] | None = None, *, work
             if (
                 name.startswith(".")
                 or any(part in _INDEX_EXCLUDED_PATH_COMPONENTS for part in relative_parts[:-1])
-                or _matches_excluded_file(Path(name) if workspace_store else candidate)
             ):
                 continue
             if not workspace_store and _is_git_ignored(candidate, global_ignore):
+                continue
+            if _matches_excluded_file(Path(name) if workspace_store else candidate):
+                if candidate.suffix.lower() in allowed_extensions:
+                    noise_files.append((str(candidate), candidate_stat.st_size))
+                continue
+            has_non_noise = True
+            if candidate.suffix.lower() not in allowed_extensions:
                 continue
             estimated_tokens += candidate_stat.st_size // 4 + 1
             if estimated_tokens > max_tokens:
@@ -1037,6 +1049,15 @@ def _validate_rag_scope(path: Path, extensions: list[str] | None = None, *, work
                     f"Folder exceeds the {max_files}-document limit; select a smaller folder."
                 )
             indexed_files.append(str(candidate))
+
+    if not has_non_noise:
+        for candidate, size in noise_files:
+            estimated_tokens += size // 4 + 1
+            if estimated_tokens > max_tokens:
+                raise ValueError(f'RAG scan exceeds the configured {max_tokens:,}-token limit.')
+            if len(indexed_files) >= max_files:
+                raise ValueError(f'Folder exceeds the {max_files}-document limit; select a smaller folder.')
+            indexed_files.append(candidate)
 
     manifest = _ScopeManifest(
         files=tuple(indexed_files),
@@ -1090,7 +1111,7 @@ def _query_knowledge_base(  # pyright: ignore[reportUnusedFunction] -- called by
         elif workspace_store:
             normalized_doc_path = doc_path
         if has_workspace or workspace_store:
-            scope = _validate_rag_scope(Path(normalized_doc_path), extensions, workspace_store=True)
+            scope = _validate_rag_scope(Path(normalized_doc_path), None, workspace_store=True)
         else:
             scope = _validate_rag_scope(Path(normalized_doc_path), extensions)
     except ValueError as error:
@@ -1109,7 +1130,9 @@ def _query_knowledge_base(  # pyright: ignore[reportUnusedFunction] -- called by
             fetch_scope = normalized_doc_path
         if selected_files is not None:
             validated = set(scope.files) if scope is not None else {normalized_doc_path}
-            fetch_doc_path = [path for path in selected_files if path in validated]
+            allowed = _allowed_extensions(extensions)
+            fetch_doc_path = [path for path in selected_files if path in validated
+                              and (extensions is None or Path((source_names or {}).get(path, '')).suffix.lower() in allowed)]
             if not fetch_doc_path:
                 raise ValueError('No selected workspace sources match the requested extensions.')
             # An index scope must not reuse a full-corpus manifest for a subset.
