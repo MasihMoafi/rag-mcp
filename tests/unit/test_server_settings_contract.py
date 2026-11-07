@@ -54,36 +54,84 @@ def test_mcp_retrieval_error_does_not_echo_provider_payload(monkeypatch, tmp_pat
 
 def test_mcp_embedding_probe_never_returns_provider_error(monkeypatch, tmp_path):
     import json
-    monkeypatch.setenv('RAG_MCP_CONFIG', str(tmp_path / 'config.json'))
-    monkeypatch.setattr(cli, '_probe_embedding', Mock(side_effect=ValueError(
-        'Authorization: Bearer sk-secret-example; body: private provider response')))
+
+    monkeypatch.setenv("RAG_MCP_CONFIG", str(tmp_path / "config.json"))
+    monkeypatch.setattr(
+        cli,
+        "_probe_embedding",
+        Mock(
+            side_effect=ValueError(
+                "Authorization: Bearer sk-secret-example; body: private provider response"
+            )
+        ),
+    )
     responses = []
-    monkeypatch.setattr(server, '_initialized', True)
-    monkeypatch.setattr(server, '_result', lambda request_id, result: responses.append(result))
-    server._handle_request({'jsonrpc': '2.0', 'id': 1, 'method': 'tools/call', 'params': {
-        'name': 'set_rag_settings', 'arguments': {'embedding_provider': 'ollama', 'embedding_model': 'fixture'}}})
+    monkeypatch.setattr(server, "_initialized", True)
+    monkeypatch.setattr(
+        server, "_result", lambda request_id, result: responses.append(result)
+    )
+    server._handle_request(
+        {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "tools/call",
+            "params": {
+                "name": "set_rag_settings",
+                "arguments": {
+                    "embedding_provider": "ollama",
+                    "embedding_model": "fixture",
+                },
+            },
+        }
+    )
     output = json.dumps(responses)
-    assert 'verification failed' in output.lower()
-    assert 'sk-secret-example' not in output and 'Authorization' not in output and 'private provider response' not in output
+    assert "verification failed" in output.lower()
+    assert (
+        "sk-secret-example" not in output
+        and "Authorization" not in output
+        and "private provider response" not in output
+    )
 
 
-@pytest.mark.parametrize('name,arguments', [
-    ('get_rag_settings', {}),
-    ('set_rag_settings', {'embedding_provider': 'ollama', 'embedding_model': 'fixture'}),
-])
-def test_mcp_detection_failure_does_not_echo_provider_error(monkeypatch, tmp_path, name, arguments):
+@pytest.mark.parametrize(
+    "name,arguments",
+    [
+        ("get_rag_settings", {}),
+        (
+            "set_rag_settings",
+            {"embedding_provider": "ollama", "embedding_model": "fixture"},
+        ),
+    ],
+)
+def test_mcp_detection_failure_does_not_echo_provider_error(
+    monkeypatch, tmp_path, name, arguments
+):
     import json
+
     from rag import detect
-    monkeypatch.setenv('RAG_MCP_CONFIG', str(tmp_path / 'config.json'))
-    monkeypatch.setattr(detect, 'detect_all', Mock(side_effect=ValueError('Authorization: Bearer sk-detection-secret')))
+
+    monkeypatch.setenv("RAG_MCP_CONFIG", str(tmp_path / "config.json"))
+    monkeypatch.setattr(
+        detect,
+        "detect_all",
+        Mock(side_effect=ValueError("Authorization: Bearer sk-detection-secret")),
+    )
     responses = []
-    monkeypatch.setattr(server, '_initialized', True)
-    monkeypatch.setattr(server, '_result', lambda request_id, result: responses.append(result))
-    server._handle_request({'jsonrpc': '2.0', 'id': 1, 'method': 'tools/call',
-                            'params': {'name': name, 'arguments': arguments}})
+    monkeypatch.setattr(server, "_initialized", True)
+    monkeypatch.setattr(
+        server, "_result", lambda request_id, result: responses.append(result)
+    )
+    server._handle_request(
+        {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "tools/call",
+            "params": {"name": name, "arguments": arguments},
+        }
+    )
     output = json.dumps(responses)
-    assert 'detection' in output.lower()
-    assert 'Authorization' not in output and 'sk-detection-secret' not in output
+    assert "detection" in output.lower()
+    assert "Authorization" not in output and "sk-detection-secret" not in output
 
 
 def test_mcp_workspace_id_resolves_the_shared_engine_workspace(monkeypatch, tmp_path):
@@ -106,11 +154,14 @@ def test_mcp_workspace_id_resolves_the_shared_engine_workspace(monkeypatch, tmp_
     )
     monkeypatch.setenv("RAG_MCP_WORKSPACE_DIR", str(root))
     paths = []
-    monkeypatch.setattr(
-        server,
-        "_validate_rag_scope",
-        lambda path, extensions=None, **kwargs: paths.append(path) or None,
-    )
+    validate = server._validate_rag_scope
+
+    def record(path, extensions=None, **kwargs):
+        # Record the scope and run the real check: workspace queries use its validated file list.
+        paths.append(path)
+        return validate(path, extensions, **kwargs)
+
+    monkeypatch.setattr(server, "_validate_rag_scope", record)
     monkeypatch.setattr(
         server.importlib,
         "import_module",
@@ -173,21 +224,14 @@ def test_multi_part_question_retrieves_facets_but_synthesizes_once(
     output = json.loads(server.query_knowledge_base(query, str(document)))
 
     assert output == {"result": "Combined answer."}
-    assert calls == [
-        (
-            "Failure points across document ingestion (including outdated or improperly parsed "
-            "documents), flawed retrieval, and hallucinated or incomplete answer generation: Why "
-            "can retrieval metrics look good while the answer is poor? Explain the failure points"
-        ),
-        (
-            "Recommended practical offline evaluation lifecycle: fixed golden dataset, CI/CD "
-            "evaluation gates, regression thresholds, and tuning."
-        ),
-        (
-            "Recommended practical online evaluation lifecycle: asynchronous sampled live "
-            "traffic, monitoring, A/B testing, and human feedback."
-        ),
-    ]
+    # One retrieval per user facet (each keeps the user's own words), then one synthesis.
+    from rag.query_decomposition import decompose_query
+
+    assert calls == decompose_query(query)
+    assert len(calls) == 3
+    assert calls[0].startswith("Why can retrieval metrics look good")
+    assert calls[1].startswith("Explain the failure points")
+    assert calls[2].startswith("give the practical evaluation approach")
     assert captured["query"] == query
     assert len(captured["passages"]) == 5
     assert {passage["content"].split()[1] for passage in captured["passages"]} == {

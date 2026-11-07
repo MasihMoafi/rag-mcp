@@ -36,35 +36,17 @@ def _evidence_alternatives(facet: str) -> list[str]:
     return [topic.strip() for topic in topics if topic.strip()]
 
 
-def _evaluation_lifecycle_facets(facets: list[str], query: str) -> list[str] | None:
-    """Separate broad evaluation questions into failure, offline, and online evidence."""
-    combined = f"{' '.join(facets)} {query}".lower()
-    asks_for_practice = any(
-        term in combined
-        for term in ("practical", "approach", "framework", "strategy", "recommend")
-    )
-    concerns_evaluation = any(
-        term in combined for term in ("evaluat", "assess", "measure", "benchmark")
-    )
-    rag_topic = bool(re.search(r'\b(?:rag|retriev\w*|llms?|large language models?|answer generation|hallucinat\w*|chunks?|embeddings?)\b', combined))
-    if asks_for_practice and concerns_evaluation and rag_topic:
-        failure = (
-            "Failure points across document ingestion (including outdated or improperly parsed "
-            "documents), flawed retrieval, and hallucinated or incomplete answer generation: "
-            f"{' '.join(facets[:-1]).strip()}"
-        )
-        return [
-            failure,
-            (
-                "Recommended practical offline evaluation lifecycle: fixed golden dataset, "
-                "CI/CD evaluation gates, regression thresholds, and tuning."
-            ),
-            (
-                "Recommended practical online evaluation lifecycle: asynchronous sampled live "
-                "traffic, monitoring, A/B testing, and human feedback."
-            ),
-        ]
-    return None
+def _evaluation_lifecycle_facets(facets: list[str], query: str, max_facets: int) -> list[str] | None:
+    """Add evaluation evidence only after retaining the user's own searches."""
+    if not (re.search(r'\bevaluat\w*\b', query, re.I)
+            and re.search(r'\b(?:rag|retrieval[ -]augmented|answer quality|hallucinat\w*)\b', query, re.I)):
+        return None
+    fixed = [
+        "Failure points across document ingestion, flawed retrieval, and hallucinated or incomplete answer generation.",
+        "Recommended practical offline evaluation lifecycle: fixed golden dataset, CI/CD evaluation gates, regression thresholds, and tuning.",
+        "Recommended practical online evaluation lifecycle: asynchronous sampled live traffic, monitoring, A/B testing, and human feedback.",
+    ]
+    return (facets + fixed)[:max_facets]
 
 
 def decompose_query(query: str, *, max_facets: int = 3) -> list[str]:
@@ -82,12 +64,16 @@ def decompose_query(query: str, *, max_facets: int = 3) -> list[str]:
         )
         facets.extend(
             part.strip() for part in parts
-            if len(part.split()) >= 3 and not _ANSWER_INSTRUCTION.search(part.strip())
+            if part.strip() and not _ANSWER_INSTRUCTION.search(part.strip())
         )
     if len(facets) < 2:
-        return _evidence_alternatives(facets[0])[:max_facets] if facets else [normalized]
-    facets = facets[:max_facets]
-    rewritten = _evaluation_lifecycle_facets(facets, normalized)
+        facets = _evidence_alternatives(facets[0]) if facets else [normalized]
+        if len(facets) > max_facets:
+            facets = facets[:max_facets - 1] + [' '.join(facets[max_facets - 1:])]
+        return facets
+    if len(facets) > max_facets:
+        facets = facets[:max_facets - 1] + [' '.join(facets[max_facets - 1:])]
+    rewritten = _evaluation_lifecycle_facets(facets, normalized, max_facets)
     if rewritten:
         return rewritten
     if (re.search(r'\b(?:evaluat\w*|assess\w*|measur\w*|benchmark\w*)\b', normalized, re.I)

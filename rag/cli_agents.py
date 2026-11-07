@@ -75,7 +75,7 @@ def _replace_registration(
     environ: Mapping[str, str],
     stderr: TextIO,
     old_entry: dict[str, Any] | None = None,
-    prepare_recovery: Callable[[], Callable[[], tuple[bool, Path, Path]] | None] | None = None,
+    prepare_recovery: Callable[[], tuple[Callable[[], bool], Callable[[], None]] | None] | None = None,
     recovery_location: str = 'mcpServers.rag',
 ) -> int:
     """Register `rag`, replacing an existing entry without ever losing it.
@@ -90,26 +90,29 @@ def _replace_registration(
     if remove is None or restore is None:
         print('Could not register the RAG server; the existing entry was left unchanged.', file=stderr)
         return added.returncode
-    recover = prepare_recovery() if prepare_recovery else None
-    if recover is None:
+    recovery = prepare_recovery() if prepare_recovery else None
+    if recovery is None:
         print('Could not safely back up the existing RAG registration; it was left unchanged.', file=stderr)
         return added.returncode
-    removed = _run(remove, environ)
-    if removed.returncode:
-        print('Could not remove the existing RAG registration.', file=stderr)
-        return removed.returncode
-    retried = _run(add, environ)
-    if retried.returncode == 0:
-        return 0
-    restored = _run(restore, environ)
-    print('Could not register the replacement RAG server.', file=stderr)
-    if restored.returncode != 0:
-        recovered, config_path, backup_path = recover()
-        if recovered:
-            print('The previous rag registration was restored from its backup.', file=stderr)
-        else:
-            print(f'The previous rag registration could not be restored. Copy {recovery_location} from {backup_path} into {config_path} at the same JSON location. The backup may contain secrets; do not share it.', file=stderr)
-    return retried.returncode
+    recover, cleanup = recovery
+    try:
+        removed = _run(remove, environ)
+        if removed.returncode:
+            print('Could not remove the existing RAG registration.', file=stderr)
+            return removed.returncode
+        retried = _run(add, environ)
+        if retried.returncode == 0:
+            return 0
+        restored = _run(restore, environ)
+        print('Could not register the replacement RAG server.', file=stderr)
+        if restored.returncode != 0:
+            if recover():
+                print('The previous rag registration was restored from its backup.', file=stderr)
+            else:
+                print(f'The previous rag registration could not be restored. Restore {recovery_location} manually.', file=stderr)
+        return retried.returncode
+    finally:
+        cleanup()
 
 
 def _claude_config_path(environ: Mapping[str, str], scope: str) -> Path:
@@ -131,8 +134,9 @@ def _claude_entry(environ: Mapping[str, str], scope: str) -> dict[str, Any] | No
     return cast(dict[str, Any], entry) if isinstance(entry, dict) else None
 
 
-def _prepare_claude_recovery(environ: Mapping[str, str], scope: str, entry: dict[str, Any]) -> Callable[[], tuple[bool, Path, Path]] | None:
+def _prepare_claude_recovery(environ: Mapping[str, str], scope: str, entry: dict[str, Any]) -> tuple[Callable[[], bool], Callable[[], None]] | None:
     path = _claude_config_path(environ, scope)
+    backup_path: Path | None = None
     try:
         if path.is_symlink():
             return None
@@ -143,27 +147,35 @@ def _prepare_claude_recovery(environ: Mapping[str, str], scope: str, entry: dict
             return None
         with tempfile.NamedTemporaryFile(dir=path.parent, prefix=f'.{path.name}.rag-backup-', delete=False) as backup:
             backup_path = Path(backup.name)
-            backup.write(original)
+            backup.write(json.dumps(entry).encode('utf-8'))
             backup.flush()
             os.fsync(backup.fileno())
     except (OSError, ValueError, KeyError, TypeError):
+        if backup_path is not None:
+            backup_path.unlink(missing_ok=True)
         return None
 
-    def recover() -> tuple[bool, Path, Path]:
+    assert backup_path is not None
+
+    def recover() -> bool:
         try:
             if path.is_symlink():
-                return False, path, backup_path
+                return False
             data = json.loads(path.read_text(encoding='utf-8'))
             container = data['projects'][str(Path.cwd())] if scope == 'local' else data
             servers = container.setdefault('mcpServers', {})
             if 'rag' in servers and servers['rag'] != entry:
-                return False, path, backup_path
+                return False
             servers['rag'] = entry
             write_json_atomic(path, data)
-            return True, path, backup_path
+            return True
         except (OSError, ValueError, KeyError, TypeError, AttributeError):
-            return False, path, backup_path
-    return recover
+            return False
+
+    def cleanup() -> None:
+        backup_path.unlink(missing_ok=True)
+
+    return recover, cleanup
 
 
 def connect_codex(

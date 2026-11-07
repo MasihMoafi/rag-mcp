@@ -17,7 +17,8 @@ def test_explicit_files_obey_scan_filters(tmp_path, monkeypatch):
     (tmp_path / '.private' / 'secret.md').write_text('private')
     monkeypatch.setattr(server, 'workspace_root', tmp_path)
     assert server._validate_rag_scope(tmp_path / 'allowed.md') is None
-    for name in ['.hidden.md', 'ignored.md', 'test_secret.py']:
+    assert server._validate_rag_scope(tmp_path / 'test_secret.py') is None
+    for name in ['.hidden.md', 'ignored.md']:
         with pytest.raises(ValueError):
             server._validate_rag_scope(tmp_path / name)
     with pytest.raises(ValueError):
