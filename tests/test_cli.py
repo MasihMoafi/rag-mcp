@@ -18,37 +18,80 @@ def test_bare_cli_prints_help_and_menu_is_explicit():
 
 def test_config_embedding_uses_discovered_local_runtime_endpoint(tmp_path, monkeypatch):
     from rag import detect, settings
-    environ = {'RAG_MCP_CONFIG': str(tmp_path / 'config.json')}
-    settings.update_settings({'embed_provider': 'openai_compatible', 'embed_model': 'hosted-old',
-                              'embed_base_url': 'https://api.openai.com/v1', 'embed_api_key': 'private-key'}, environ)
-    monkeypatch.setattr(detect, 'detect_all', lambda *_: {'ollama': {'embedding_models': []},
-        'local_runtimes': [{'label': 'LM Studio', 'base_url': 'http://localhost:1234/v1',
-                            'embedding_models': ['local-embedding']}], 'api_keys': []})
+
+    environ = {"RAG_MCP_CONFIG": str(tmp_path / "config.json")}
+    settings.update_settings(
+        {
+            "embed_provider": "openai_compatible",
+            "embed_model": "hosted-old",
+            "embed_base_url": "https://api.openai.com/v1",
+            "embed_api_key": "private-key",
+        },
+        environ,
+    )
+    monkeypatch.setattr(
+        detect,
+        "detect_all",
+        lambda *_: {
+            "ollama": {"embedding_models": []},
+            "local_runtimes": [
+                {
+                    "label": "LM Studio",
+                    "base_url": "http://localhost:1234/v1",
+                    "embedding_models": ["local-embedding"],
+                }
+            ],
+            "api_keys": [],
+        },
+    )
     probed = []
-    code = main(['config', 'embedding', 'local-embedding', '--runtime', 'LM Studio'],
-                stdout=io.StringIO(), stderr=io.StringIO(), environ=environ,
-                embedding_probe=lambda config: probed.append(dict(config)) or 384)
+    code = main(
+        ["config", "embedding", "local-embedding", "--runtime", "LM Studio"],
+        stdout=io.StringIO(),
+        stderr=io.StringIO(),
+        environ=environ,
+        embedding_probe=lambda config: probed.append(dict(config)) or 384,
+    )
     assert code == 0
-    assert probed[0]['embed_base_url'] == 'http://localhost:1234/v1'
+    assert probed[0]["embed_base_url"] == "http://localhost:1234/v1"
     saved = settings.load_settings(environ)
-    assert saved['embed_model'] == 'local-embedding'
-    assert saved['embed_base_url'] == 'http://localhost:1234/v1'
-    assert saved['embed_api_key'] == ''
+    assert saved["embed_model"] == "local-embedding"
+    assert saved["embed_base_url"] == "http://localhost:1234/v1"
+    assert saved["embed_api_key"] == ""
 
 
-def test_config_embedding_rejects_unknown_runtime_model_without_write(tmp_path, monkeypatch):
+def test_config_embedding_rejects_unknown_runtime_model_without_write(
+    tmp_path, monkeypatch
+):
     from rag import detect, settings
-    environ = {'RAG_MCP_CONFIG': str(tmp_path / 'config.json')}
-    settings.update_settings({'top_k': '3'}, environ)
+
+    environ = {"RAG_MCP_CONFIG": str(tmp_path / "config.json")}
+    settings.update_settings({"top_k": "3"}, environ)
     original = settings.config_path(environ).read_bytes()
-    monkeypatch.setattr(detect, 'detect_all', lambda *_: {'ollama': {'embedding_models': []},
-        'local_runtimes': [{'label': 'LM Studio', 'base_url': 'http://localhost:1234/v1',
-                            'embedding_models': ['other-embedding']}], 'api_keys': []})
+    monkeypatch.setattr(
+        detect,
+        "detect_all",
+        lambda *_: {
+            "ollama": {"embedding_models": []},
+            "local_runtimes": [
+                {
+                    "label": "LM Studio",
+                    "base_url": "http://localhost:1234/v1",
+                    "embedding_models": ["other-embedding"],
+                }
+            ],
+            "api_keys": [],
+        },
+    )
     stderr = io.StringIO()
-    code = main(['config', 'embedding', 'missing-embedding', '--runtime', 'LM Studio'],
-                stdout=io.StringIO(), stderr=stderr, environ=environ,
-                embedding_probe=lambda _: 384)
-    assert code == 2 and 'not advertised' in stderr.getvalue()
+    code = main(
+        ["config", "embedding", "missing-embedding", "--runtime", "LM Studio"],
+        stdout=io.StringIO(),
+        stderr=stderr,
+        environ=environ,
+        embedding_probe=lambda _: 384,
+    )
+    assert code == 2 and "not advertised" in stderr.getvalue()
     assert settings.config_path(environ).read_bytes() == original
 
 
@@ -57,29 +100,42 @@ def test_query_json_format_is_stable_in_a_tty(tmp_path: Path):
     document.write_text("The launch codename is Cedar Lantern.")
     output = TTYStringIO()
 
-    assert main(
-        ["query", "codename?", "--path", str(document), "--format", "json"],
-        stdin=TTYStringIO(),
-        stdout=output,
-        query_fn=lambda query, path: json.dumps({"result": "Cedar Lantern."}),
-    ) == 0
+    assert (
+        main(
+            ["query", "codename?", "--path", str(document), "--format", "json"],
+            stdin=TTYStringIO(),
+            stdout=output,
+            query_fn=lambda query, path: json.dumps({"result": "Cedar Lantern."}),
+        )
+        == 0
+    )
     assert json.loads(output.getvalue()) == {"result": "Cedar Lantern."}
 
 
-def test_query_rejects_oversized_scope_before_interactive_model_setup(tmp_path, monkeypatch):
-    folder = tmp_path / 'books'
+def test_query_rejects_oversized_scope_before_interactive_model_setup(
+    tmp_path, monkeypatch
+):
+    folder = tmp_path / "books"
     folder.mkdir()
-    (folder / 'chapter.md').write_text('A short chapter that exceeds this test budget.')
-    monkeypatch.setenv('RAG_MCP_MAX_TOKENS', '1')
-    monkeypatch.setattr('rag.cli.user_settings.run_setup', lambda **kwargs: (_ for _ in ()).throw(
-        AssertionError('Model setup must not start for a rejected scope')))
+    (folder / "chapter.md").write_text("A short chapter that exceeds this test budget.")
+    monkeypatch.setenv("RAG_MCP_MAX_TOKENS", "1")
+    monkeypatch.setattr(
+        "rag.cli.user_settings.run_setup",
+        lambda **kwargs: (_ for _ in ()).throw(
+            AssertionError("Model setup must not start for a rejected scope")
+        ),
+    )
     error = io.StringIO()
-    code = main(['query', 'question?', '--path', str(folder)],
-                stdin=TTYStringIO(), stdout=io.StringIO(), stderr=error,
-                environ={'RAG_MCP_CONFIG': str(tmp_path / 'settings.json')})
+    code = main(
+        ["query", "question?", "--path", str(folder)],
+        stdin=TTYStringIO(),
+        stdout=io.StringIO(),
+        stderr=error,
+        environ={"RAG_MCP_CONFIG": str(tmp_path / "settings.json")},
+    )
     assert code == 2
-    assert 'token limit' in error.getvalue()
-    assert '--type md' in error.getvalue()
+    assert "token limit" in error.getvalue()
+    assert "--type md" in error.getvalue()
 
 
 def test_query_json_keeps_pipeline_diagnostics_off_stdout(tmp_path: Path):
@@ -91,12 +147,15 @@ def test_query_json_keeps_pipeline_diagnostics_off_stdout(tmp_path: Path):
         print("building local index")
         return json.dumps({"result": "Cedar Lantern."})
 
-    assert main(
-        ["query", "codename?", "--path", str(document), "--format", "json"],
-        stdout=output,
-        stderr=diagnostics,
-        query_fn=query,
-    ) == 0
+    assert (
+        main(
+            ["query", "codename?", "--path", str(document), "--format", "json"],
+            stdout=output,
+            stderr=diagnostics,
+            query_fn=query,
+        )
+        == 0
+    )
     assert json.loads(output.getvalue()) == {"result": "Cedar Lantern."}
     assert "building local index" in diagnostics.getvalue()
 
@@ -106,11 +165,16 @@ def test_query_text_format_is_stable_without_a_tty(tmp_path: Path):
     document.write_text("The launch codename is Cedar Lantern.")
     output = io.StringIO()
 
-    assert main(
-        ["query", "codename?", "--path", str(document), "--format", "text"],
-        stdout=output,
-        query_fn=lambda query, path: json.dumps({"result": "The launch codename is Cedar Lantern."}),
-    ) == 0
+    assert (
+        main(
+            ["query", "codename?", "--path", str(document), "--format", "text"],
+            stdout=output,
+            query_fn=lambda query, path: json.dumps(
+                {"result": "The launch codename is Cedar Lantern."}
+            ),
+        )
+        == 0
+    )
     assert "The launch codename is Cedar Lantern." in output.getvalue()
     assert '"result"' not in output.getvalue()
 
@@ -121,15 +185,20 @@ def test_setup_does_not_connect_an_agent_as_a_side_effect(tmp_path: Path, monkey
         "rag.cli.user_settings.run_setup",
         lambda **kwargs: 0,
     )
-    monkeypatch.setattr("rag.cli._offer_agent_connection", lambda *args: called.append(args))
+    monkeypatch.setattr(
+        "rag.cli._offer_agent_connection", lambda *args: called.append(args)
+    )
 
-    assert main(
-        ["setup"],
-        stdin=TTYStringIO(),
-        stdout=io.StringIO(),
-        stderr=io.StringIO(),
-        environ={"RAG_MCP_CONFIG": str(tmp_path / "config.json")},
-    ) == 0
+    assert (
+        main(
+            ["setup"],
+            stdin=TTYStringIO(),
+            stdout=io.StringIO(),
+            stderr=io.StringIO(),
+            environ={"RAG_MCP_CONFIG": str(tmp_path / "config.json")},
+        )
+        == 0
+    )
     assert called == []
 
 
@@ -167,10 +236,14 @@ def test_setup_flags_save_every_embedding_field_without_asking(tmp_path: Path):
     code = main(
         [
             "setup",
-            "--provider", "openai_compatible",
-            "--model", "text-embedding-3-large",
-            "--base-url", "https://example.test/v1",
-            "--api-key", "sk-test",
+            "--provider",
+            "openai_compatible",
+            "--model",
+            "text-embedding-3-large",
+            "--base-url",
+            "https://example.test/v1",
+            "--api-key",
+            "sk-test",
         ],
         stdout=output,
         environ={"RAG_MCP_CONFIG": str(config_path)},
@@ -193,10 +266,19 @@ def test_setup_ollama_url_and_default_model_and_no_verify(tmp_path: Path):
     config_path = tmp_path / "config.json"
 
     code = main(
-        ["setup", "--provider", "ollama", "--ollama-url", "http://gpu-box:11434", "--no-verify"],
+        [
+            "setup",
+            "--provider",
+            "ollama",
+            "--ollama-url",
+            "http://gpu-box:11434",
+            "--no-verify",
+        ],
         stdout=io.StringIO(),
         environ={"RAG_MCP_CONFIG": str(config_path)},
-        embedding_probe=lambda _config: (_ for _ in ()).throw(AssertionError("must not verify")),
+        embedding_probe=lambda _config: (_ for _ in ()).throw(
+            AssertionError("must not verify")
+        ),
     )
 
     assert code == 0
@@ -210,31 +292,40 @@ def test_contextual_retrieval_can_be_toggled_from_config_command(tmp_path: Path)
     config_path = tmp_path / "config.json"
     environ = {"RAG_MCP_CONFIG": str(config_path)}
 
-    assert main(
-        ["config", "contextual", "on"],
-        stdout=io.StringIO(),
-        stderr=io.StringIO(),
-        environ=environ,
-    ) == 0
+    assert (
+        main(
+            ["config", "contextual", "on"],
+            stdout=io.StringIO(),
+            stderr=io.StringIO(),
+            environ=environ,
+        )
+        == 0
+    )
     assert json.loads(config_path.read_text())["contextual_retrieval"] == "on"
 
-    assert main(
-        ["config", "contextual", "off"],
-        stdout=io.StringIO(),
-        stderr=io.StringIO(),
-        environ=environ,
-    ) == 0
+    assert (
+        main(
+            ["config", "contextual", "off"],
+            stdout=io.StringIO(),
+            stderr=io.StringIO(),
+            environ=environ,
+        )
+        == 0
+    )
     assert json.loads(config_path.read_text())["contextual_retrieval"] == "off"
 
 
 def test_contextual_retrieval_config_rejects_unknown_mode(tmp_path: Path):
     stderr = io.StringIO()
-    assert main(
-        ["config", "contextual", "maybe"],
-        stdout=io.StringIO(),
-        stderr=stderr,
-        environ={"RAG_MCP_CONFIG": str(tmp_path / "config.json")},
-    ) == 2
+    assert (
+        main(
+            ["config", "contextual", "maybe"],
+            stdout=io.StringIO(),
+            stderr=stderr,
+            environ={"RAG_MCP_CONFIG": str(tmp_path / "config.json")},
+        )
+        == 2
+    )
     assert "on or off" in stderr.getvalue()
 
 
@@ -286,7 +377,9 @@ def test_query_prints_the_real_query_result_contract(tmp_path: Path):
 
 def test_doctor_reports_missing_and_signed_out_codex(tmp_path: Path):
     output = io.StringIO()
-    assert main(["doctor", "--json"], stdout=output, environ={"PATH": str(tmp_path)}) == 0
+    assert (
+        main(["doctor", "--json"], stdout=output, environ={"PATH": str(tmp_path)}) == 0
+    )
     assert json.loads(output.getvalue())["codex"] == {
         "available": False,
         "authenticated": False,
@@ -297,7 +390,9 @@ def test_doctor_reports_missing_and_signed_out_codex(tmp_path: Path):
     codex.write_text("#!/bin/sh\nprintf 'Not logged in\n'\nexit 1\n")
     codex.chmod(0o755)
     output = io.StringIO()
-    assert main(["doctor", "--json"], stdout=output, environ={"PATH": str(tmp_path)}) == 0
+    assert (
+        main(["doctor", "--json"], stdout=output, environ={"PATH": str(tmp_path)}) == 0
+    )
     assert json.loads(output.getvalue())["codex"] == {
         "available": True,
         "authenticated": False,
@@ -310,7 +405,7 @@ def test_connect_codex_registers_the_current_server(tmp_path: Path):
     codex = tmp_path / "codex"
     codex.write_text(
         "#!/bin/sh\n"
-        "if [ \"$1 $2\" = \"mcp get\" ]; then exit 1; fi\n"
+        'if [ "$1 $2" = "mcp get" ]; then exit 1; fi\n'
         f"printf '%s\\n' \"$@\" > '{calls}'\n"
     )
     codex.chmod(0o755)
@@ -331,8 +426,9 @@ def test_connect_codex_registers_the_current_server(tmp_path: Path):
 
 
 def test_connect_codex_does_not_replace_a_matching_registration(tmp_path: Path):
-    import server
     import sys
+
+    import server
 
     marker = tmp_path / "unexpected-mutation"
     codex = tmp_path / "codex"
@@ -346,7 +442,7 @@ def test_connect_codex_does_not_replace_a_matching_registration(tmp_path: Path):
     )
     codex.write_text(
         "#!/bin/sh\n"
-        "if [ \"$1 $2\" = \"mcp get\" ]; then\n"
+        'if [ "$1 $2" = "mcp get" ]; then\n'
         f"  printf '%s\\n' '{transport}'\n"
         "  exit 0\n"
         "fi\n"
@@ -356,12 +452,15 @@ def test_connect_codex_does_not_replace_a_matching_registration(tmp_path: Path):
     codex.chmod(0o755)
     output = io.StringIO()
 
-    assert main(
-        ["connect-codex"],
-        stdout=output,
-        stderr=io.StringIO(),
-        environ={"PATH": str(tmp_path), "HOME": str(tmp_path)},
-    ) == 0
+    assert (
+        main(
+            ["connect-codex"],
+            stdout=output,
+            stderr=io.StringIO(),
+            environ={"PATH": str(tmp_path), "HOME": str(tmp_path)},
+        )
+        == 0
+    )
     assert "already connected" in output.getvalue()
     assert not marker.exists()
 
@@ -393,7 +492,9 @@ def test_studio_opens_a_session_token_and_serves_on_loopback(monkeypatch):
         ["studio"],
         stdout=output,
         token_factory=lambda: "paired-token",
-        server_factory=lambda token, port, allowed_origins: events.append((token, port, allowed_origins)) or Server(),
+        server_factory=lambda token, port, allowed_origins: (
+            events.append((token, port, allowed_origins)) or Server()
+        ),
         open_url=lambda url: events.append(url) or True,
     )
 
@@ -419,9 +520,15 @@ def test_query_top_shorthand_sets_the_result_count(tmp_path: Path, monkeypatch):
         stdout=io.StringIO(),
         stderr=io.StringIO(),
         environ={"RAG_MCP_CONFIG": str(tmp_path / "config.json")},
-        query_fn=lambda query, path: seen.update(
-            {"final": __import__("os").environ["RAG_MCP_RERANK_TOP_K"], "candidates": __import__("os").environ["RAG_MCP_TOP_K"]}
-        ) or json.dumps({"result": "Cedar Lantern."}),
+        query_fn=lambda query, path: (
+            seen.update(
+                {
+                    "final": __import__("os").environ["RAG_MCP_RERANK_TOP_K"],
+                    "candidates": __import__("os").environ["RAG_MCP_TOP_K"],
+                }
+            )
+            or json.dumps({"result": "Cedar Lantern."})
+        ),
     )
 
     assert code == 0
@@ -444,9 +551,14 @@ def test_connect_claude_registers_the_server_in_user_scope(tmp_path: Path):
     assert code == 0
     assert "description:" in (tmp_path / ".claude" / "commands" / "rag.md").read_text()
     lines = calls.read_text().splitlines()
-    assert lines[:5] == ["mcp", "remove", "rag", "-s", "user"]
-    assert lines[5:11] == ["mcp", "add", "rag", "-s", "user", "--"]
-    assert Path(lines[12]).name == "server.py"
+    assert lines[:3] == [
+        "mcp",
+        "get",
+        "rag",
+    ]  # reads the current entry so it can be restored
+    assert lines[3:9] == ["mcp", "add", "rag", "-s", "user", "--"]
+    assert Path(lines[10]).name == "server.py"
+    assert "remove" not in lines
     assert "Connected Claude Code" in output.getvalue()
 
 

@@ -9,6 +9,7 @@ import urllib.error
 import urllib.request
 from collections.abc import Callable, Mapping
 from typing import TextIO
+from urllib.parse import urlsplit
 
 from rag import settings as user_settings
 
@@ -20,16 +21,16 @@ def mask(key: str) -> str:
 
 
 def status_lines(environ: Mapping[str, str]) -> list[str]:
-    saved = str(user_settings.load_settings(environ).get("embed_api_key") or "").strip()
+    data = user_settings.load_settings(environ)
+    saved = str(data.get("openrouter_api_key") or "").strip()
     env_key = environ.get("OPENROUTER_API_KEY", "").strip()
-    override = environ.get("RAG_MCP_EMBED_API_KEY", "").strip()
+    embedding = user_settings.embedding_config(environ)
+    legacy = (embedding['embed_api_key'] if urlsplit(embedding['embed_base_url']).hostname == 'openrouter.ai' else '')
     lines = [
         f"Saved key: {mask(saved) if saved else 'none'} ({user_settings.config_path(environ)})",
         f"OPENROUTER_API_KEY in environment: {mask(env_key) if env_key else 'none'}",
     ]
-    if override:
-        lines.append(f"RAG_MCP_EMBED_API_KEY overrides both: {mask(override)}")
-    in_use = override or saved or env_key
+    in_use = saved or legacy or env_key
     lines.append(f"In use: {mask(in_use) if in_use else 'none; run `rag key set`'}")
     return lines
 
@@ -67,14 +68,14 @@ def key_command(
     stdout: TextIO,
     stderr: TextIO,
     environ: Mapping[str, str],
-    check: Callable[[str], tuple[bool, str]] | None = check_openrouter,
+    check: Callable[[str], tuple[bool, str]] = check_openrouter,
 ) -> int:
     if action == "show":
         for line in status_lines(environ):
             print(line, file=stdout)
         return 0
     if action == "remove":
-        user_settings.update_settings({"embed_api_key": ""}, environ)
+        user_settings.update_settings({"openrouter_api_key": ""}, environ)
         print("Saved key removed.", file=stdout)
         for line in status_lines(environ)[1:]:
             print(line, file=stdout)
@@ -83,20 +84,13 @@ def key_command(
     if not key or any(c.isspace() or ord(c) < 32 for c in key):
         print("No key saved: the input was empty or had spaces.", file=stderr)
         return 2
-    changes = {"embed_api_key": key}
-    if not str(
-        user_settings.load_settings(environ).get("embed_base_url") or ""
-    ).strip():
-        changes["embed_base_url"] = OPENROUTER_URL
-    user_settings.update_settings(changes, environ)
+    ok, message = check(key)
+    print(("Works: " if ok else "Warning: ") + message + ".",
+          file=stdout if ok else stderr)
+    if not ok:
+        return 1
+    user_settings.update_settings({"openrouter_api_key": key}, environ)
     print(f"Saved {mask(key)}.", file=stdout)
-    if check is not None:
-        ok, message = check(key)
-        print(
-            ("Works: " if ok else "Warning: ") + message + ".",
-            file=stdout if ok else stderr,
-        )
-        return 0 if ok else 1
     return 0
 
 

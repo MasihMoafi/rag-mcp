@@ -80,9 +80,13 @@ def _located_evidence(passage: Mapping[str, Any], *, source_details: bool,
 
 def openrouter_key(config: Mapping[str, Any]) -> str:
     """Reuse the configured OpenRouter embedding key, else its environment key."""
+    dedicated = str(config.get("openrouter_api_key") or "").strip()
+    if dedicated:
+        return dedicated
     configured = str(config.get("embed_api_key") or "").strip()
-    base_url = str(config.get("embed_base_url") or "").lower()
-    if configured and "openrouter.ai" in base_url:
+    from urllib.parse import urlsplit
+    base_url = str(config.get("embed_base_url") or "")
+    if configured and urlsplit(base_url).hostname == "openrouter.ai":
         return configured
     key = os.environ.get("OPENROUTER_API_KEY", "").strip()
     if key:

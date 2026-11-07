@@ -57,6 +57,9 @@ def _check_port(port: int) -> None:
 @contextmanager
 def serve_studio(port: int = 3000, *, environ: Mapping[str, str] | None = None) -> Iterator[str]:
     values = dict(os.environ if environ is None else environ)
+    bundle = _archive_path()
+    if not bundle.is_file():
+        raise StudioBundleError('Studio is not included in this release.')
     node = shutil.which('node', path=values.get('PATH'))
     if not node:
         raise StudioBundleError('Node.js 22 or newer is required to run the bundled Studio.')
@@ -65,9 +68,6 @@ def serve_studio(port: int = 3000, *, environ: Mapping[str, str] | None = None) 
     if version.returncode or not match or int(match[1]) < 22:
         raise StudioBundleError('Node.js 22 or newer is required to run the bundled Studio.')
     _check_port(port)
-    bundle = _archive_path()
-    if not bundle.is_file():
-        raise StudioBundleError('Bundled Studio is missing from this installation.')
     with tempfile.TemporaryDirectory(prefix='rag-studio-') as temporary:
         with tarfile.open(bundle, 'r:gz') as archive:
             _validate_archive(archive)

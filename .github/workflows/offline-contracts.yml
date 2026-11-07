@@ -26,12 +26,21 @@ jobs:
           tests/integration/test_trace_pipeline.py
       - name: Build distributable
         run: uv build --out-dir /tmp/rag-dist
+      - name: Pack npm launcher
+        run: npm pack --pack-destination /tmp/rag-dist ./npm
       - name: Verify isolated wheel
         run: |
           uv venv --python 3.13 /tmp/rag-installed
           uv pip install --python /tmp/rag-installed/bin/python /tmp/rag-dist/*.whl
           cd /tmp
           env -u PYTHONPATH /tmp/rag-installed/bin/python "$GITHUB_WORKSPACE/docs/audits/2026-09-22-readiness/verify_package.py"
+      - name: Exercise release artifacts offline
+        run: |
+          export WHEEL=$(echo /tmp/rag-dist/ragmcp-*.whl)
+          export NPM_TGZ=$(echo /tmp/rag-dist/ragmcp-*.tgz)
+          export FACTS="$GITHUB_WORKSPACE/tests/install/facts.md"
+          cd /tmp
+          env -u PYTHONPATH bash "$GITHUB_WORKSPACE/tests/install/smoke.sh"
       - uses: actions/upload-artifact@v4
         if: always()
         with:

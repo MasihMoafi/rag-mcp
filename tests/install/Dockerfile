@@ -12,12 +12,11 @@ RUN apt-get update \
 RUN curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/opt/uv/bin sh
 ENV PATH="/opt/uv/bin:${PATH}"
 
-RUN corepack enable && corepack prepare pnpm@latest --activate
-
 WORKDIR /work
 COPY dist/ragmcp-*.whl /work/
 COPY npm/ /work/npm/
 COPY tests/install/ /work/install/
 RUN cd /work/npm && npm pack --pack-destination /work >/dev/null && ls /work
+RUN uvx --from /work/ragmcp-*.whl rag --help >/dev/null
 
 ENTRYPOINT ["bash", "/work/install/smoke.sh"]
