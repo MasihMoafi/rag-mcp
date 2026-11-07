@@ -11,6 +11,7 @@ RUN apt-get update \
 # uv lives outside the default PATH so one test can hide it on purpose.
 RUN curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/opt/uv/bin sh
 ENV PATH="/opt/uv/bin:${PATH}"
+RUN npm install -g pnpm@10
 
 WORKDIR /work
 COPY dist/ragmcp-*.whl /work/

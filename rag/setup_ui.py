@@ -37,7 +37,15 @@ def _api_name(provider: str) -> str:
 
 
 def _api_key_available(provider: str, saved_provider: str | None, saved_key: str, environ: Mapping[str, str]) -> bool:
+    if provider == 'OpenRouter':
+        return bool(settings.resolve_openrouter_key(settings.embedding_config(environ), environ))
     return bool(model_catalog.environment_key(provider, environ) or (provider == saved_provider and saved_key))
+
+
+def _provider_key(provider: str, environ: Mapping[str, str]) -> str:
+    if provider == 'OpenRouter':
+        return settings.resolve_openrouter_key(settings.embedding_config(environ), environ)
+    return model_catalog.environment_key(provider, environ)
 
 
 def _api(*, stdin, stdout, environ, provider: str | None = None):
@@ -81,8 +89,8 @@ def _api(*, stdin, stdout, environ, provider: str | None = None):
                 if choice < len(providers):
                     selected_provider = providers[choice]
                     base = model_catalog.PROVIDERS[selected_provider][0]
-                    key = model_catalog.environment_key(selected_provider, environ)
-                    saved_key = ""
+                    key = _provider_key(selected_provider, environ)
+                    saved_key = saved["embed_api_key"] if selected_provider == saved_provider else ""
                     if not key and selected_provider == saved_provider:
                         key = saved_key = saved["embed_api_key"]
                     if not key:
@@ -129,8 +137,8 @@ def _api(*, stdin, stdout, environ, provider: str | None = None):
                     ).strip()
                 else:
                     base = model_catalog.PROVIDERS[selected_provider][0]
-                    key = model_catalog.environment_key(selected_provider, environ)
-                    saved_key = ""
+                    key = _provider_key(selected_provider, environ)
+                    saved_key = saved["embed_api_key"] if selected_provider == saved_provider else ""
                     if not key and selected_provider == saved_provider:
                         key = saved_key = saved["embed_api_key"]
                     if not key:
@@ -429,7 +437,6 @@ def _run_line_input(*, stdin, stdout, stderr, environ, verify):
     the least surprising compatibility path.
     """
     detection = detect.detect_all(environ)
-    current = settings.embedding_config(environ)
     installed, labels = [], []
     ollama = detection.get("ollama") or {}
     for model in ollama.get("embedding_models") or []:

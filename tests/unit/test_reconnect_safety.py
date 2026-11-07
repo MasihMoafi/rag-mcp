@@ -9,6 +9,7 @@ import json
 import subprocess
 
 import pytest
+
 from rag import cli_agents
 
 AGENTS = ["codex", "claude", "copilot", "gemini", "agy"]
@@ -23,6 +24,9 @@ def fake_client(monkeypatch, agent, *, reject_new):
     calls = []
     monkeypatch.setattr(cli_agents.shutil, "which", lambda *a, **k: agent)
     monkeypatch.setattr(cli_agents, "server_command", lambda _: ["new-server", "mcp"])
+    if agent == 'claude':
+        monkeypatch.setattr(cli_agents, '_claude_entry', lambda *_: {
+            'type': 'stdio', 'command': 'old-server', 'args': ['mcp']})
 
     def run(args, **kwargs):
         calls.append(list(args))
@@ -76,3 +80,83 @@ def test_unreadable_clients_never_remove_the_old_registration(monkeypatch, agent
     assert registry["rag"] == ["old-server", "mcp"]
     assert not any("remove" in call for call in calls)
     assert "already exists" in stderr.getvalue()
+
+
+def test_claude_failed_replacement_restores_complete_json_entry(tmp_path, monkeypatch):
+    entry = {'type': 'stdio', 'command': 'old-server', 'args': ['mcp'],
+             'env': {'RAG_MCP_ALLOWED_ROOTS': '/restricted'}, 'cwd': '/work'}
+    (tmp_path / '.claude.json').write_text(json.dumps({'mcpServers': {'rag': entry}}))
+    registry = {'rag': entry}
+    monkeypatch.setattr(cli_agents.shutil, 'which', lambda *a, **k: 'claude')
+    monkeypatch.setattr(cli_agents, 'server_command', lambda _: ['new-server', 'mcp'])
+
+    def run(args, **kwargs):
+        if 'get' in args:
+            return subprocess.CompletedProcess(args, 0, 'Type: stdio\nCommand: old-server\nArgs: mcp\n', '')
+        if 'remove' in args:
+            registry.pop('rag', None)
+            return subprocess.CompletedProcess(args, 0, '', '')
+        if 'add-json' in args:
+            registry['rag'] = json.loads(args[args.index('rag') + 1])
+            return subprocess.CompletedProcess(args, 0, '', '')
+        return subprocess.CompletedProcess(args, 1, '', 'replacement failed')
+
+    monkeypatch.setattr(cli_agents.subprocess, 'run', run)
+    assert cli_agents.connect_claude({'HOME': str(tmp_path)}, io.StringIO(), io.StringIO()) != 0
+    assert registry['rag'] == entry
+
+
+def test_failed_restore_reports_exact_entry(tmp_path, monkeypatch):
+    entry = {'type': 'stdio', 'command': 'old-server', 'args': [],
+             'env': {'RAG_MCP_ALLOWED_ROOTS': '/restricted'}}
+    (tmp_path / '.claude.json').write_text(json.dumps({'mcpServers': {'rag': entry}}))
+    monkeypatch.setattr(cli_agents.shutil, 'which', lambda *a, **k: 'claude')
+    monkeypatch.setattr(cli_agents, 'server_command', lambda _: ['new-server'])
+    monkeypatch.setattr(cli_agents.subprocess, 'run', lambda args, **kwargs:
+                        subprocess.CompletedProcess(args, 0 if 'remove' in args else 1, '', 'failed'))
+    stderr = io.StringIO()
+    assert cli_agents.connect_claude({'HOME': str(tmp_path)}, io.StringIO(), stderr) != 0
+    assert json.dumps(entry) in stderr.getvalue()
+
+
+@pytest.mark.parametrize('cwd', [None, '/restricted/work'])
+def test_codex_keeps_environment_and_refuses_unrestorable_cwd(monkeypatch, cwd):
+    entry = {'name': 'rag', 'enabled': True, 'transport': {
+        'type': 'stdio', 'command': 'old-server', 'args': ['mcp'],
+        'env': {'RAG_MCP_ALLOWED_ROOTS': '/restricted'}, 'cwd': cwd, 'env_vars': []}}
+    registry = {'rag': entry}
+    monkeypatch.setattr(cli_agents.shutil, 'which', lambda *a, **k: 'codex')
+    monkeypatch.setattr(cli_agents, 'server_command', lambda _: ['new-server', 'mcp'])
+
+    def run(args, **kwargs):
+        if 'get' in args:
+            return subprocess.CompletedProcess(args, 0, json.dumps(entry), '')
+        if 'remove' in args:
+            registry.pop('rag', None)
+            return subprocess.CompletedProcess(args, 0, '', '')
+        if 'old-server' in args:
+            assert 'RAG_MCP_ALLOWED_ROOTS=/restricted' in args
+            registry['rag'] = entry
+            return subprocess.CompletedProcess(args, 0, '', '')
+        return subprocess.CompletedProcess(args, 1, '', 'replacement failed')
+
+    monkeypatch.setattr(cli_agents.subprocess, 'run', run)
+    assert cli_agents.connect_codex({}, io.StringIO(), io.StringIO()) != 0
+    assert registry['rag'] == entry
+
+
+def test_codex_failed_restore_reports_exact_entry(monkeypatch):
+    entry = {'name': 'rag', 'transport': {'type': 'stdio', 'command': 'old-server',
+             'args': ['mcp'], 'env': {'RAG_MCP_ALLOWED_ROOTS': '/restricted'}}}
+    monkeypatch.setattr(cli_agents.shutil, 'which', lambda *a, **k: 'codex')
+    monkeypatch.setattr(cli_agents, 'server_command', lambda _: ['new-server', 'mcp'])
+
+    def run(args, **kwargs):
+        if 'get' in args:
+            return subprocess.CompletedProcess(args, 0, json.dumps(entry), '')
+        return subprocess.CompletedProcess(args, 0 if 'remove' in args else 1, '', 'failed')
+
+    monkeypatch.setattr(cli_agents.subprocess, 'run', run)
+    stderr = io.StringIO()
+    assert cli_agents.connect_codex({}, io.StringIO(), stderr) != 0
+    assert json.dumps(entry) in stderr.getvalue()

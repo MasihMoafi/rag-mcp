@@ -1,5 +1,7 @@
 import io
 
+import pytest
+
 from rag import keys, settings
 from rag.openrouter_pipeline import openrouter_key
 
@@ -51,3 +53,58 @@ def test_openrouter_key_only_reaches_openrouter_embedding_endpoint(monkeypatch):
     monkeypatch.setenv('OPENROUTER_API_KEY', 'environment-router-secret')
     embeddings.build_embedder(config)
     assert calls[-1]['api_key'] is None
+
+
+def test_rotation_and_removal_migrate_legacy_openrouter_key(tmp_path, monkeypatch):
+    from rag import embeddings
+    env = {'RAG_MCP_CONFIG': str(tmp_path / 'config.json')}
+    monkeypatch.setenv('RAG_MCP_CONFIG', env['RAG_MCP_CONFIG'])
+    monkeypatch.delenv('OPENROUTER_API_KEY', raising=False)
+    settings.save_settings({'embed_provider': 'openai_compatible',
+                            'embed_base_url': 'https://openrouter.ai/api/v1',
+                            'embed_api_key': 'legacy-secret'}, env)
+    supplied = []
+    monkeypatch.setattr(embeddings, 'OpenAICompatibleWrapper', lambda *a, **kw: supplied.append(kw))
+    assert run('set', env, 'new-secret\n')[0] == 0
+    config = settings.embedding_config(env)
+    assert config['embed_api_key'] == ''
+    embeddings.build_embedder(config)
+    assert supplied[-1]['api_key'] == openrouter_key(config) == 'new-secret'
+    assert run('remove', env)[0] == 0
+    with pytest.raises(ValueError):
+        openrouter_key(settings.embedding_config(env))
+    assert not settings.load_settings(env)['embed_api_key']
+
+
+def test_removing_legacy_key_clears_it_without_a_dedicated_key(tmp_path, monkeypatch):
+    env = {'RAG_MCP_CONFIG': str(tmp_path / 'config.json')}
+    monkeypatch.delenv('OPENROUTER_API_KEY', raising=False)
+    settings.save_settings({'embed_base_url': 'https://openrouter.ai/api/v1',
+                            'embed_api_key': 'legacy-secret'}, env)
+    assert run('remove', env)[0] == 0
+    assert settings.load_settings(env)['embed_api_key'] == ''
+
+
+def test_saved_key_is_available_to_setup_config_and_capabilities(tmp_path, monkeypatch):
+    from rag import cli, control, detect, setup_ui
+    env = {'RAG_MCP_CONFIG': str(tmp_path / 'config.json')}
+    monkeypatch.setenv('RAG_MCP_CONFIG', env['RAG_MCP_CONFIG'])
+    monkeypatch.delenv('OPENROUTER_API_KEY', raising=False)
+    monkeypatch.setattr(detect, 'detect_all', lambda _: {'api_keys': []})
+    settings.save_settings({'openrouter_api_key': 'router-secret'}, env)
+    assert setup_ui._api_key_available('OpenRouter', None, '', env)
+    assert setup_ui._provider_key('OpenRouter', env) == 'router-secret'
+    choice = cli._resolve_embedding_choice('qwen/test', 'openai_compatible', env)
+    probes = []
+    assert settings.finish_setup(choice, stdout=io.StringIO(), stderr=io.StringIO(), environ=env,
+                                 verify=lambda config: probes.append(openrouter_key(config)) or 8) == 0
+    assert probes == ['router-secret']
+    settings.update_settings(choice, env)
+    stage = next(s for s in control.capabilities()['stages'] if s['stage'] == 'embedding')
+    assert stage['availability'] == 'unknown'
+    assert run('remove', env)[0] == 0
+    assert not setup_ui._api_key_available('OpenRouter', None, '', env)
+    with pytest.raises(ValueError, match='No API key'):
+        cli._resolve_embedding_choice('qwen/test', 'openai_compatible', env)
+    stage = next(s for s in control.capabilities()['stages'] if s['stage'] == 'embedding')
+    assert stage['availability'] == 'unavailable'

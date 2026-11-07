@@ -92,7 +92,8 @@ class _ScopeManifest:
                 return False
             if is_file and stat.st_size != size:
                 return False
-        if any(_git_ignored_set(directory) != names for directory, names in self.ignored):
+        global_ignore = _global_git_exclude(self.ignored[0][0]) if self.ignored else ''
+        if any(_git_ignored_set(directory, global_ignore) != names for directory, names in self.ignored):
             return False
         return True
 
@@ -549,8 +550,62 @@ def _matches_excluded_file(path: Path) -> bool:
     )
 
 
+def _global_git_exclude(directory: str) -> str:
+    """Resolve Git's configured global exclude once per scope check."""
+    try:
+        result = subprocess.run(
+            ['git', '-C', directory, 'config', '--path', '--get', 'core.excludesFile'],
+            capture_output=True, check=False, text=True, timeout=30,
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            path = Path(result.stdout.strip()).expanduser()
+            return str(path if path.is_absolute() else Path(directory) / path)
+    except (OSError, subprocess.SubprocessError):
+        pass
+    return str(Path(os.environ.get('XDG_CONFIG_HOME') or Path.home() / '.config') / 'git' / 'ignore')
+
+
+def _git_ignored_set(directory: str, global_ignore: str = '') -> frozenset[str]:
+    path = Path(directory)
+    signatures = []
+    if global_ignore:
+        try:
+            stat = Path(global_ignore).stat()
+            signatures.append((global_ignore, stat.st_mtime_ns, stat.st_size))
+        except OSError:
+            signatures.append((global_ignore, 0, 0))
+    for parent in (path, *path.parents):
+        candidates = [parent / '.gitignore']
+        git_dir = parent / '.git'
+        if git_dir.is_file():
+            try:
+                line = git_dir.read_text(encoding='utf-8').strip()
+                if line.startswith('gitdir:'):
+                    git_dir = (parent / line[7:].strip()).resolve()
+            except OSError:
+                pass
+        common_dir = git_dir / 'commondir'
+        try:
+            git_dir = (git_dir / common_dir.read_text(encoding='utf-8').strip()).resolve()
+        except OSError:
+            pass
+        candidates.append(git_dir / 'info' / 'exclude')
+        for candidate in candidates:
+            try:
+                stat = candidate.stat()
+                signatures.append((str(candidate), stat.st_mtime_ns, stat.st_size))
+            except OSError:
+                signatures.append((str(candidate), 0, 0))
+    try:
+        listing_mtime = path.stat().st_mtime_ns
+    except OSError:
+        listing_mtime = 0
+    return _cached_git_ignored_set(directory, listing_mtime, tuple(signatures))
+
+
 @lru_cache(maxsize=4096)
-def _git_ignored_set(directory: str) -> frozenset[str]:
+def _cached_git_ignored_set(directory: str, listing_mtime: int,
+                            signatures: tuple[tuple[str, int, int], ...]) -> frozenset[str]:
     """Names git ignores in one directory, empty outside a work tree."""
     try:
         listing = os.listdir(directory)
@@ -574,9 +629,9 @@ def _git_ignored_set(directory: str) -> frozenset[str]:
     return frozenset(name for name in completed.stdout.split("\0") if name)
 
 
-def _is_git_ignored(candidate: Path) -> bool:
+def _is_git_ignored(candidate: Path, global_ignore: str = '') -> bool:
     """Whether git ignores this file, so ignored data cannot consume the budget."""
-    return candidate.name in _git_ignored_set(str(candidate.parent))
+    return candidate.name in _git_ignored_set(str(candidate.parent), global_ignore)
 
 
 def _allowed_extensions(extensions: list[str] | None) -> frozenset[str]:
@@ -600,9 +655,6 @@ def _allowed_extensions(extensions: list[str] | None) -> frozenset[str]:
 @tracing.traced('scope.discovery')
 def _validate_rag_scope(path: Path, extensions: list[str] | None = None) -> _ScopeManifest | None:
     """Validate a scope and retain its safe file manifest for reuse."""
-    # Git's ignore rules may change outside the scanned tree (including global
-    # excludes); never reuse per-directory decisions across scope requests.
-    _git_ignored_set.cache_clear()
     allowed_extensions = _allowed_extensions(extensions)
     if not path.exists():
         raise ValueError(f"Path does not exist: {path}")
@@ -611,6 +663,13 @@ def _validate_rag_scope(path: Path, extensions: list[str] | None = None) -> _Sco
             "RAG will not scan dependency or build folders such as node_modules. "
             "Choose the project source folder instead."
         )
+    try:
+        components = path.relative_to(workspace_root).parts
+    except ValueError:
+        components = path.parts[1:]
+    if any(part.startswith('.') for part in components):
+        raise ValueError('The selected path is excluded from indexing.')
+    global_ignore = _global_git_exclude(str(path.parent if path.is_file() else path))
     if path.is_file():
         extension = path.suffix.lower()
         if extension not in _INDEXABLE_EXTENSIONS:
@@ -624,7 +683,7 @@ def _validate_rag_scope(path: Path, extensions: list[str] | None = None) -> _Sco
         if (path.is_symlink() or any(part.startswith('.') for part in components)
                 or any(part in _INDEX_EXCLUDED_PATH_COMPONENTS for part in components[:-1])
                 or _matches_excluded_file(path)
-                or _is_git_ignored(path)):
+                or _is_git_ignored(path, global_ignore)):
             raise ValueError('The selected file is excluded from indexing.')
         max_tokens = _configured_limit('RAG_MCP_MAX_TOKENS', _DEFAULT_MAX_TOKENS)
         if path.stat().st_size // 4 + 1 > max_tokens:
@@ -688,7 +747,7 @@ def _validate_rag_scope(path: Path, extensions: list[str] | None = None) -> _Sco
                 or _matches_excluded_file(candidate)
             ):
                 continue
-            if _is_git_ignored(candidate):
+            if _is_git_ignored(candidate, global_ignore):
                 continue
             estimated_tokens += candidate_stat.st_size // 4 + 1
             if estimated_tokens > max_tokens:
@@ -709,7 +768,7 @@ def _validate_rag_scope(path: Path, extensions: list[str] | None = None) -> _Sco
             (path_string, mtime_ns, size, is_file)
             for path_string, (mtime_ns, size, is_file) in watched_paths.items()
         ),
-        ignored=tuple((name, _git_ignored_set(name)) for name, (_, _, is_file) in watched_paths.items() if not is_file),
+        ignored=tuple((name, _git_ignored_set(name, global_ignore)) for name, (_, _, is_file) in watched_paths.items() if not is_file),
     )
     _validated_scope_cache[cache_key] = manifest
     return manifest

@@ -140,6 +140,9 @@ def _resolve_embedding_choice(model: str, provider: str | None, environ: Mapping
         config["embed_base_url"] = base_url
         if saved.get("embed_base_url") == base_url and saved.get("embed_api_key"):
             config["embed_api_key"] = str(saved["embed_api_key"])
+        elif family == 'openrouter' and user_settings.resolve_openrouter_key(
+                user_settings.embedding_config(environ), environ):
+            config["embed_api_key"] = ""
         elif family not in detection.get("api_keys", []):
             raise ValueError(f"No API key for {family} in the environment. Run `rag setup` to enter one.")
         else:
