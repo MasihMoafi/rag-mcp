@@ -8,7 +8,7 @@ import os
 import urllib.error
 import urllib.request
 from collections.abc import Callable, Mapping
-from typing import TextIO
+from typing import Any, TextIO
 from urllib.parse import urlsplit
 
 from rag import settings as user_settings
@@ -42,7 +42,7 @@ def check_openrouter(key: str) -> tuple[bool, str]:
     )
     try:
         with urllib.request.urlopen(request, timeout=20) as response:
-            data = json.loads(response.read().decode("utf-8")).get("data") or {}
+            data: dict[str, Any] = json.loads(response.read().decode("utf-8")).get("data") or {}
     except urllib.error.HTTPError as error:
         return False, f"OpenRouter refused it (HTTP {error.code})"
     except (urllib.error.URLError, TimeoutError, ValueError) as error:

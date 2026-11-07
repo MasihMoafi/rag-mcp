@@ -1,0 +1,90 @@
+name: Release packages
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: package-publication
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: vars.PUBLISH_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install build tools
+        run: python -m pip install build twine
+      - name: Build and check release artifacts
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          python -m build --outdir dist
+          npm pack ./npm --pack-destination dist
+          python scripts/check_release_artifacts.py dist "$RELEASE_TAG"
+          python -m twine check dist/*.whl dist/*.tar.gz
+          cd dist
+          sha256sum *.whl *.tar.gz *.tgz | sort -k2 > SHA256SUMS
+          cat SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-artifacts
+          path: dist/*
+          if-no-files-found: error
+
+  publish-pypi:
+    if: vars.PUBLISH_ENABLED == 'true'
+    needs: build
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-artifacts
+          path: dist
+      - run: |
+          cd dist
+          sha256sum -c SHA256SUMS
+          mkdir python
+          mv *.whl *.tar.gz python/
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist/python/
+
+  publish-npm:
+    if: vars.PUBLISH_ENABLED == 'true'
+    needs: [build, publish-pypi]
+    runs-on: ubuntu-latest
+    environment: npm
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          registry-url: https://registry.npmjs.org
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-artifacts
+          path: dist
+      - name: Verify hashes and publish launcher
+        run: |
+          cd dist
+          sha256sum -c SHA256SUMS
+          npm publish ./*.tgz --provenance --access public

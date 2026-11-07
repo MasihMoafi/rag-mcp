@@ -15,10 +15,10 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 from collections.abc import Callable, Mapping
 from pathlib import Path
-from typing import Any, TextIO
+from typing import Any, TextIO, cast
 from utils.persistence import write_json_atomic
 
-_query_settings = ContextVar('rag_query_settings', default=None)
+_query_settings: ContextVar[dict[str, str] | None] = ContextVar('rag_query_settings', default=None)
 REVISION_UNSET = object()
 
 
@@ -27,7 +27,7 @@ class SettingsConflict(ValueError):
 
 
 @contextmanager
-def locked_settings(environ: Mapping[str, str] | None = None, *, create=True):
+def locked_settings(environ: Mapping[str, str] | None = None, *, create: bool = True):
     """Serialize local config writes without a second file beside the config on POSIX."""
     path = config_path(environ)
     if create:
@@ -179,7 +179,7 @@ def load_settings(environ: Mapping[str, str] | None = None) -> dict[str, Any]:
         raise ValueError("Invalid RAG settings JSON; repair the configuration file before continuing.") from None
     if not isinstance(data, dict):
         raise ValueError("Invalid RAG settings: expected a JSON object.")
-    return data
+    return cast(dict[str, Any], data)
 
 
 def save_settings(settings: Mapping[str, Any], environ: Mapping[str, str] | None = None) -> Path:
@@ -189,7 +189,11 @@ def save_settings(settings: Mapping[str, Any], environ: Mapping[str, str] | None
     return path
 
 
-def _merged_config(defaults, env_keys, value_types, environ, *, saved=None):
+def _merged_config(
+    defaults: Mapping[str, str], env_keys: Mapping[str, str],
+    value_types: type | tuple[type, ...], environ: Mapping[str, str] | None,
+    *, saved: Mapping[str, Any] | None = None,
+) -> dict[str, str]:
     frozen = _query_settings.get() if environ is None else None
     if frozen is not None:
         return {key: frozen[key] for key in defaults}
@@ -245,7 +249,7 @@ def retrieval_config(environ: Mapping[str, str] | None = None) -> dict[str, str]
 
 def update_settings(changes: Mapping[str, str], environ: Mapping[str, str] | None = None, *,
                     expected_data: Mapping[str, Any] | None = None,
-                    expected_revision=REVISION_UNSET) -> Path:
+                    expected_revision: object = REVISION_UNSET) -> Path:
     """Change a few keys and keep everything else in the file."""
     path = config_path(environ)
     with locked_settings(environ):
