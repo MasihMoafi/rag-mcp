@@ -239,6 +239,9 @@ def _parser() -> argparse.ArgumentParser:
     config.add_argument("--runtime", help="Detected local OpenAI-compatible runtime (LM Studio or vLLM) for an embedding model")
     config.add_argument("--no-verify", action="store_true", dest="no_verify")
 
+    key = commands.add_parser("key", help="Show, set (hidden paste) or remove the saved OpenRouter key")
+    key.add_argument("action", nargs="?", choices=["show", "set", "remove"], default="show")
+
     doctor = commands.add_parser("doctor", help="Check local RAG, embedding and MCP-app setup")
     doctor.add_argument("--json", action="store_true", dest="as_json")
     model_capabilities = commands.add_parser("capabilities", help="Show configured engine stages and model readiness")
@@ -728,6 +731,11 @@ def _main(
         if args.ollama_url:
             config["ollama_url"] = args.ollama_url
         return user_settings.finish_setup(config, stdout=stdout, stderr=stderr, environ=environ, verify=verify)
+
+    if args.command == "key":
+        from rag.keys import key_command
+
+        return key_command(args.action, stdin=stdin, stdout=stdout, stderr=stderr, environ=environ)
 
     if args.command == "config":
         verify = None if args.no_verify else (embedding_probe or _probe_embedding)
