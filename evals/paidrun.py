@@ -1,5 +1,5 @@
-"""Core of every paid batch run under evals/ (the guards from skills/dev/COMMON-MISTAKES.md, "Paid and batch runs" and
-"Isolation"). A runner gives it the input sets, one `call(set_name, item)` that makes one paid call, a `proves(result)`
+"""Core of every paid batch run under evals/ (the guards from skills/dev/AGENTS.md, requirements 1, 2 and 8).
+A runner gives it the input sets, one `call(set_name, item)` that makes one paid call, a `proves(result)`
 that reads the field proving success (for a search: `passages`), the unit price and the cap. `start()` then:
   1. smoke-tests `smoke` items from every set, prints each output, and stops at the first unproven result;
   2. prints the cost estimate, probe cost times the remaining items, and waits for "yes";
