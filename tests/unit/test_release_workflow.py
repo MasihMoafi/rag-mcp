@@ -39,3 +39,27 @@ def test_both_publications_depend_on_quality_and_installed_artifacts():
     weakened['publish-pypi'] = {'needs': ['build']}
     assert not publication_has_gates(weakened, 'publish-pypi')
     assert not publication_has_gates(weakened, 'publish-npm')
+
+
+def test_manual_release_rehearsal_runs_checks_but_never_publishes():
+    release = yaml.safe_load((ROOT / '.github/workflows/release.yml').read_text())
+    triggers = release.get('on', release.get(True))
+    assert 'workflow_dispatch' in triggers
+    jobs = release['jobs']
+    for name in ('quality', 'build', 'installed-artifact'):
+        assert "github.event_name == 'workflow_dispatch'" in jobs[name]['if']
+    for name in ('publish-pypi', 'publish-npm'):
+        condition = jobs[name]['if']
+        assert "github.event_name == 'push'" in condition
+        assert "vars.PUBLISH_ENABLED == 'true'" in condition
+    build_commands = '\n'.join(step.get('run', '') for step in jobs['build']['steps'])
+    assert 'check_release_artifacts.py' in build_commands
+    assert 'workflow_dispatch' in build_commands
+
+
+def test_install_smoke_searches_after_provider_setup():
+    smoke = (ROOT / 'tests/install/smoke.sh').read_text()
+    after_setup = smoke.split('setup --provider openai_compatible', 1)[1]
+    assert '"$rag" search' in after_setup
+    assert '"passages"' in after_setup
+    assert '--skip-fastembed' not in (ROOT / 'tests/install/run.sh').read_text()

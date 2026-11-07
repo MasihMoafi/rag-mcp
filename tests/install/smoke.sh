@@ -48,6 +48,8 @@ mock_pid=$!
 python3 -c 'import time,urllib.request; url="http://127.0.0.1:18089/v1/models"; exec("for i in range(50):\n try:\n  urllib.request.urlopen(url,timeout=1).close(); break\n except OSError:\n  time.sleep(.1)\nelse:\n raise RuntimeError(\"mock did not start\")")'
 env -u RAG_MCP_EMBED_PROVIDER "$rag" setup --provider openai_compatible --base-url http://127.0.0.1:18089/v1 --model mock-embed --api-key local > "$scratch/setup.log"
 python3 -c 'import json,sys; rows=[json.loads(line) for line in open(sys.argv[1])]; assert any(row["model"]=="mock-embed" and row["path"].endswith("/embeddings") for row in rows)' "$scratch/mock.jsonl"
+env -u RAG_MCP_EMBED_PROVIDER "$rag" search 'launch codename' --workspace smoke --json > "$scratch/vector-search.json"
+python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); assert any("Cedar Lantern" in p["content"] for p in d["passages"])' "$scratch/vector-search.json"
 if env -u RAG_MCP_EMBED_PROVIDER RAG_MCP_CONFIG="$scratch/bad-config.json" "$rag" setup --provider openai_compatible --base-url http://127.0.0.1:1/v1 --model nope --api-key local > "$scratch/bad-setup.log" 2>&1; then
   echo 'FAIL: unreachable provider setup succeeded' >&2
   exit 1

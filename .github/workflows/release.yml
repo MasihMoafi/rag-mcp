@@ -1,6 +1,7 @@
 name: Release packages
 
 on:
+  workflow_dispatch:
   push:
     tags: ['v*']
 
@@ -13,11 +14,11 @@ concurrency:
 
 jobs:
   quality:
-    if: vars.PUBLISH_ENABLED == 'true'
+    if: github.event_name == 'workflow_dispatch' || vars.PUBLISH_ENABLED == 'true'
     uses: ./.github/workflows/python-quality.yml
 
   build:
-    if: vars.PUBLISH_ENABLED == 'true'
+    if: github.event_name == 'workflow_dispatch' || vars.PUBLISH_ENABLED == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -35,6 +36,9 @@ jobs:
         env:
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
+          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then
+            RELEASE_TAG="v$(python -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')"
+          fi
           python -m build --outdir dist
           npm pack ./npm --pack-destination dist
           python scripts/check_release_artifacts.py dist "$RELEASE_TAG"
@@ -49,7 +53,7 @@ jobs:
           if-no-files-found: error
 
   installed-artifact:
-    if: vars.PUBLISH_ENABLED == 'true'
+    if: github.event_name == 'workflow_dispatch' || vars.PUBLISH_ENABLED == 'true'
     needs: build
     runs-on: ubuntu-latest
     steps:
@@ -88,7 +92,7 @@ jobs:
           env -u PYTHONPATH bash "$GITHUB_WORKSPACE/tests/install/smoke.sh"
 
   publish-pypi:
-    if: vars.PUBLISH_ENABLED == 'true'
+    if: github.event_name == 'push' && vars.PUBLISH_ENABLED == 'true'
     needs: [build, quality, installed-artifact]
     runs-on: ubuntu-latest
     environment: pypi
@@ -110,7 +114,7 @@ jobs:
           packages-dir: dist/python/
 
   publish-npm:
-    if: vars.PUBLISH_ENABLED == 'true'
+    if: github.event_name == 'push' && vars.PUBLISH_ENABLED == 'true'
     needs: [build, publish-pypi]
     runs-on: ubuntu-latest
     environment: npm

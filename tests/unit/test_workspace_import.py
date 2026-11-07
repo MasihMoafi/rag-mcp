@@ -203,3 +203,25 @@ def test_unparsable_source_names_the_file(tmp_path):
     with pytest.raises(ValueError, match='tsconfig.json'):
         workspace_import.import_workspace_sources(store, 'corpus', folder, ['md', 'json'])
     assert not (store.root / 'corpus' / 'manifest.json').exists()
+
+
+def test_import_rejects_symlink_swap_after_scope_validation(tmp_path, monkeypatch):
+    from rag import workspace_import
+    allowed = tmp_path / 'allowed'
+    allowed.mkdir()
+    source = allowed / 'chapter.md'
+    source.write_text('Public text.')
+    outside = tmp_path / 'private.md'
+    outside.write_text('Private text.')
+    monkeypatch.setenv('RAG_MCP_ALLOWED_ROOTS', str(allowed))
+    validate = workspace_import._validate_rag_scope
+    def swap(path, extensions=None):
+        result = validate(path, extensions)
+        source.unlink()
+        source.symlink_to(outside)
+        return result
+    monkeypatch.setattr(workspace_import, '_validate_rag_scope', swap)
+    store = WorkspaceStore(tmp_path / 'store')
+    with pytest.raises(ValueError):
+        workspace_import.import_workspace_sources(store, 'book', source)
+    assert not (store.root / 'book' / 'manifest.json').exists()
