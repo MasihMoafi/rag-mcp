@@ -351,7 +351,7 @@ OpenAI-compatible runtime, pass its label with CLI `--runtime` or MCP
 that runtime's loopback endpoint. Use `rag setup` for arbitrary endpoints or
 credential entry.
 
-`rag setup --provider <none|fastembed|ollama|openai_compatible|sentencetransformer> [--model M] [--base-url URL] [--api-key KEY] [--ollama-url URL]` sets the same choice without questions. The saved choice lives in `~/.config/rag/config.json` (owner-readable only); `RAG_MCP_EMBED_*` environment variables override it per process.
+`rag setup --provider <none|fastembed|ollama|openai_compatible|sentencetransformer> [--model M] [--base-url URL] [--api-key-stdin] [--ollama-url URL]` sets the provider directly. Set `RAG_MCP_EMBED_API_KEY` or pass the key on stdin with `--api-key-stdin`; otherwise a terminal prompts for it without echo. The saved choice lives in `~/.config/rag/config.json` (owner-readable only); `RAG_MCP_EMBED_*` environment variables override it per process.
 
 Extras: `ragmcp[full]` adds PyTorch, sentence-transformers and the cross-encoder reranker (GPU); `ragmcp[office]` parses DOCX/PPTX/XLSX/CSV; `ragmcp[qdrant]` adds the Qdrant backend; `ragmcp[anthropic]` enables contextual retrieval. With npm: `RAGMCP_EXTRAS=full npx ragmcp ...`.
 

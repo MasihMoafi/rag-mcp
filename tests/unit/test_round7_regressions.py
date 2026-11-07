@@ -100,7 +100,10 @@ def test_explicit_noise_file_is_searchable(tmp_path, monkeypatch, name):
     monkeypatch.setattr(fetch, 'fetchExternalKnowledge', lambda **kw: 'This test covers the release.')
     result = json.loads(server._query_knowledge_base('What does this test cover?', str(source)))
     assert result['result'] == 'This test covers the release.'
-    assert str(source) not in server._validate_rag_scope(tmp_path).files
+    if name.startswith('migrations/'):
+        assert str(source) not in server._validate_rag_scope(tmp_path).files
+    else:
+        assert str(source) in server._validate_rag_scope(tmp_path).files
 
 
 def test_claude_reconnect_removes_private_backup_after_success(tmp_path, monkeypatch):

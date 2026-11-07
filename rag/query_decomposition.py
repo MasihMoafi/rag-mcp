@@ -12,11 +12,13 @@ _FACET_START = (
     r"compare|list|summarize|outline|provide"
 )
 _ANSWER_INSTRUCTION = re.compile(
-    r"^(?:for each\b|"
+    r"^(?:"
     r"(?:return|give|provide|list)\b[^?]*\b(?:passages?|quotes?|excerpts?)\s+"
     r"from (?:this|the) (?:PDF|document|book|file|text)[.!]?$|"
     r"(?:return|respond|reply|output|format)\b[^?]*\bas (?:JSON|Markdown|a table|bullets)\b|"
-    r"(?:state|include|give|provide)\b[^?]*(?:page number|source reference|citation|format)\b|"
+    r"(?:state\s+when\s+a\s+page number|"
+    r"(?:state|include|give|provide)\s+(?:(?:the|a|an|exact|one-based|PDF|printed)\s+)*"
+    r"(?:page number|source reference|citation|format))\b|"
     r"do not (?:invent|fabricate)\b)",
     re.IGNORECASE,
 )
@@ -25,6 +27,17 @@ _EVIDENCE_ALTERNATIVES = re.compile(
     r'(?:show|describe|discuss|warn against|help someone) )(.+)\?',
     re.IGNORECASE,
 )
+
+
+def _searchable_instruction(text: str) -> str:
+    """Remove output-only instructions without discarding their subject."""
+    text = re.sub(r"^for each(?:\s+[^,]+)?,\s*", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"\s+(?:with|and)\s+(?:a\s+|the\s+)?(?:citations?|source references?|page numbers?)\b", "", text, flags=re.IGNORECASE)
+    match = re.match(r"^(?:return|respond|reply|output|format)\s+(.+?)\s+as\s+(?:JSON|Markdown|a table|bullets)\b.*$", text, re.IGNORECASE)
+    if match:
+        subject = match[1].strip()
+        return '' if re.fullmatch(r'(?:the\s+)?(?:answer|response|output|result)', subject, re.IGNORECASE) else subject
+    return '' if _ANSWER_INSTRUCTION.search(text) else text
 
 
 def _evidence_alternatives(facet: str) -> list[str]:
@@ -55,17 +68,15 @@ def decompose_query(query: str, *, max_facets: int = 3) -> list[str]:
     sentences = [part.strip() for part in re.split(r"(?<=[?!.])\s+", normalized) if part.strip()]
     facets: list[str] = []
     for sentence in sentences:
-        if _ANSWER_INSTRUCTION.search(sentence):
+        sentence = _searchable_instruction(sentence)
+        if not sentence:
             continue
         parts = re.split(
             rf",?\s+and\s+(?=(?:{_FACET_START})\b)",
             sentence,
             flags=re.IGNORECASE,
         )
-        facets.extend(
-            part.strip() for part in parts
-            if part.strip() and not _ANSWER_INSTRUCTION.search(part.strip())
-        )
+        facets.extend(search for part in parts if (search := _searchable_instruction(part.strip())))
     if len(facets) < 2:
         facets = _evidence_alternatives(facets[0]) if facets else [normalized]
         if len(facets) > max_facets:
