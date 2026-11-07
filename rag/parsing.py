@@ -14,6 +14,8 @@ from .parsers.pdf import extract_pdf_text
 from .parsers.text import extract_plain_text
 from .parsers.html import extract_html_text
 
+OFFICE_EXTENSIONS = frozenset({".docx", ".pptx", ".xlsx", ".csv"})
+
 
 def _extract_text_from_pdf(self, pdf_path: str) -> str:
     return extract_pdf_text(pdf_path)
@@ -46,8 +48,7 @@ def extract_content(file_path: str, *, pdf=extract_pdf_text, office=extract_offi
                     notebook=extract_notebook_text, json_reader=extract_json_text) -> str:
     """Model-free extraction shared by indexing and workspace source import."""
     ext = os.path.splitext(file_path)[1].lower()
-    unstructured_exts = {".docx", ".pptx", ".xlsx", ".csv"}
-    if ext in unstructured_exts:
+    if ext in OFFICE_EXTENSIONS:
         return office(file_path)
     elif ext == ".pdf":
         # The office parser needs the optional unstructured package; without it the

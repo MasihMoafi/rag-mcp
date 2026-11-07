@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from fnmatch import fnmatch
 from functools import lru_cache
 import importlib
+import importlib.util
 import json
 import os
 import shutil
@@ -933,7 +934,7 @@ def _validate_rag_scope(path: Path, extensions: list[str] | None = None, *, work
     allowed_extensions = _allowed_extensions(extensions)
     if not path.exists():
         raise ValueError(f"Path does not exist: {path}")
-    if not workspace_store and any(part in _UNSAFE_PATH_COMPONENTS for part in path.parts):
+    if not workspace_store and path.is_dir() and any(part in _UNSAFE_PATH_COMPONENTS for part in path.parts):
         raise ValueError(
             "RAG will not scan dependency or build folders such as node_modules. "
             "Choose the project source folder instead."
@@ -958,8 +959,6 @@ def _validate_rag_scope(path: Path, extensions: list[str] | None = None, *, work
         except ValueError:
             components = path.parts[1:]
         if (path.is_symlink() or any(part.startswith('.') for part in components)
-                or any(part in _INDEX_EXCLUDED_PATH_COMPONENTS for part in components[:-1])
-                or _matches_excluded_file(path)
                 or _is_git_ignored(path, global_ignore)):
             raise ValueError('The selected file is excluded from indexing.')
         max_tokens = _configured_limit('RAG_MCP_MAX_TOKENS', _DEFAULT_MAX_TOKENS)
@@ -1100,6 +1099,7 @@ def _query_knowledge_base(  # pyright: ignore[reportUnusedFunction] -- called by
     try:
         fetch_doc_path: str | list[str] = normalized_doc_path
         fetch_scope: str | None = None
+        notice = ''
         if scope is not None:
             if not scope.files:
                 requested = ", ".join(sorted(_allowed_extensions(extensions)))
@@ -1108,9 +1108,25 @@ def _query_knowledge_base(  # pyright: ignore[reportUnusedFunction] -- called by
             # Name the folder so its index survives files being added or removed.
             fetch_scope = normalized_doc_path
         if selected_files is not None:
-            fetch_doc_path = selected_files
+            validated = set(scope.files) if scope is not None else {normalized_doc_path}
+            fetch_doc_path = [path for path in selected_files if path in validated]
+            if not fetch_doc_path:
+                raise ValueError('No selected workspace sources match the requested extensions.')
             # An index scope must not reuse a full-corpus manifest for a subset.
-            fetch_scope = workspace_scope(normalized_doc_path, selected_files, complete=all_sources)
+            fetch_scope = workspace_scope(normalized_doc_path, fetch_doc_path,
+                                          complete=all_sources and len(fetch_doc_path) == len(selected_files))
+        if not workspace_store and not has_workspace:
+            from rag.parsing import OFFICE_EXTENSIONS
+            if importlib.util.find_spec('unstructured') is None:
+                paths = fetch_doc_path if isinstance(fetch_doc_path, list) else [fetch_doc_path]
+                skipped = [path for path in paths if Path(path).suffix.lower() in OFFICE_EXTENSIONS]
+                if skipped:
+                    notice = f"Skipped {', '.join(skipped)}: install ragmcp[office] to parse these files."
+                    if scope is None:
+                        return json.dumps({'error': notice.replace('Skipped ', 'Cannot parse ', 1)})
+                    fetch_doc_path = [path for path in paths if path not in skipped]
+                    if not fetch_doc_path:
+                        return json.dumps({'error': notice})
         # rag.core/fetch/qdrant_backend log via plain print() to stdout. On a stdio
         # MCP transport, stdout carries only JSON-RPC frames, so redirect that noise
         # to stderr for the duration of the call instead of touching every print().
@@ -1174,7 +1190,7 @@ def _query_knowledge_base(  # pyright: ignore[reportUnusedFunction] -- called by
                 return _query_failure('answer synthesis', exc, 'Check the configured OpenRouter model and availability.')
         if not isinstance(cast(object, answer), str) or not answer.strip():
             raise RuntimeError("Answer synthesis returned invalid output.")
-        return json.dumps({"result": answer.strip()})
+        return json.dumps({"result": answer.strip() + (f'\n\n{notice}' if notice else '')})
     except Exception as exc:
         return _query_failure('query', exc, 'Check the document scope and engine settings.')
 

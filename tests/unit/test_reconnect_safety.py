@@ -25,7 +25,7 @@ def fake_client(monkeypatch, agent, *, reject_new):
     monkeypatch.setattr(cli_agents.shutil, "which", lambda *a, **k: agent)
     monkeypatch.setattr(cli_agents, "server_command", lambda _: ["new-server", "mcp"])
     if agent == 'claude':
-        monkeypatch.setattr(cli_agents, '_prepare_claude_recovery', lambda *_: lambda: (True, None, None))
+        monkeypatch.setattr(cli_agents, '_prepare_claude_recovery', lambda *_: (lambda: True, lambda: None))
         monkeypatch.setattr(cli_agents, '_claude_entry', lambda *_: {
             'type': 'stdio', 'command': 'old-server', 'args': ['mcp']})
 
@@ -133,9 +133,7 @@ def test_failed_restore_reports_exact_entry(tmp_path, monkeypatch):
     assert cli_agents.connect_claude({'HOME': str(tmp_path)}, io.StringIO(), stderr) != 0
     assert json.loads(config_path.read_text())['mcpServers']['rag'] == entry
     assert json.loads(config_path.read_text())['other_setting'] == 'concurrent change'
-    backups = list(tmp_path.glob('..claude.json.rag-backup-*'))
-    assert len(backups) == 1
-    assert json.loads(backups[0].read_text())['mcpServers']['rag'] == entry
+    assert not list(tmp_path.glob('..claude.json.rag-backup-*'))
     assert 'restored from its backup' in stderr.getvalue()
 
 
@@ -153,9 +151,8 @@ def test_failed_file_recovery_gives_backup_location_without_secrets(tmp_path, mo
     monkeypatch.setattr(cli_agents.subprocess, 'run', run)
     stderr = io.StringIO()
     assert cli_agents.connect_claude({'HOME': str(tmp_path)}, io.StringIO(), stderr) != 0
-    backup, = tmp_path.glob('..claude.json.rag-backup-*')
-    assert json.loads(backup.read_text())['mcpServers']['rag'] == entry
-    assert str(backup) in stderr.getvalue() and str(config_path) in stderr.getvalue()
+    assert not list(tmp_path.glob('..claude.json.rag-backup-*'))
+    assert 'Restore mcpServers.rag manually' in stderr.getvalue()
     assert 'private-token' not in stderr.getvalue()
 
 
@@ -209,7 +206,7 @@ def test_replacement_preserves_restriction_and_refuses_secrets(agent, monkeypatc
     monkeypatch.setattr(cli_agents.shutil, 'which', lambda *a, **k: agent)
     monkeypatch.setattr(cli_agents, 'server_command', lambda _: ['new-server', 'mcp'])
     monkeypatch.setattr(cli_agents, '_claude_entry', lambda *_: entry)
-    monkeypatch.setattr(cli_agents, '_prepare_claude_recovery', lambda *_: lambda: (True, None, None))
+    monkeypatch.setattr(cli_agents, '_prepare_claude_recovery', lambda *_: (lambda: True, lambda: None))
     def run(args, **kwargs):
         calls.append(args)
         if 'get' in args:
