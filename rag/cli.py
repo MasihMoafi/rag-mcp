@@ -20,19 +20,19 @@ from rag import settings as user_settings
 from rag.answer_contract import decode_public_answer
 from rag.cli_agents import (
     AGENT_LABELS,
-    available_agents as _available_agents,
+    available_agents as _available_agents,  # noqa: F401 - compatibility export
     connect_agent as _connect_agent,
-    connect_agy as _connect_agy,
-    connect_claude as _connect_claude,
+    connect_agy as _connect_agy,  # noqa: F401 - compatibility export
+    connect_claude as _connect_claude,  # noqa: F401 - compatibility export
     connect_codex as _connect_codex,
-    connect_copilot as _connect_copilot,
-    connect_gemini as _connect_gemini,
-    install_slash_commands as _install_slash_commands,
-    offer_agent_connection as _offer_agent_connection,
-    server_command as _server_command,
-    show_generic_mcp_config as _show_generic_mcp_config,
+    connect_copilot as _connect_copilot,  # noqa: F401 - compatibility export
+    connect_gemini as _connect_gemini,  # noqa: F401 - compatibility export
+    install_slash_commands as _install_slash_commands,  # noqa: F401 - compatibility export
+    offer_agent_connection as _offer_agent_connection,  # noqa: F401 - compatibility export
+    server_command as _server_command,  # noqa: F401 - compatibility export
+    show_generic_mcp_config as _show_generic_mcp_config,  # noqa: F401 - compatibility export
 )
-from rag.cli_menu import MENU, menu as _menu
+from rag.cli_menu import MENU, menu as _menu  # noqa: F401 - compatibility export
 
 
 def _codex_status(environ: Mapping[str, str]) -> dict[str, object]:
@@ -355,6 +355,90 @@ def _parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _capabilities_command(args: argparse.Namespace, *, stdout: TextIO, stderr: TextIO) -> int:
+    from rag.control import capabilities
+    try:
+        value = capabilities()
+    except (ValueError, OSError) as error:
+        print(f"Cannot read capabilities: {error}", file=stderr)
+        return 2
+    if args.as_json:
+        print(json.dumps(value, ensure_ascii=False), file=stdout)
+    else:
+        for stage in value['stages']:
+            print(f"{stage['stage']:<12} {stage['availability']:<11} {stage['provider']} · {stage['model'] or '—'}", file=stdout)
+    return 0
+
+
+def _models_command(args: argparse.Namespace, *, stdout: TextIO, stderr: TextIO) -> int:
+    from rag.control import model_inventory
+    try:
+        value = model_inventory()
+    except (ValueError, OSError) as error:
+        print(f"Cannot discover models: {error}", file=stderr)
+        return 2
+    if args.as_json:
+        print(json.dumps(value, ensure_ascii=False), file=stdout)
+    else:
+        for item in value['models']:
+            marker = ' [configured]' if item['configured'] else ''
+            print(f"{item['stage']:<12} {item['provider']:<20} {item['model']}{marker}", file=stdout)
+        for source in value['sources']:
+            if source['status'] != 'complete':
+                print(f"{source['source']}: {source['status']}", file=stderr)
+    return 0
+
+
+def _runs_command(args: argparse.Namespace, *, stdout: TextIO, stderr: TextIO) -> int:
+    from rag.trace_reader import list_traces, read_trace
+
+    if args.result and not args.trace_id:
+        print("--result requires a run ID.", file=stderr)
+        return 2
+
+    try:
+        if args.result:
+            from rag.run_results import RunResultStore
+            value = RunResultStore().read(args.trace_id)
+        else:
+            value = read_trace(args.trace_id) if args.trace_id else list_traces(limit=args.limit, offset=args.offset)
+    except (ValueError, OSError) as error:
+        print(f"Cannot read runs: {error}", file=stderr)
+        return 2
+    if value is None:
+        print("Run not found or unavailable. Saved answers expire after seven days; use rag runs to list metadata traces.", file=stderr)
+        return 2
+    if args.as_json:
+        print(json.dumps(value, ensure_ascii=False), file=stdout)
+    elif args.result:
+        print(f"Run {args.trace_id}: {value['status']}", file=stdout)
+        print(value.get('answer') or value.get('error') or 'No answer saved.', file=stdout)
+        for passage in value.get('evidence', []):
+            print(f"\n[{passage['rank']}] {passage['name']}\n{passage['content']}", file=stdout)
+    elif args.trace_id:
+        print(f"Run {args.trace_id}", file=stdout)
+        for span in value["spans"]:
+            attributes = span["attributes"]
+            label = span.get("error_class") or attributes.get("failure_class") or attributes.get("model") or ""
+            if attributes.get("failure_stage"):
+                label = f"{attributes['failure_stage']}: {label}"
+            print(f"{span['operation']:<28} {span['status']:<10} {span['duration_ms']:>8.1f} ms  {label}", file=stdout)
+        cost = value["accounting"]["reported_cost_subtotal_usd"]
+        label = f"${cost:.6f}" if cost is not None else "unknown"
+        print(f"Reported cost subtotal: {label}. Use --json for recorded attributes and passage ranks.", file=stdout)
+    elif not value["traces"]:
+        print("No completed metadata runs." if value["enabled"] else "Tracing is disabled.", file=stdout)
+    else:
+        print("RUN ID                            STATUS       DURATION   REPORTED COST SUBTOTAL", file=stdout)
+        for run in value["traces"]:
+            cost = run["reported_cost_subtotal_usd"]
+            label = f"${cost:.6f}" if cost is not None else "unknown"
+            print(f"{run['trace_id']}  {run['status']:<10} {run['duration_ms']:>8.1f} ms  {label}", file=stdout)
+    if not args.as_json and value.get("skipped"):
+        print(f"Skipped {value['skipped']} unavailable records.", file=stderr)
+    return 0
+
+
 def _main(
     argv: Sequence[str] | None = None,
     *,
@@ -379,82 +463,13 @@ def _main(
     args = _parser().parse_args(_normalize_argv(raw))
 
     if args.command == "capabilities":
-        from rag.control import capabilities
-        try:
-            value = capabilities()
-        except (ValueError, OSError) as error:
-            print(f"Cannot read capabilities: {error}", file=stderr)
-            return 2
-        if args.as_json:
-            print(json.dumps(value, ensure_ascii=False), file=stdout)
-        else:
-            for stage in value['stages']:
-                print(f"{stage['stage']:<12} {stage['availability']:<11} {stage['provider']} · {stage['model'] or '—'}", file=stdout)
-        return 0
+        return _capabilities_command(args, stdout=stdout, stderr=stderr)
 
     if args.command == "models":
-        from rag.control import model_inventory
-        try:
-            value = model_inventory()
-        except (ValueError, OSError) as error:
-            print(f"Cannot discover models: {error}", file=stderr)
-            return 2
-        if args.as_json:
-            print(json.dumps(value, ensure_ascii=False), file=stdout)
-        else:
-            for item in value['models']:
-                marker = ' [configured]' if item['configured'] else ''
-                print(f"{item['stage']:<12} {item['provider']:<20} {item['model']}{marker}", file=stdout)
-            for source in value['sources']:
-                if source['status'] != 'complete':
-                    print(f"{source['source']}: {source['status']}", file=stderr)
-        return 0
+        return _models_command(args, stdout=stdout, stderr=stderr)
 
     if args.command == "runs":
-        from rag.trace_reader import list_traces, read_trace
-
-        if args.result and not args.trace_id:
-            print("--result requires a run ID.", file=stderr)
-            return 2
-
-        try:
-            if args.result:
-                from rag.run_results import RunResultStore
-                value = RunResultStore().read(args.trace_id)
-            else:
-                value = read_trace(args.trace_id) if args.trace_id else list_traces(limit=args.limit, offset=args.offset)
-        except (ValueError, OSError) as error:
-            print(f"Cannot read runs: {error}", file=stderr)
-            return 2
-        if value is None:
-            print("Run not found or unavailable. Saved answers expire after seven days; use rag runs to list metadata traces.", file=stderr)
-            return 2
-        if args.as_json:
-            print(json.dumps(value, ensure_ascii=False), file=stdout)
-        elif args.result:
-            print(f"Run {args.trace_id}: {value['status']}", file=stdout)
-            print(value.get('answer') or value.get('error') or 'No answer saved.', file=stdout)
-            for passage in value.get('evidence', []):
-                print(f"\n[{passage['rank']}] {passage['name']}\n{passage['content']}", file=stdout)
-        elif args.trace_id:
-            print(f"Run {args.trace_id}", file=stdout)
-            for span in value["spans"]:
-                label = span.get("error_class") or span["attributes"].get("model") or ""
-                print(f"{span['operation']:<28} {span['status']:<10} {span['duration_ms']:>8.1f} ms  {label}", file=stdout)
-            cost = value["accounting"]["reported_cost_subtotal_usd"]
-            label = f"${cost:.6f}" if cost is not None else "unknown"
-            print(f"Reported cost subtotal: {label}. Use --json for recorded attributes and passage ranks.", file=stdout)
-        elif not value["traces"]:
-            print("No completed metadata runs." if value["enabled"] else "Tracing is disabled.", file=stdout)
-        else:
-            print("RUN ID                            STATUS       DURATION   REPORTED COST SUBTOTAL", file=stdout)
-            for run in value["traces"]:
-                cost = run["reported_cost_subtotal_usd"]
-                label = f"${cost:.6f}" if cost is not None else "unknown"
-                print(f"{run['trace_id']}  {run['status']:<10} {run['duration_ms']:>8.1f} ms  {label}", file=stdout)
-        if not args.as_json and value.get("skipped"):
-            print(f"Skipped {value['skipped']} unavailable records.", file=stderr)
-        return 0
+        return _runs_command(args, stdout=stdout, stderr=stderr)
 
     if args.command == "conversations":
         from filelock import Timeout
@@ -547,7 +562,8 @@ def _main(
             print('No answer checks for this batch. Run again with --check (two paid model calls per question).', file=stdout)
             return 0
         summary = value['summary']
-        score = lambda number: '—' if number is None else f'{number:.2f}'
+        def score(number):
+            return '—' if number is None else f'{number:.2f}'
         print(f"faithfulness {score(summary['faithfulness'])}  relevance {score(summary['relevance'])}", file=stdout)
         print(f"{summary['answered']} answered, {summary['abstained']} abstained, {summary['unsupported_claims']} unsupported claims, "
               f"{summary['missing_evidence']} with expired evidence · {value['status']} · judge {value['judge_model']}", file=stdout)

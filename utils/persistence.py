@@ -4,9 +4,10 @@ import json
 import os
 from pathlib import Path
 import tempfile
+from typing import Any
 
 
-def write_json_atomic(path, value):
+def write_json_atomic(path: str | Path, value: Any) -> None:
     path = Path(path)
     pending_path = None
     try:

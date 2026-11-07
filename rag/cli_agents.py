@@ -9,7 +9,7 @@ import subprocess
 import sys
 from collections.abc import Mapping
 from pathlib import Path
-from typing import TextIO
+from typing import Any, TextIO
 
 
 def server_command(environ: Mapping[str, str]) -> list[str]:
@@ -77,7 +77,7 @@ def _claude_entry(
     current = _run([executable, "mcp", "get", "rag"], environ)
     if current.returncode != 0:
         return None
-    fields = {}
+    fields: dict[str, str] = {}
     for line in current.stdout.splitlines():
         key, _, value = line.strip().partition(":")
         fields[key.strip().lower()] = value.strip()
@@ -109,8 +109,9 @@ def connect_codex(
         text=True,
         env=dict(environ),
     )
-    restore = None
+    restore: list[str] | None = None
     if current.returncode == 0:
+        transport: dict[str, Any]
         try:
             transport = json.loads(current.stdout)["transport"]
         except (json.JSONDecodeError, KeyError, TypeError):

@@ -1,0 +1,66 @@
+name: Python quality
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  keyless:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.10', '3.13']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: '0.8.22'
+      - run: uv sync --frozen --python ${{ matrix.python }} --group dev
+      - name: Run complete keyless suite with external network blocked
+        shell: bash
+        run: |
+          set -euo pipefail
+          scratch="$RUNNER_TEMP/rag-keyless"
+          mkdir -p "$scratch/home" "$scratch/state" "$scratch/tmp"
+          sudo iptables -I OUTPUT 1 ! -o lo -j REJECT
+          trap 'sudo iptables -D OUTPUT ! -o lo -j REJECT; sudo ip6tables -D OUTPUT ! -o lo -j REJECT || true' EXIT
+          sudo ip6tables -I OUTPUT 1 ! -o lo -j REJECT
+          env -i PATH="$PATH" HOME="$scratch/home" TMPDIR="$scratch/tmp" \
+            PYTHONPATH="$GITHUB_WORKSPACE" XDG_STATE_HOME="$scratch/state" \
+            RAG_MCP_CONFIG="$scratch/config.json" RAG_MCP_DATA_DIR="$scratch/index" \
+            RAG_MCP_WORKSPACE_DIR="$scratch/workspaces" RAG_MCP_TRACE_DIR="$scratch/traces" \
+            HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 \
+            .venv/bin/python -m pytest tests --ignore=tests/benchmarks -q
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/ruff-action@v3
+        with:
+          version: '0.17.1'
+          args: check --isolated --select E9,F63,F7,F82 .
+      - uses: astral-sh/ruff-action@v3
+        with:
+          version: '0.17.1'
+          args: check --isolated --select E4,E7,E9,F rag/server.py rag/cli.py rag/keys.py rag/cli_agents.py rag/settings.py
+
+  types:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: '0.8.22'
+      - run: uv sync --frozen --python 3.10 --group dev
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npx --yes pyright@1.1.414 --project pyrightconfig.json --pythonpath .venv/bin/python

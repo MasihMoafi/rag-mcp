@@ -8,7 +8,8 @@ catalog instead of a hand-written list.
 from __future__ import annotations
 
 import os
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
+from typing import TextIO
 from urllib.parse import urlparse
 
 from rag import detect, model_catalog, prompts, settings
@@ -478,7 +479,9 @@ def _run_line_input(*, stdin, stdout, stderr, environ, verify):
     return settings.finish_setup(config, stdout=stdout, stderr=stderr, environ=environ, verify=verify)
 
 
-def run(*, stdin, stdout, stderr, environ=None, verify=None):
+def run(*, stdin: TextIO, stdout: TextIO, stderr: TextIO,
+        environ: Mapping[str, str] | None = None,
+        verify: Callable[[Mapping[str, str]], int] | None = None) -> int:
     environ = os.environ if environ is None else environ
     if not prompts.interactive(stdin, stdout):
         try:

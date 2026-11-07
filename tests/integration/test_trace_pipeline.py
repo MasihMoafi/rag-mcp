@@ -115,6 +115,31 @@ def test_provider_failure_stays_private_and_marks_root(pipeline, monkeypatch):
     assert 'private-' not in json.dumps(record) + json.dumps(response)
 
 
+def test_internal_retrieval_failure_records_safe_actionable_diagnostics(pipeline, monkeypatch, tmp_path):
+    source, directory, _ = pipeline
+    monkeypatch.setenv('RAG_MCP_WORKSPACE_DIR', str(tmp_path / 'workspaces'))
+
+    def fail(**kwargs):
+        raise ValueError('private-provider-payload')
+
+    monkeypatch.setattr(fetch, 'fetchExternalKnowledge', fail)
+    response = json.loads(server.query_knowledge_base('Meeting', str(source)))
+    assert 'retrieval failed (ValueError)' in response['error']
+    assert 'rag runs' in response['error']
+    record = json.loads(next(directory.glob('trace-*.json')).read_text())
+    root = record['spans'][0]
+    assert root['status'] == 'error'
+    assert root['attributes']['failure_stage'] == 'retrieval'
+    assert root['attributes']['failure_class'] == 'ValueError'
+    visible = read_trace(record['trace_id'], directory=directory)
+    assert visible['spans'][0]['attributes']['failure_stage'] == 'retrieval'
+    from rag.cli import main
+    output = io.StringIO()
+    assert main(['runs', record['trace_id']], stdout=output) == 0
+    assert 'retrieval: ValueError' in output.getvalue()
+    assert 'private-provider-payload' not in json.dumps(response) + json.dumps(record) + json.dumps(visible)
+
+
 def test_warm_requests_and_parallel_readers_keep_complete_traces(pipeline):
     source, directory, _ = pipeline
     def query(_):

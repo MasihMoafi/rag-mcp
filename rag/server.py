@@ -15,7 +15,7 @@ import os
 import subprocess
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal, TypedDict
 from filelock import Timeout
 
 
@@ -50,6 +50,30 @@ _DEFAULT_MAX_INDEXED_FILES = 5_000
 _DEFAULT_INDEX_MAX_DEPTH = 12
 _DEFAULT_MAX_DEPTH = 20
 _DEFAULT_MAX_TOKENS = 2_000_000
+
+
+@dataclass(frozen=True)
+class _ToolRequest:
+    name: str
+    arguments: dict[str, Any]
+
+    @classmethod
+    def parse(cls, params: dict[str, Any]) -> _ToolRequest:
+        name = params.get('name')
+        arguments = params.get('arguments', {})
+        if not isinstance(name, str) or not isinstance(arguments, dict):
+            raise ValueError('Invalid params: expected a tool name string and arguments object')
+        return cls(name=name, arguments=arguments)
+
+
+class _TextContent(TypedDict):
+    type: Literal['text']
+    text: str
+
+
+class _ToolResponse(TypedDict):
+    content: list[_TextContent]
+    isError: bool
 
 
 @dataclass(frozen=True)
@@ -691,6 +715,15 @@ def _validate_rag_scope(path: Path, extensions: list[str] | None = None) -> _Sco
     return manifest
 
 
+def _query_failure(stage: str, exc: Exception, advice: str) -> str:
+    # Exception messages and provider payloads must never enter logs or traces.
+    known = (ValueError, TypeError, RuntimeError, OSError, ImportError, TimeoutError)
+    error_class = type(exc).__name__ if type(exc) in known else 'OtherError'
+    tracing.annotate(failure_stage=stage, failure_class=error_class)
+    tracing.fail_current()
+    return json.dumps({'error': f'RAG {stage} failed ({error_class}). {advice} Use rag runs, then rag runs RUN_ID, to inspect local diagnostics.'})
+
+
 def _query_knowledge_base(
     query: str,
     doc_path: str = "",
@@ -765,10 +798,7 @@ def _query_knowledge_base(
                         value = balanced_passages(groups, limit=5)
                         tracing.passages('selected', value)
             except Exception as exc:
-                return json.dumps({"error": (
-                    f"RAG answer pipeline failed ({type(exc).__name__}). "
-                    "Check the configured OpenRouter models and index availability."
-                )})
+                return _query_failure('retrieval', exc, 'Check the document scope, index and embedding settings.')
         tracing.checkpoint()
         if isinstance(value, str):
             answer = value
@@ -793,15 +823,12 @@ def _query_knowledge_base(
             except PassageAnswerError:
                 return json.dumps({'error': 'RAG answer synthesis returned an invalid or unsupported quote.'})
             except Exception as exc:
-                return json.dumps({'error': (
-                    f'RAG answer synthesis failed ({type(exc).__name__}). '
-                    'Check the configured OpenRouter model and availability.'
-                )})
+                return _query_failure('answer synthesis', exc, 'Check the configured OpenRouter model and availability.')
         if not isinstance(answer, str) or not answer.strip():
             raise RuntimeError("Answer synthesis returned invalid output.")
         return json.dumps({"result": answer.strip()})
     except Exception as exc:
-        return json.dumps({"error": f"RAG query failed ({type(exc).__name__}). Check the document scope and engine settings."})
+        return _query_failure('query', exc, 'Check the document scope and engine settings.')
 
 
 def query_knowledge_base(query: str, doc_path: str = "", extensions: list[str] | None = None, workspace_id: str = "") -> str:
@@ -845,197 +872,197 @@ def _handle_request(message: dict[str, Any]) -> None:
         _result(request_id, {"tools": _TOOLS})
         return
     if method == "tools/call":
-        params = message.get("params") or {}
-        name = params.get("name")
-        arguments = params.get("arguments", {})
-        if not isinstance(name, str) or not isinstance(arguments, dict):
-            _error(request_id, -32602, "Invalid params: expected a tool name string and arguments object")
-            return
-        if name not in {tool["name"] for tool in _TOOLS}:
-            _error(request_id, -32601, "Unknown tool")
-            return
-        try:
-            if name == _SETTINGS_GET_TOOL["name"]:
-                output = json.dumps(_settings_report())
-            elif name == _SEARCH_WORKSPACE_TOOL['name']:
-                if (set(arguments) - {'workspace_id', 'query', 'source_ids', 'workspace_revision', 'include_content'}
-                        or not isinstance(arguments.get('workspace_id'), str)
-                        or not isinstance(arguments.get('query'), str)
-                        or not arguments['query'].strip()
-                        or ('source_ids' in arguments and
-                            (not isinstance(arguments['source_ids'], list) or not arguments['source_ids']
-                             or any(not isinstance(source, str) for source in arguments['source_ids'])))
-                        or ('workspace_revision' in arguments and not isinstance(arguments['workspace_revision'], str))
-                        or type(arguments.get('include_content', False)) is not bool):
-                    raise ValueError('workspace_id and nonempty query are required; optional search fields must match the schema.')
-                WorkspaceStore.validate_id(arguments['workspace_id'])
-                with _quiet_private_output():
-                    from rag.execution import execute_run, retrieval_response
-                    value = execute_run(arguments['query'], workspace_id=arguments['workspace_id'],
-                                        source_ids=arguments.get('source_ids'),
-                                        workspace_revision=arguments.get('workspace_revision'),
-                                        mode='retrieve', client='mcp')
-                output = json.dumps(retrieval_response(value, include_content=arguments.get('include_content', False)),
-                                    ensure_ascii=False)
-            elif name == _CAPABILITIES_GET_TOOL["name"]:
-                from rag.control import capabilities
-                output = json.dumps(capabilities(), ensure_ascii=False)
-            elif name == _MODELS_GET_TOOL["name"]:
-                from rag.control import model_inventory
-                output = json.dumps(model_inventory(), ensure_ascii=False)
-            elif name == _WORKSPACES_GET_TOOL['name']:
-                store = WorkspaceStore()
-                try:
-                    value = store.describe(arguments['workspace_id'], limit=arguments.get('limit', 100),
-                                           offset=arguments.get('offset', 0)) if 'workspace_id' in arguments else {
-                        'schema_version': 1, 'workspaces': store.list_workspaces()}
-                    output = json.dumps(value, ensure_ascii=False)
-                except FileNotFoundError:
-                    output = json.dumps({'error': 'Workspace not found.'})
-            elif name == _WORKSPACE_SOURCES_ADD_TOOL['name']:
-                if (not {'workspace_id', 'path', 'revision'} <= arguments.keys()
-                        or set(arguments) - {'workspace_id', 'path', 'revision', 'extensions'}
-                        or not isinstance(arguments['path'], str) or not arguments['path'].strip()):
-                    raise ValueError('workspace_id, path, and revision are required; path must be nonempty.')
-                with _quiet_private_output():
-                    from rag.workspace_import import import_workspace_sources
-                    value = import_workspace_sources(
-                        WorkspaceStore(), arguments['workspace_id'], _normalize_path(arguments['path']), arguments.get('extensions'),
-                        expected_revision=arguments['revision'])
-                output = json.dumps(value, ensure_ascii=False)
-            elif name == _WORKSPACE_CHUNKS_GET_TOOL['name']:
-                try:
-                    store = WorkspaceStore()
-                    view = arguments.get('view', 'preview')
-                    if view not in {'preview', 'indexed'}:
-                        raise ValueError('Invalid chunk view.')
-                    if view != 'indexed' and 'scope_source_ids' in arguments:
-                        raise ValueError('Selected source scope requires indexed view.')
-                    if view == 'indexed':
-                        from rag.index_inspection import inspect_published_chunks
-                        revision = arguments.get('revision') or store.get(arguments.get('workspace_id'))['revision']
-                        value = inspect_published_chunks(
-                            store, arguments.get('workspace_id'), arguments.get('source_id'), revision,
-                            limit=arguments.get('limit', 50), offset=arguments.get('offset', 0),
-                            include_content=arguments.get('include_content', False),
-                            scope_source_ids=arguments.get('scope_source_ids'))
-                    else:
-                        from rag.chunk_preview import inspect_workspace_chunks
-                        value = inspect_workspace_chunks(
-                            store, arguments.get('workspace_id'), arguments.get('source_id'),
-                            arguments.get('revision'), limit=arguments.get('limit', 50),
-                            offset=arguments.get('offset', 0), include_content=arguments.get('include_content', False))
-                    output = json.dumps(value, ensure_ascii=False)
-                except FileNotFoundError:
-                    output = json.dumps({'error': 'Workspace or source not found.'})
-            elif name == _SETTINGS_SET_TOOL["name"]:
-                changes = dict(arguments)
-                revision = changes.pop('revision', user_settings.REVISION_UNSET)
-                output = json.dumps(_apply_settings(changes, expected_revision=revision))
-            elif name in {_EVALUATION_RUN_TOOL['name'], _EVALUATION_RUNS_GET_TOOL['name']}:
-                from rag.evaluation_runs import EvaluationRunStore, execute_evaluation
-                try:
-                    if name == _EVALUATION_RUN_TOOL['name']:
-                        with _quiet_private_output():
-                            value = execute_evaluation(arguments.get('workspace_id'), source_ids=arguments.get('source_ids'),
-                                question_revision=arguments.get('question_revision'), workspace_revision=arguments.get('workspace_revision'), client='mcp')
-                    else:
-                        batches = EvaluationRunStore()
-                        value = batches.get(arguments.get('workspace_id'), arguments['batch_id']) if arguments.get('batch_id') else batches.list(
-                            arguments.get('workspace_id'), limit=arguments.get('limit', 20), offset=arguments.get('offset', 0))
-                    output = json.dumps(value, ensure_ascii=False)
-                except Timeout:
-                    output = json.dumps({'error': 'Another evaluation is running. Read its saved progress and retry after it finishes.'})
-            elif name in {_CONVERSATIONS_GET_TOOL['name'], _CONVERSATION_APPEND_TOOL['name']}:
-                from rag.conversations import ConversationStore
-                store = ConversationStore()
-                value = (store.get(arguments.get('workspace_id'), arguments['conversation_id'])
-                         if name == _CONVERSATIONS_GET_TOOL['name'] and arguments.get('conversation_id') else
-                         store.list(arguments.get('workspace_id'), limit=arguments.get('limit', 20), offset=arguments.get('offset', 0))
-                         if name == _CONVERSATIONS_GET_TOOL['name'] else
-                         store.append(arguments.get('workspace_id'), arguments.get('conversation_id'),
-                                      arguments.get('run_id'), arguments.get('question'),
-                                      expected_revision=arguments.get('revision')))
-                output = json.dumps(value, ensure_ascii=False)
-            elif name == _EVALUATION_ANSWERS_TOOL['name']:
-                from rag.evaluation_answers import EvaluationAnswerStore
-                output = json.dumps(EvaluationAnswerStore().get(arguments.get('workspace_id'), arguments.get('batch_id')), ensure_ascii=False)
-            elif name in {_EVALUATION_LABELS_GET_TOOL['name'], _EVALUATION_LABELS_SET_TOOL['name'], _EVALUATION_SCORES_TOOL['name']}:
-                from rag.evaluation_labels import EvaluationLabelStore
-                from rag.evaluation_scores import score_batch
-                store = EvaluationLabelStore()
-                try:
-                    value = (store.get(arguments.get('workspace_id'), arguments.get('batch_id'))
-                             if name == _EVALUATION_LABELS_GET_TOOL['name'] else
-                             score_batch(arguments.get('workspace_id'), arguments.get('batch_id'), store)
-                             if name == _EVALUATION_SCORES_TOOL['name'] else
-                             store.set(arguments.get('workspace_id'), arguments.get('batch_id'),
-                                       arguments.get('run_id'), arguments.get('rank'), arguments.get('label'),
-                                       expected_revision=arguments.get('revision')))
-                    output = json.dumps(value, ensure_ascii=False)
-                except Timeout:
-                    output = json.dumps({'error': 'Evaluation labels are busy. Retry with the latest revision.'})
-            elif name in {_EVALUATIONS_GET_TOOL['name'], _EVALUATIONS_SET_TOOL['name']}:
-                from rag.evaluation_sets import EvaluationSetStore
-                store = EvaluationSetStore()
-                value = (store.get(arguments.get('workspace_id'))
-                         if name == _EVALUATIONS_GET_TOOL['name'] else
-                         store.replace(arguments.get('workspace_id'), arguments.get('questions'),
-                                       expected_revision=arguments.get('revision')))
-                output = json.dumps(value, ensure_ascii=False)
-            else:
-                if arguments.get('conversation_id') is not None:
-                    if not arguments.get('workspace_id') or arguments.get('doc_path') or arguments.get('extensions'):
-                        raise ValueError('A conversation query requires workspace_id and cannot use doc_path or extensions.')
-                    from rag.conversations import run_conversation_query
-                    with _quiet_private_output():
-                        options = ({'expected_revision': arguments['conversation_revision']}
-                                   if 'conversation_revision' in arguments else {})
-                        value = run_conversation_query(arguments.get('query'), arguments['workspace_id'],
-                                                       arguments['conversation_id'], client='mcp', **options)
-                    output = json.dumps(value, ensure_ascii=False)
-                else:
-                    with _quiet_private_output():
-                        output = query_knowledge_base(
-                            query=arguments.get("query", ""),
-                            doc_path=arguments.get("doc_path", ""),
-                            extensions=arguments.get("extensions"),
-                            workspace_id=arguments.get("workspace_id", ""),
-                        )
-        except (AttributeError, TypeError, ValueError) as exc:
-            output = json.dumps({"error": f"Invalid arguments: {exc}"})
-        except FileNotFoundError:
-            output = json.dumps({"error": "Source or workspace not found." if name == _WORKSPACE_SOURCES_ADD_TOOL['name']
-                                 else "Conversation or saved run not found."})
-        except Timeout:
-            output = json.dumps({"error": "Workspace storage is busy. Retry with the latest revision."})
-        except OSError:
-            output = json.dumps({"error": "Workspace import unavailable." if name == _WORKSPACE_SOURCES_ADD_TOOL['name']
-                                 else "Evaluation workspace unavailable."})
-        except Exception as exc:
-            # Isolate failed requests without echoing provider payloads or private paths.
-            print(f'[RAG] Tool {name} failed: {type(exc).__name__}', file=sys.stderr)
-            output = json.dumps({"error": f"RAG tool failed internally ({type(exc).__name__}). If RAG was updated "
-                                 "while this server was running, restart the RAG MCP server and retry."})
-        if name == _TOOL["name"] and arguments.get('conversation_id') is not None:
-            parsed_output = json.loads(output)
-            public_output = output
-            is_error = bool(parsed_output.get('error') or parsed_output.get('conversation_error'))
-        elif name == _TOOL["name"]:
-            public_output, is_error = decode_public_answer(output)
-        else:
-            parsed_output = json.loads(output)
-            public_output = output
-            is_error = bool(parsed_output.get("error"))
-        _result(
-            request_id,
-            {
-                "content": [{"type": "text", "text": public_output}],
-                "isError": is_error,
-            },
-        )
+        _handle_tool_call(request_id, message.get("params") or {})
         return
     _error(request_id, -32601, f"Method not found: {method}")
+
+
+def _handle_tool_call(request_id: Any, params: dict[str, Any]) -> None:
+    try:
+        request = _ToolRequest.parse(params)
+    except ValueError:
+        _error(request_id, -32602, "Invalid params: expected a tool name string and arguments object")
+        return
+    name, arguments = request.name, request.arguments
+    if name not in {tool["name"] for tool in _TOOLS}:
+        _error(request_id, -32601, "Unknown tool")
+        return
+    try:
+        if name == _SETTINGS_GET_TOOL["name"]:
+            output = json.dumps(_settings_report())
+        elif name == _SEARCH_WORKSPACE_TOOL['name']:
+            if (set(arguments) - {'workspace_id', 'query', 'source_ids', 'workspace_revision', 'include_content'}
+                    or not isinstance(arguments.get('workspace_id'), str)
+                    or not isinstance(arguments.get('query'), str)
+                    or not arguments['query'].strip()
+                    or ('source_ids' in arguments and
+                        (not isinstance(arguments['source_ids'], list) or not arguments['source_ids']
+                         or any(not isinstance(source, str) for source in arguments['source_ids'])))
+                    or ('workspace_revision' in arguments and not isinstance(arguments['workspace_revision'], str))
+                    or type(arguments.get('include_content', False)) is not bool):
+                raise ValueError('workspace_id and nonempty query are required; optional search fields must match the schema.')
+            WorkspaceStore.validate_id(arguments['workspace_id'])
+            with _quiet_private_output():
+                from rag.execution import execute_run, retrieval_response
+                value = execute_run(arguments['query'], workspace_id=arguments['workspace_id'],
+                                    source_ids=arguments.get('source_ids'),
+                                    workspace_revision=arguments.get('workspace_revision'),
+                                    mode='retrieve', client='mcp')
+            output = json.dumps(retrieval_response(value, include_content=arguments.get('include_content', False)),
+                                ensure_ascii=False)
+        elif name == _CAPABILITIES_GET_TOOL["name"]:
+            from rag.control import capabilities
+            output = json.dumps(capabilities(), ensure_ascii=False)
+        elif name == _MODELS_GET_TOOL["name"]:
+            from rag.control import model_inventory
+            output = json.dumps(model_inventory(), ensure_ascii=False)
+        elif name == _WORKSPACES_GET_TOOL['name']:
+            store = WorkspaceStore()
+            try:
+                value = store.describe(arguments['workspace_id'], limit=arguments.get('limit', 100),
+                                       offset=arguments.get('offset', 0)) if 'workspace_id' in arguments else {
+                    'schema_version': 1, 'workspaces': store.list_workspaces()}
+                output = json.dumps(value, ensure_ascii=False)
+            except FileNotFoundError:
+                output = json.dumps({'error': 'Workspace not found.'})
+        elif name == _WORKSPACE_SOURCES_ADD_TOOL['name']:
+            if (not {'workspace_id', 'path', 'revision'} <= arguments.keys()
+                    or set(arguments) - {'workspace_id', 'path', 'revision', 'extensions'}
+                    or not isinstance(arguments['path'], str) or not arguments['path'].strip()):
+                raise ValueError('workspace_id, path, and revision are required; path must be nonempty.')
+            with _quiet_private_output():
+                from rag.workspace_import import import_workspace_sources
+                value = import_workspace_sources(
+                    WorkspaceStore(), arguments['workspace_id'], _normalize_path(arguments['path']), arguments.get('extensions'),
+                    expected_revision=arguments['revision'])
+            output = json.dumps(value, ensure_ascii=False)
+        elif name == _WORKSPACE_CHUNKS_GET_TOOL['name']:
+            try:
+                store = WorkspaceStore()
+                view = arguments.get('view', 'preview')
+                if view not in {'preview', 'indexed'}:
+                    raise ValueError('Invalid chunk view.')
+                if view != 'indexed' and 'scope_source_ids' in arguments:
+                    raise ValueError('Selected source scope requires indexed view.')
+                if view == 'indexed':
+                    from rag.index_inspection import inspect_published_chunks
+                    revision = arguments.get('revision') or store.get(arguments.get('workspace_id'))['revision']
+                    value = inspect_published_chunks(
+                        store, arguments.get('workspace_id'), arguments.get('source_id'), revision,
+                        limit=arguments.get('limit', 50), offset=arguments.get('offset', 0),
+                        include_content=arguments.get('include_content', False),
+                        scope_source_ids=arguments.get('scope_source_ids'))
+                else:
+                    from rag.chunk_preview import inspect_workspace_chunks
+                    value = inspect_workspace_chunks(
+                        store, arguments.get('workspace_id'), arguments.get('source_id'),
+                        arguments.get('revision'), limit=arguments.get('limit', 50),
+                        offset=arguments.get('offset', 0), include_content=arguments.get('include_content', False))
+                output = json.dumps(value, ensure_ascii=False)
+            except FileNotFoundError:
+                output = json.dumps({'error': 'Workspace or source not found.'})
+        elif name == _SETTINGS_SET_TOOL["name"]:
+            changes = dict(arguments)
+            revision = changes.pop('revision', user_settings.REVISION_UNSET)
+            output = json.dumps(_apply_settings(changes, expected_revision=revision))
+        elif name in {_EVALUATION_RUN_TOOL['name'], _EVALUATION_RUNS_GET_TOOL['name']}:
+            from rag.evaluation_runs import EvaluationRunStore, execute_evaluation
+            try:
+                if name == _EVALUATION_RUN_TOOL['name']:
+                    with _quiet_private_output():
+                        value = execute_evaluation(arguments.get('workspace_id'), source_ids=arguments.get('source_ids'),
+                            question_revision=arguments.get('question_revision'), workspace_revision=arguments.get('workspace_revision'), client='mcp')
+                else:
+                    batches = EvaluationRunStore()
+                    value = batches.get(arguments.get('workspace_id'), arguments['batch_id']) if arguments.get('batch_id') else batches.list(
+                        arguments.get('workspace_id'), limit=arguments.get('limit', 20), offset=arguments.get('offset', 0))
+                output = json.dumps(value, ensure_ascii=False)
+            except Timeout:
+                output = json.dumps({'error': 'Another evaluation is running. Read its saved progress and retry after it finishes.'})
+        elif name in {_CONVERSATIONS_GET_TOOL['name'], _CONVERSATION_APPEND_TOOL['name']}:
+            from rag.conversations import ConversationStore
+            store = ConversationStore()
+            value = (store.get(arguments.get('workspace_id'), arguments['conversation_id'])
+                     if name == _CONVERSATIONS_GET_TOOL['name'] and arguments.get('conversation_id') else
+                     store.list(arguments.get('workspace_id'), limit=arguments.get('limit', 20), offset=arguments.get('offset', 0))
+                     if name == _CONVERSATIONS_GET_TOOL['name'] else
+                     store.append(arguments.get('workspace_id'), arguments.get('conversation_id'),
+                                  arguments.get('run_id'), arguments.get('question'),
+                                  expected_revision=arguments.get('revision')))
+            output = json.dumps(value, ensure_ascii=False)
+        elif name == _EVALUATION_ANSWERS_TOOL['name']:
+            from rag.evaluation_answers import EvaluationAnswerStore
+            output = json.dumps(EvaluationAnswerStore().get(arguments.get('workspace_id'), arguments.get('batch_id')), ensure_ascii=False)
+        elif name in {_EVALUATION_LABELS_GET_TOOL['name'], _EVALUATION_LABELS_SET_TOOL['name'], _EVALUATION_SCORES_TOOL['name']}:
+            from rag.evaluation_labels import EvaluationLabelStore
+            from rag.evaluation_scores import score_batch
+            store = EvaluationLabelStore()
+            try:
+                value = (store.get(arguments.get('workspace_id'), arguments.get('batch_id'))
+                         if name == _EVALUATION_LABELS_GET_TOOL['name'] else
+                         score_batch(arguments.get('workspace_id'), arguments.get('batch_id'), store)
+                         if name == _EVALUATION_SCORES_TOOL['name'] else
+                         store.set(arguments.get('workspace_id'), arguments.get('batch_id'),
+                                   arguments.get('run_id'), arguments.get('rank'), arguments.get('label'),
+                                   expected_revision=arguments.get('revision')))
+                output = json.dumps(value, ensure_ascii=False)
+            except Timeout:
+                output = json.dumps({'error': 'Evaluation labels are busy. Retry with the latest revision.'})
+        elif name in {_EVALUATIONS_GET_TOOL['name'], _EVALUATIONS_SET_TOOL['name']}:
+            from rag.evaluation_sets import EvaluationSetStore
+            store = EvaluationSetStore()
+            value = (store.get(arguments.get('workspace_id'))
+                     if name == _EVALUATIONS_GET_TOOL['name'] else
+                     store.replace(arguments.get('workspace_id'), arguments.get('questions'),
+                                   expected_revision=arguments.get('revision')))
+            output = json.dumps(value, ensure_ascii=False)
+        else:
+            if arguments.get('conversation_id') is not None:
+                if not arguments.get('workspace_id') or arguments.get('doc_path') or arguments.get('extensions'):
+                    raise ValueError('A conversation query requires workspace_id and cannot use doc_path or extensions.')
+                from rag.conversations import run_conversation_query
+                with _quiet_private_output():
+                    options = ({'expected_revision': arguments['conversation_revision']}
+                               if 'conversation_revision' in arguments else {})
+                    value = run_conversation_query(arguments.get('query'), arguments['workspace_id'],
+                                                   arguments['conversation_id'], client='mcp', **options)
+                output = json.dumps(value, ensure_ascii=False)
+            else:
+                with _quiet_private_output():
+                    output = query_knowledge_base(
+                        query=arguments.get("query", ""),
+                        doc_path=arguments.get("doc_path", ""),
+                        extensions=arguments.get("extensions"),
+                        workspace_id=arguments.get("workspace_id", ""),
+                    )
+    except (AttributeError, TypeError, ValueError) as exc:
+        output = json.dumps({"error": f"Invalid arguments: {exc}"})
+    except FileNotFoundError:
+        output = json.dumps({"error": "Source or workspace not found." if name == _WORKSPACE_SOURCES_ADD_TOOL['name']
+                             else "Conversation or saved run not found."})
+    except Timeout:
+        output = json.dumps({"error": "Workspace storage is busy. Retry with the latest revision."})
+    except OSError:
+        output = json.dumps({"error": "Workspace import unavailable." if name == _WORKSPACE_SOURCES_ADD_TOOL['name']
+                             else "Evaluation workspace unavailable."})
+    except Exception as exc:
+        # Isolate failed requests without echoing provider payloads or private paths.
+        print(f'[RAG] Tool {name} failed: {type(exc).__name__}', file=sys.stderr)
+        output = json.dumps({"error": f"RAG tool failed internally ({type(exc).__name__}). If RAG was updated "
+                             "while this server was running, restart the RAG MCP server and retry."})
+    if name == _TOOL["name"] and arguments.get('conversation_id') is not None:
+        parsed_output = json.loads(output)
+        public_output = output
+        is_error = bool(parsed_output.get('error') or parsed_output.get('conversation_error'))
+    elif name == _TOOL["name"]:
+        public_output, is_error = decode_public_answer(output)
+    else:
+        parsed_output = json.loads(output)
+        public_output = output
+        is_error = bool(parsed_output.get("error"))
+    response: _ToolResponse = {"content": [{"type": "text", "text": public_output}], "isError": is_error}
+    _result(request_id, response)
+    return
 
 
 def main() -> None:
