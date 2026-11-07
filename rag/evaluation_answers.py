@@ -101,6 +101,9 @@ class EvaluationAnswerStore:
                     value = {**value, 'status': 'interrupted', 'error': 'Answer checks stopped before they finished. Completed checks are preserved.'}
             except Timeout:
                 pass
+        for item in value['items']:
+            if item['status'] == 'error':
+                item['error'] = 'Model call failed. Check the model, credentials and provider availability.'
         return {**value, 'summary': summarize(value['items'])}
 
     def save(self, value):
@@ -170,8 +173,8 @@ def check_answers(workspace_id, batch_id, *, store=None, cancelled=None, answer=
                         supported = [claim['supported'] for claim in verdict['claims']]
                         item['faithfulness'] = round(sum(supported) / len(supported), 4) if supported else None
                         item['relevance'] = RELEVANCE[verdict['relevance']]
-                except Exception as error:
-                    item.update(status='error', error=str(error)[:500] or type(error).__name__)
+                except Exception:
+                    item.update(status='error', error='Model call failed. Check the model, credentials and provider availability.')
                     value.update(status='error', error='A model call failed. Completed checks are preserved.')
                     break
                 finally:

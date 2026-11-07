@@ -119,6 +119,12 @@ def test_invalid_pdf_location_cannot_supply_a_page_number(monkeypatch):
     assert '900' not in captured['messages'][1]['content']
 
 
+def test_non_pdf_location_never_becomes_a_pdf_page():
+    evidence = hosted._answer_evidence({'content': 'Evidence.', 'file_path': 'notes.md', 'location': 'p.2'},
+                                      source_details=True, pdf_cache={})
+    assert 'PDF page' not in evidence and 'Source location: unavailable' in evidence
+
+
 def test_a_code_question_about_sources_gets_no_references(monkeypatch):
     monkeypatch.setenv('OPENROUTER_API_KEY', 'fake')
     captured = {}

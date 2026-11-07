@@ -3,6 +3,7 @@
 import json
 import re
 from collections.abc import Mapping, Sequence
+from pathlib import Path
 from typing import Any
 
 
@@ -37,7 +38,7 @@ def _requested(verbs: str, nouns: str, query: str) -> bool:
 
 
 def requests_passages(query: str) -> bool:
-    return _requested('which|find|select|return|give|provide', 'passages', query)
+    return _requested('which|find|select|return|give|provide', 'passages?', query)
 
 
 def requests_references(query: str) -> bool:
@@ -106,19 +107,28 @@ def render_selections(answer: str, passages: Sequence[Mapping[str, Any]],
             if anchor in seen:
                 continue
             seen.add(anchor)
-            page_parts = re.split(r'\[PDF page ([1-9]\d*)\]\n', evidence[rank - 1])
-            pages = [int(page_parts[i]) for i in range(1, len(page_parts), 2)
-                     if anchor in ' '.join(page_parts[i + 1].split())]
-            if len(set(pages)) == 1:
-                location = f'PDF page {pages[0]}'
+            passage = passages[rank - 1]
+            name = Path(str(passage.get('name') or passage.get('file_path') or passage.get('source') or '')).name
+            location = 'Source location: unavailable'
+            if name.lower().endswith('.pdf'):
+                page_parts = re.split(r'\[PDF page ([1-9]\d*)\]\n', evidence[rank - 1])
+                pages = [int(page_parts[i]) for i in range(1, len(page_parts), 2)
+                         if anchor in ' '.join(page_parts[i + 1].split())]
+                if len(set(pages)) == 1:
+                    location = f'PDF page {pages[0]}'
+                else:
+                    location = 'Exact PDF page: unavailable'
+                    match = re.search(r'PDF page range: ([0-9]+-[0-9]+)', evidence[rank - 1])
+                    if match:
+                        location += f' (source range {match[1]})'
             else:
-                location = 'Exact PDF page: unavailable'
-                match = re.search(r'PDF page range: ([0-9]+-[0-9]+)', evidence[rank - 1])
-                if match:
-                    location += f' (source range {match[1]})'
+                lines = str(passage.get('location') or '')
+                if re.fullmatch(r'L[1-9]\d*(?:-L?[1-9]\d*)?', lines):
+                    location = f'Source lines: {lines}'
+            reference = f'{name}. {location}' if name else location
             citation = f' [{rank}]' if cite_sources else ''
             rendered.append(
-                f'{len(rendered) + 1}. {location}. Printed page: unavailable. Section: unavailable.\n'
+                f'{len(rendered) + 1}. {reference}.\n'
                 f'Anchor: “{anchor}”\nParaphrase: {item["paraphrase"].strip()}{citation}\n'
                 f'Context: {item["caveat"].strip()}'
             )

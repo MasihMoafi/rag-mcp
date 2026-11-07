@@ -48,6 +48,22 @@ def test_public_and_private_clients_use_same_execution(workspace, monkeypatch):
     assert trace['spans'][0]['attributes']['workspace_revision'] == private['workspace_revision']
 
 
+def test_workspace_passage_answer_names_imported_source(workspace, monkeypatch):
+    from rag import openrouter_pipeline
+    source = stored_path(workspace, 'chapter')
+    monkeypatch.setattr(server.importlib, 'import_module', lambda _: types.SimpleNamespace(
+        fetchExternalKnowledge=lambda **kwargs: [{'content': 'Cedar Lantern opens Friday.',
+            'file_path': str(source), 'location': 'L1'}]))
+    monkeypatch.setattr(openrouter_pipeline, 'openrouter_key', lambda _: 'fake')
+    selection = json.dumps({'selections': [{'passage': 1, 'anchor': 'Cedar Lantern opens Friday.',
+        'paraphrase': 'It opens Friday.', 'caveat': 'A schedule.', 'addresses_request': True}]})
+    monkeypatch.setattr(openrouter_pipeline, '_post', lambda *args, **kwargs: {
+        'choices': [{'finish_reason': 'stop', 'message': {'content': selection}}]})
+    output = json.loads(server.query_knowledge_base('Give one passage about Cedar.', workspace_id='book'))
+    assert 'chapter.txt' in output['result'] and 'L1' in output['result']
+    assert source.name not in output['result'] and 'PDF' not in output['result']
+
+
 def test_first_saved_run_uses_gateway_request_fingerprint(workspace, monkeypatch):
     from rag.run_results import RunResultStore
 

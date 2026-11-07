@@ -46,7 +46,8 @@ def _evaluation_lifecycle_facets(facets: list[str], query: str) -> list[str] | N
     concerns_evaluation = any(
         term in combined for term in ("evaluat", "assess", "measure", "benchmark")
     )
-    if asks_for_practice and concerns_evaluation:
+    rag_topic = bool(re.search(r'\b(?:rag|retriev\w*|llms?|large language models?|answer generation|hallucinat\w*|chunks?|embeddings?)\b', combined))
+    if asks_for_practice and concerns_evaluation and rag_topic:
         failure = (
             "Failure points across document ingestion (including outdated or improperly parsed "
             "documents), flawed retrieval, and hallucinated or incomplete answer generation: "
@@ -86,7 +87,13 @@ def decompose_query(query: str, *, max_facets: int = 3) -> list[str]:
     if len(facets) < 2:
         return _evidence_alternatives(facets[0])[:max_facets] if facets else [normalized]
     facets = facets[:max_facets]
-    return _evaluation_lifecycle_facets(facets, normalized) or facets
+    rewritten = _evaluation_lifecycle_facets(facets, normalized)
+    if rewritten:
+        return rewritten
+    if (re.search(r'\b(?:evaluat\w*|assess\w*|measur\w*|benchmark\w*)\b', normalized, re.I)
+            and re.search(r'\b(?:practical|approach|framework|strategy|recommend\w*)\b', normalized, re.I)):
+        return [f'{facet} Context: {normalized}' for facet in facets]
+    return facets
 
 
 def _passage_key(passage: Mapping[str, Any]) -> tuple[str, str, str]:

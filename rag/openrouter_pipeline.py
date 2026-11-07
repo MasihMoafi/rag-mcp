@@ -62,7 +62,8 @@ def _located_evidence(passage: Mapping[str, Any], *, source_details: bool,
     content = str(passage.get('original_content') or content).strip()
     location = str(passage.get('location') or '')
     pdf = re.fullmatch(r'p\.([1-9]\d*)(?:-([1-9]\d*))?', location)
-    if pdf and int(pdf[2] or pdf[1]) >= int(pdf[1]):
+    name = str(passage.get('name') or passage.get('file_path') or passage.get('source') or '')
+    if pdf and name.lower().endswith('.pdf') and int(pdf[2] or pdf[1]) >= int(pdf[1]):
         first, last = int(pdf[1]), int(pdf[2] or pdf[1])
         if first != last and '\f' not in content:
             content = _restore_pdf_pages(passage, content, first, last, pdf_cache)

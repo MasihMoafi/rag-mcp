@@ -152,4 +152,23 @@ def test_scope_without_git_inside_repository(tmp_path, monkeypatch):
     (tmp_path / '.gitignore').write_text('document.md\n')
     assert str(document) not in server._validate_rag_scope(tmp_path).files
     monkeypatch.setenv('PATH', str(tmp_path / 'empty-bin'))
-    assert str(document) in server._validate_rag_scope(tmp_path).files
+    for scope in (tmp_path, document):
+        with pytest.raises(ValueError, match='install git so .gitignore rules are honoured'):
+            server._validate_rag_scope(scope)
+
+
+def test_scope_without_git_inside_linked_worktree(tmp_path, monkeypatch):
+    (tmp_path / '.git').write_text('gitdir: /elsewhere/worktree\n')
+    nested = tmp_path / 'nested'
+    nested.mkdir()
+    monkeypatch.setenv('PATH', str(tmp_path / 'empty-bin'))
+    with pytest.raises(ValueError, match='install git so .gitignore rules are honoured'):
+        server._validate_rag_scope(nested)
+
+
+def test_scope_without_git_fails_closed_on_git_directory_marker(tmp_path, monkeypatch):
+    (tmp_path / '.git').mkdir()
+    (tmp_path / 'secret.md').write_text('secret')
+    monkeypatch.setenv('PATH', str(tmp_path / 'empty-bin'))
+    with pytest.raises(ValueError, match='install git so .gitignore rules are honoured'):
+        server._validate_rag_scope(tmp_path)

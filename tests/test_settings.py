@@ -285,7 +285,7 @@ def test_failed_verification_saves_nothing(tmp_path: Path, monkeypatch):
     )
 
     assert code == 1
-    assert "model not found" in stderr.getvalue()
+    assert "Embedding verification failed" in stderr.getvalue()
     assert not settings.config_path(environ).exists()
 
 
