@@ -49,6 +49,19 @@ def run(store, *, answer=lambda question, passages: 'Friday, in Paris. [1]', jud
     return value, calls
 
 
+def test_provider_failure_is_not_saved_in_answer_checks(stores):
+    def fail(*args):
+        raise ValueError('Authorization: Bearer sk-secret-example; body: private provider response')
+    value, _ = run(stores, answer=fail)
+    output = json.dumps(value)
+    assert 'model call failed' in output.lower()
+    assert 'Authorization' not in output and 'sk-secret-example' not in output and 'private provider response' not in output
+    value['items'][0]['error'] = 'Authorization: Bearer sk-old-secret'
+    value.pop('summary')
+    stores.save(value)
+    assert 'sk-old-secret' not in json.dumps(stores.get('book', BATCH))
+
+
 def test_answers_are_written_from_saved_passages_and_judged_claim_by_claim(stores):
     value, calls = run(stores)
 
@@ -82,7 +95,7 @@ def test_first_model_failure_stops_further_paid_calls_and_keeps_completed_items(
         raise RuntimeError('OpenRouter request failed with HTTP 402.')
     value, calls = run(stores, answer=failing)
     assert value['status'] == 'error' and len(value['items']) == 1 and calls['judge'] == []
-    assert value['items'][0]['status'] == 'error' and 'HTTP 402' in value['items'][0]['error']
+    assert value['items'][0]['status'] == 'error' and 'Model call failed' in value['items'][0]['error']
     assert stores.get('book', BATCH)['status'] == 'error'
 
 

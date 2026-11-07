@@ -239,7 +239,8 @@ def execute_run(query: str, doc_path: str = "", extensions: list[str] | None = N
                 except (ValueError, OSError):
                     pass  # Existing scope validation produces the public typed failure.
             response = server._query_knowledge_base(query, doc_path, extensions, workspace_id,
-                                                    selected_files=selected_files, all_sources=all_sources, cite_sources=client == 'studio', retrieval_only=mode == 'retrieve', answer_model=answer_model, workspace_store=workspace_store_scope)
+                                                    selected_files=selected_files, all_sources=all_sources, cite_sources=client == 'studio', retrieval_only=mode == 'retrieve', answer_model=answer_model, workspace_store=workspace_store_scope,
+                                                    source_names={path: source['name'] for path, source in source_paths.items()})
             with tracing.span('public.boundary'):
                 answer, failed = decode_public_answer(response)
                 tracing.annotate(is_error=failed)

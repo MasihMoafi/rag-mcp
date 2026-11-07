@@ -423,8 +423,8 @@ def finish_setup(
                 probe_config['openrouter_api_key'] = resolve_openrouter_embedding_key(
                     {**embedding_config(environ), **config}, environ)
             dimensions = verify(probe_config)
-        except Exception as error:  # shown to the user; nothing is saved
-            stderr.write(f"Could not embed a test sentence: {error}\nNothing was saved.\n")
+        except Exception:
+            stderr.write("Embedding verification failed. Check the model, credentials and provider availability; nothing was saved.\n")
             return 1
         stdout.write(f"Works: {dimensions} dimensions.\n")
     path = update_settings(config, environ)

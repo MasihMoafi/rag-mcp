@@ -52,6 +52,40 @@ def test_mcp_retrieval_error_does_not_echo_provider_payload(monkeypatch, tmp_pat
     assert "private document text" not in output["error"]
 
 
+def test_mcp_embedding_probe_never_returns_provider_error(monkeypatch, tmp_path):
+    import json
+    monkeypatch.setenv('RAG_MCP_CONFIG', str(tmp_path / 'config.json'))
+    monkeypatch.setattr(cli, '_probe_embedding', Mock(side_effect=ValueError(
+        'Authorization: Bearer sk-secret-example; body: private provider response')))
+    responses = []
+    monkeypatch.setattr(server, '_initialized', True)
+    monkeypatch.setattr(server, '_result', lambda request_id, result: responses.append(result))
+    server._handle_request({'jsonrpc': '2.0', 'id': 1, 'method': 'tools/call', 'params': {
+        'name': 'set_rag_settings', 'arguments': {'embedding_provider': 'ollama', 'embedding_model': 'fixture'}}})
+    output = json.dumps(responses)
+    assert 'verification failed' in output.lower()
+    assert 'sk-secret-example' not in output and 'Authorization' not in output and 'private provider response' not in output
+
+
+@pytest.mark.parametrize('name,arguments', [
+    ('get_rag_settings', {}),
+    ('set_rag_settings', {'embedding_provider': 'ollama', 'embedding_model': 'fixture'}),
+])
+def test_mcp_detection_failure_does_not_echo_provider_error(monkeypatch, tmp_path, name, arguments):
+    import json
+    from rag import detect
+    monkeypatch.setenv('RAG_MCP_CONFIG', str(tmp_path / 'config.json'))
+    monkeypatch.setattr(detect, 'detect_all', Mock(side_effect=ValueError('Authorization: Bearer sk-detection-secret')))
+    responses = []
+    monkeypatch.setattr(server, '_initialized', True)
+    monkeypatch.setattr(server, '_result', lambda request_id, result: responses.append(result))
+    server._handle_request({'jsonrpc': '2.0', 'id': 1, 'method': 'tools/call',
+                            'params': {'name': name, 'arguments': arguments}})
+    output = json.dumps(responses)
+    assert 'detection' in output.lower()
+    assert 'Authorization' not in output and 'sk-detection-secret' not in output
+
+
 def test_mcp_workspace_id_resolves_the_shared_engine_workspace(monkeypatch, tmp_path):
     import json
     import types

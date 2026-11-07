@@ -101,7 +101,7 @@ def _resolve_embedding_choice(model: str, provider: str | None, environ: Mapping
     config = {**user_settings.DEFAULTS,
               **{key: value for key, value in saved.items()
                  if key in user_settings.DEFAULTS and isinstance(value, str)}}
-    detection = detect.detect_all(environ)
+    detection = detect.safe_detect_all(environ)
     ollama_models = (detection.get("ollama") or {}).get("embedding_models") or []
     if runtime is not None:
         endpoint = dict(detect.LOCAL_OPENAI_RUNTIMES).get(runtime) if isinstance(runtime, str) else None

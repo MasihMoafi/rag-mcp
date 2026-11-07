@@ -642,7 +642,7 @@ def _settings_report() -> dict[str, Any]:
         "settings": user_settings.describe_settings(),
         "embedding": {"provider": embedding["embed_provider"], "model": embedding["embed_model"]},
         "retrieval": user_settings.retrieval_config(),
-        "detected": detect.detect_all(os.environ, embedding["ollama_url"]),
+        "detected": detect.safe_detect_all(os.environ, embedding["ollama_url"]),
         "diagnostics": tracing.health(),
     }
 
@@ -823,6 +823,15 @@ class _NotGitRepository(Exception):
 
 def _git_ignored_set(directory: str, global_ignore: str = '') -> frozenset[str]:
     if shutil.which('git') is None:
+        path = Path(directory)
+        for parent in (path, *path.parents):
+            marker = parent / '.git'
+            # The filesystem sandbox mounts an empty, read-only /tmp/.git placeholder;
+            # it is not a repository marker and otherwise makes every temporary folder one.
+            if marker == Path('/tmp/.git') and marker.is_mount() and not (marker / 'HEAD').exists():
+                continue
+            if marker.is_file() or marker.is_dir():
+                raise ValueError('Cannot check ignore rules; install git so .gitignore rules are honoured.')
         return frozenset()
     path = Path(directory)
     signatures: list[tuple[str, int, int]] = []
@@ -884,7 +893,7 @@ def _cached_git_ignored_set(directory: str, listing_mtime: int,
             timeout=30,
         )
     except FileNotFoundError:
-        raise _NotGitRepository() from None
+        raise ValueError('Cannot check ignore rules; install git so .gitignore rules are honoured.') from None
     except (OSError, subprocess.SubprocessError) as error:
         raise ValueError('Cannot check Git ignore rules.') from error
     # 0 = something ignored, 1 = nothing ignored.
@@ -936,6 +945,8 @@ def _validate_rag_scope(path: Path, extensions: list[str] | None = None, *, work
     if not workspace_store and any(part.startswith('.') for part in components):
         raise ValueError('The selected path is excluded from indexing.')
     global_ignore = '' if workspace_store else _global_git_exclude(str(path.parent if path.is_file() else path))
+    if not workspace_store and shutil.which('git') is None:
+        _git_ignored_set(str(path.parent if path.is_file() else path))
     if path.is_file():
         extension = path.suffix.lower()
         if extension not in _INDEXABLE_EXTENSIONS:
@@ -1054,7 +1065,7 @@ def _query_knowledge_base(  # pyright: ignore[reportUnusedFunction] -- called by
     doc_path: str = "",
     extensions: list[str] | None = None,
     workspace_id: str = "",
-    *, selected_files: list[str] | None = None, all_sources: bool = False, cite_sources: bool = False, retrieval_only: bool = False, answer_model: str | None = None, workspace_store: bool = False,
+    *, selected_files: list[str] | None = None, all_sources: bool = False, cite_sources: bool = False, retrieval_only: bool = False, answer_model: str | None = None, workspace_store: bool = False, source_names: Mapping[str, str] | None = None,
 ) -> str:
     """Load and run RAG only after an explicit tool call."""
     tracing.annotate(server_source_sha256_at_startup=_SERVER_SOURCE_SHA256)
@@ -1144,6 +1155,12 @@ def _query_knowledge_base(  # pyright: ignore[reportUnusedFunction] -- called by
             tracing.passages('synthesis_evidence', value)
             if retrieval_only:
                 return json.dumps({'result': 'Retrieval completed.'})
+            if source_names:
+                named_passages: list[Mapping[str, Any]] = []
+                for passage in cast(list[Mapping[str, Any]], value):
+                    path = str(passage.get('file_path') or passage.get('source'))
+                    named_passages.append({**passage, **({'name': source_names[path]} if path in source_names else {})})
+                value = named_passages
             try:
                 answer = synthesize_answer(
                     query,
