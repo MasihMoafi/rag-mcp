@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import json
 import os
 import secrets
@@ -19,7 +21,7 @@ class EvaluationSetStore:
     def _path(self, workspace_id: str) -> Path:
         return self.workspaces._workspace(workspace_id) / 'evaluation-set.json'
 
-    def get(self, workspace_id: str) -> dict:
+    def get(self, workspace_id: str) -> dict[str, Any]:
         self.workspaces.get(workspace_id)
         path = self._path(workspace_id)
         try:
@@ -61,7 +63,7 @@ class EvaluationSetStore:
             seen.add(identifier)
         return normalized
 
-    def replace(self, workspace_id: str, questions: list[dict], *, expected_revision: str | None) -> dict:
+    def replace(self, workspace_id: str, questions: list[dict[str, Any]], *, expected_revision: str | None) -> dict[str, Any]:
         self.workspaces.validate_id(workspace_id)
         if expected_revision is not None and (not isinstance(expected_revision, str) or len(expected_revision) > 100):
             raise ValueError('Invalid evaluation set revision.')

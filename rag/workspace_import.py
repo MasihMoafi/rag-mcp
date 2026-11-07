@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import hashlib
 from pathlib import Path
 
@@ -21,7 +23,7 @@ _UNSPECIFIED_REVISION = object()
 
 def import_workspace_sources(store: WorkspaceStore, workspace_id: str, path: Path | str,
                              extensions: list[str] | None = None,
-                             *, expected_revision: str | None | object = _UNSPECIFIED_REVISION) -> dict:
+                             *, expected_revision: str | None | object = _UNSPECIFIED_REVISION) -> dict[str, Any]:
     """Extract one file or a bounded folder before publishing a CAS source snapshot."""
     workspace_id = store.validate_id(workspace_id)
     if expected_revision is not _UNSPECIFIED_REVISION and expected_revision is not None and (
