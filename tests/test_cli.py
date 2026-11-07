@@ -257,9 +257,13 @@ def test_setup_flags_save_every_embedding_field_without_asking(tmp_path: Path):
         "embed_model": "text-embedding-3-large",
         "embed_base_url": "https://example.test/v1",
         "embed_api_key": "sk-test",
+        # the key is bound to the origin it was saved for
+        "embed_key_origin": "https://example.test:443",
         "ollama_url": "http://localhost:11434",
     }
-    assert probes == [json.loads(config_path.read_text())]
+    saved = json.loads(config_path.read_text())
+    saved.pop("embed_key_origin")  # recorded when saving, after the probe
+    assert probes == [saved]
 
 
 def test_setup_ollama_url_and_default_model_and_no_verify(tmp_path: Path):

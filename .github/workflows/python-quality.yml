@@ -9,6 +9,19 @@ permissions:
   contents: read
 
 jobs:
+  default-store-no-git:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: '0.8.22'
+      - run: uv sync --frozen --python 3.10
+      - run: .venv/bin/python tests/install/default_store_smoke.py
+
   keyless:
     runs-on: ubuntu-latest
     timeout-minutes: 45

@@ -39,6 +39,7 @@ def main(port: int, log_path: str) -> None:
                     "authorization": self.headers.get("Authorization", ""),
                     "model": body.get("model"),
                     "count": len(body.get("input", [])) if isinstance(body.get("input"), list) else 1,
+                    "input": body.get("input", []),
                 }) + "\n")
 
         def _send(self, status: int, payload: dict) -> None:

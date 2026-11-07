@@ -7,6 +7,7 @@ import math
 import json
 import re
 from contextlib import contextmanager
+from pathlib import Path
 from threading import Event, Thread
 import uuid
 import hashlib
@@ -207,10 +208,15 @@ def execute_run(query: str, doc_path: str = "", extensions: list[str] | None = N
             tracing.annotate(embedding_model=result['configuration']['embedding']['model'],
                              model=result['configuration']['retrieval']['answer_model'],
                              reranker_model=result['configuration']['retrieval']['reranker_model'])
+            workspace_store_scope = False
             if workspace_id and not doc_path:
                 try:
                     # Snapshot and path must refer to the same immutable generation.
                     snapshot, root, source_paths = store.local_snapshot(workspace_id)
+                    canonical_root = root.resolve()
+                    source_paths = {str(canonical_root / Path(path).relative_to(root)): source
+                                    for path, source in source_paths.items()}
+                    root = canonical_root
                     if workspace_revision is not None and snapshot['revision'] != workspace_revision:
                         raise RunInputError('Workspace changed. Sync sources before querying.', 'workspace_conflict')
                     tracing.annotate(workspace_revision=snapshot['revision'])
@@ -224,6 +230,7 @@ def execute_run(query: str, doc_path: str = "", extensions: list[str] | None = N
                         # the scope Studio sends explicitly for its default view.
                         selected_files = list(source_paths)
                     doc_path = str(root)
+                    workspace_store_scope = True
                     all_sources = len(selected_files) == len(source_paths)
                     result['workspace_revision'] = snapshot['revision']
                     workspace_id = ''
@@ -232,7 +239,7 @@ def execute_run(query: str, doc_path: str = "", extensions: list[str] | None = N
                 except (ValueError, OSError):
                     pass  # Existing scope validation produces the public typed failure.
             response = server._query_knowledge_base(query, doc_path, extensions, workspace_id,
-                                                    selected_files=selected_files, all_sources=all_sources, cite_sources=client == 'studio', retrieval_only=mode == 'retrieve', answer_model=answer_model)
+                                                    selected_files=selected_files, all_sources=all_sources, cite_sources=client == 'studio', retrieval_only=mode == 'retrieve', answer_model=answer_model, workspace_store=workspace_store_scope)
             with tracing.span('public.boundary'):
                 answer, failed = decode_public_answer(response)
                 tracing.annotate(is_error=failed)

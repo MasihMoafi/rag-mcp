@@ -25,6 +25,7 @@ def fake_client(monkeypatch, agent, *, reject_new):
     monkeypatch.setattr(cli_agents.shutil, "which", lambda *a, **k: agent)
     monkeypatch.setattr(cli_agents, "server_command", lambda _: ["new-server", "mcp"])
     if agent == 'claude':
+        monkeypatch.setattr(cli_agents, '_prepare_claude_recovery', lambda *_: lambda: (True, None, None))
         monkeypatch.setattr(cli_agents, '_claude_entry', lambda *_: {
             'type': 'stdio', 'command': 'old-server', 'args': ['mcp']})
 
@@ -49,7 +50,7 @@ def fake_client(monkeypatch, agent, *, reject_new):
             registry["rag"] = [entry["command"], *entry["args"]]
             return subprocess.CompletedProcess(args, 0, "", "")
         command = "new-server" if "new-server" in args else "old-server"
-        if "rag" in registry:
+        if "rag" in registry and agent != 'codex':
             return subprocess.CompletedProcess(args, 1, "", "rag already exists")
         if command == "new-server" and reject_new:
             return subprocess.CompletedProcess(args, 1, "", "add failed")
@@ -62,9 +63,11 @@ def fake_client(monkeypatch, agent, *, reject_new):
 
 @pytest.mark.parametrize("agent", AGENTS)
 def test_failed_reconnect_keeps_the_old_registration(monkeypatch, agent):
-    registry, _ = fake_client(monkeypatch, agent, reject_new=True)
+    registry, calls = fake_client(monkeypatch, agent, reject_new=True)
     assert cli_agents.connect_agent(agent, {}, io.StringIO(), io.StringIO()) != 0
     assert registry["rag"] == ["old-server", "mcp"]
+    if agent == 'codex':
+        assert not any('remove' in call for call in calls)
 
 
 @pytest.mark.parametrize("agent", sorted(READABLE))
@@ -117,11 +120,43 @@ def test_failed_restore_reports_exact_entry(tmp_path, monkeypatch):
     (tmp_path / '.claude.json').write_text(json.dumps({'mcpServers': {'rag': entry}}))
     monkeypatch.setattr(cli_agents.shutil, 'which', lambda *a, **k: 'claude')
     monkeypatch.setattr(cli_agents, 'server_command', lambda _: ['new-server'])
-    monkeypatch.setattr(cli_agents.subprocess, 'run', lambda args, **kwargs:
-                        subprocess.CompletedProcess(args, 0 if 'remove' in args else 1, '', 'failed'))
+    config_path = tmp_path / '.claude.json'
+    def run(args, **kwargs):
+        if 'remove' in args:
+            config_path.write_text(json.dumps({'mcpServers': {}, 'other_setting': 'concurrent change'}))
+            return subprocess.CompletedProcess(args, 0, '', '')
+        if 'add-json' in args and json.loads(args[args.index('rag') + 1])['command'] == 'old-server':
+            raise FileNotFoundError('client disappeared')
+        return subprocess.CompletedProcess(args, 1, '', 'failed')
+    monkeypatch.setattr(cli_agents.subprocess, 'run', run)
     stderr = io.StringIO()
     assert cli_agents.connect_claude({'HOME': str(tmp_path)}, io.StringIO(), stderr) != 0
-    assert 'could not be restored' in stderr.getvalue()
+    assert json.loads(config_path.read_text())['mcpServers']['rag'] == entry
+    assert json.loads(config_path.read_text())['other_setting'] == 'concurrent change'
+    backups = list(tmp_path.glob('..claude.json.rag-backup-*'))
+    assert len(backups) == 1
+    assert json.loads(backups[0].read_text())['mcpServers']['rag'] == entry
+    assert 'restored from its backup' in stderr.getvalue()
+
+
+def test_failed_file_recovery_gives_backup_location_without_secrets(tmp_path, monkeypatch):
+    entry = {'type': 'stdio', 'command': 'old-server', 'args': ['mcp']}
+    config_path = tmp_path / '.claude.json'
+    config_path.write_text(json.dumps({'secret': 'private-token', 'mcpServers': {'rag': entry}}))
+    monkeypatch.setattr(cli_agents.shutil, 'which', lambda *a, **k: 'claude')
+    monkeypatch.setattr(cli_agents, 'server_command', lambda _: ['new-server', 'mcp'])
+    def run(args, **kwargs):
+        if 'remove' in args:
+            config_path.write_text('{broken')
+            return subprocess.CompletedProcess(args, 0, '', '')
+        return subprocess.CompletedProcess(args, 1, '', 'failed')
+    monkeypatch.setattr(cli_agents.subprocess, 'run', run)
+    stderr = io.StringIO()
+    assert cli_agents.connect_claude({'HOME': str(tmp_path)}, io.StringIO(), stderr) != 0
+    backup, = tmp_path.glob('..claude.json.rag-backup-*')
+    assert json.loads(backup.read_text())['mcpServers']['rag'] == entry
+    assert str(backup) in stderr.getvalue() and str(config_path) in stderr.getvalue()
+    assert 'private-token' not in stderr.getvalue()
 
 
 @pytest.mark.parametrize('cwd', [None, '/restricted/work'])
@@ -164,7 +199,7 @@ def test_codex_failed_restore_reports_exact_entry(monkeypatch):
     monkeypatch.setattr(cli_agents.subprocess, 'run', run)
     stderr = io.StringIO()
     assert cli_agents.connect_codex({}, io.StringIO(), stderr) != 0
-    assert 'could not be restored' in stderr.getvalue()
+    assert 'left unchanged' in stderr.getvalue()
 
 
 @pytest.mark.parametrize('agent', ['codex', 'claude'])
@@ -174,13 +209,14 @@ def test_replacement_preserves_restriction_and_refuses_secrets(agent, monkeypatc
     monkeypatch.setattr(cli_agents.shutil, 'which', lambda *a, **k: agent)
     monkeypatch.setattr(cli_agents, 'server_command', lambda _: ['new-server', 'mcp'])
     monkeypatch.setattr(cli_agents, '_claude_entry', lambda *_: entry)
+    monkeypatch.setattr(cli_agents, '_prepare_claude_recovery', lambda *_: lambda: (True, None, None))
     def run(args, **kwargs):
         calls.append(args)
         if 'get' in args:
             return subprocess.CompletedProcess(args, 0, json.dumps({'transport': entry}), '')
         if 'remove' in args:
             return subprocess.CompletedProcess(args, 0, '', '')
-        if len([c for c in calls if 'add' in c or 'add-json' in c]) == 1:
+        if agent == 'claude' and len([c for c in calls if 'add' in c or 'add-json' in c]) == 1:
             return subprocess.CompletedProcess(args, 1, '', 'exists')
         return subprocess.CompletedProcess(args, 0, '', '')
     monkeypatch.setattr(cli_agents.subprocess, 'run', run)

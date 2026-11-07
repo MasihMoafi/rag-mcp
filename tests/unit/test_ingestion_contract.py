@@ -1,5 +1,6 @@
 from types import SimpleNamespace
 from unittest.mock import Mock
+from pathlib import Path
 
 import pytest
 
@@ -46,7 +47,7 @@ def test_directory_formats_case_and_explicit_paths_are_preserved(tmp_path):
     pipeline._index_documents()
 
     expected = {str(path) for path in supported + [explicit]}
-    assert {call.args[0] for call in pipeline._extract_content.call_args_list} == expected
+    assert {Path(call.args[0]).name for call in pipeline._extract_content.call_args_list} == {path.name for path in supported + [explicit]}
     docs = pipeline.vector_db.add_documents_batch.call_args.args[0]
     assert {doc["file_path"] for doc in docs} == expected
     assert len(docs) == len(expected)

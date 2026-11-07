@@ -73,3 +73,29 @@ def test_mcp_import_enforces_allowed_roots(tmp_path):
     assert not replies[1]['result'].get('isError', False)
     assert all(reply['result']['isError'] for reply in replies[2:])
     assert not (tmp_path / 'workspaces' / 'book3').exists()
+
+
+def test_direct_query_rejects_file_swapped_after_scope_validation(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+    from rag import fetch, ingestion
+    from rag.parsing import extract_content
+
+    root = tmp_path / 'allowed'
+    root.mkdir()
+    source = root / 'public.md'
+    source.write_text('Public evidence.')
+    secret = tmp_path / 'secret.md'
+    secret.write_text('Private evidence.')
+    monkeypatch.setenv('RAG_MCP_ALLOWED_ROOTS', str(root))
+    parsed = []
+
+    def retrieve(**kwargs):
+        source.unlink()
+        source.symlink_to(secret)
+        pipeline = SimpleNamespace(config={}, _extract_content=lambda path: parsed.append(extract_content(path)))
+        return ingestion.build_documents(pipeline, [str(source)])
+
+    monkeypatch.setattr(fetch, 'fetchExternalKnowledge', retrieve)
+    result = json.loads(server._query_knowledge_base('evidence', str(source), retrieval_only=True))
+    assert 'retrieval failed' in result['error']
+    assert parsed == []

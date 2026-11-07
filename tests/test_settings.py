@@ -260,6 +260,8 @@ def test_interactive_setup_lists_every_choice_and_saves_only_after_verification(
     ]
     # but it is saved once, in the embedding field the resolver reads for openrouter.ai
     saved = {k: v for k, v in probes[0].items() if k != "openrouter_api_key"}
+    # and bound to the origin it was saved for
+    saved["embed_key_origin"] = "https://openrouter.ai:443"
     assert json.loads(settings.config_path(environ).read_text()) == saved
 
 

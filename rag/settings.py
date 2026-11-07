@@ -209,7 +209,23 @@ def _merged_config(
         value = environ.get(name, "").strip()
         if value:
             merged[key] = value
+    if 'embed_api_key' in merged and not environ.get('RAG_MCP_EMBED_API_KEY', '').strip():
+        saved_origin = str(saved.get('embed_key_origin') or _embedding_origin(str(saved.get('embed_base_url') or '')))
+        if not saved_origin or saved_origin != _embedding_origin(merged['embed_base_url']):
+            merged['embed_api_key'] = ''
     return merged
+
+
+def _embedding_origin(url: str) -> str:
+    from urllib.parse import urlsplit
+    try:
+        parsed = urlsplit(url or 'https://api.openai.com/v1')
+        if not parsed.scheme or not parsed.hostname:
+            return ''
+        port = parsed.port or {'http': 80, 'https': 443}.get(parsed.scheme.lower())
+        return f'{parsed.scheme.lower()}://{parsed.hostname.lower()}:{port}'
+    except ValueError:
+        return ''
 
 
 def embedding_config(environ: Mapping[str, str] | None = None) -> dict[str, str]:
@@ -235,6 +251,8 @@ def resolve_openrouter_embedding_key(config: Mapping[str, Any], environ: Mapping
     from urllib.parse import urlsplit
     env = os.environ if environ is None else environ
     explicit = env.get('RAG_MCP_EMBED_API_KEY', '').strip()
+    if _embedding_origin(str(config.get('embed_base_url') or '')) != 'https://openrouter.ai:443':
+        return explicit or str(config.get('embed_api_key') or '').strip()
     selected = (str(config.get('embed_api_key') or '').strip()
                 if urlsplit(str(config.get('embed_base_url') or '')).hostname == 'openrouter.ai' else '')
     return explicit or selected or resolve_openrouter_key(config, environ)
@@ -272,7 +290,12 @@ def update_settings(changes: Mapping[str, str], environ: Mapping[str, str] | Non
         if ((expected_data is not None and data != expected_data)
                 or (expected_revision is not REVISION_UNSET and config_revision(environ) != expected_revision)):
             raise SettingsConflict('Engine settings changed. Reload before saving.')
+        if (data.get('embed_api_key') and 'embed_key_origin' not in data
+                and 'embed_base_url' in changes and 'embed_api_key' not in changes):
+            data['embed_key_origin'] = _embedding_origin(str(data.get('embed_base_url') or ''))
         data.update({key: str(value) for key, value in changes.items()})
+        if 'embed_api_key' in changes:
+            data['embed_key_origin'] = _embedding_origin(str(data.get('embed_base_url') or '')) if changes['embed_api_key'] else ''
         write_json_atomic(path, data)
     return path
 
