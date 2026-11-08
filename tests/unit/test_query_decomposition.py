@@ -1,4 +1,16 @@
 from rag.query_decomposition import balanced_passages, decompose_query
+import pytest
+
+
+@pytest.mark.parametrize(('query', 'subject'), [
+    ('How can we assess solar-panel efficiency? Recommend a practical installation plan.', 'solar-panel efficiency'),
+    ('How can we measure river pollution? Explain a practical cleanup approach.', 'river pollution'),
+])
+def test_off_domain_evaluation_keeps_subject_in_each_facet(query, subject):
+    facets = decompose_query(query)
+    assert len(facets) >= 2
+    assert all(subject in facet for facet in facets)
+    assert all('RAG' not in facet and 'retrieval' not in facet for facet in facets)
 
 
 def test_explicit_multi_part_question_becomes_focused_facets():
@@ -7,22 +19,12 @@ def test_explicit_multi_part_question_becomes_focused_facets():
         "Explain the distinct failure points, and give the practical evaluation approach it recommends."
     )
 
-    assert decompose_query(query) == [
-        (
-            "Failure points across document ingestion (including outdated or improperly parsed "
-            "documents), flawed retrieval, and hallucinated or incomplete answer generation: "
-            "According to this chapter, why can retrieval metrics look good while the final answer "
-            "is poor? Explain the distinct failure points"
-        ),
-        (
-            "Recommended practical offline evaluation lifecycle: fixed golden dataset, CI/CD "
-            "evaluation gates, regression thresholds, and tuning."
-        ),
-        (
-            "Recommended practical online evaluation lifecycle: asynchronous sampled live "
-            "traffic, monitoring, A/B testing, and human feedback."
-        ),
-    ]
+    facets = decompose_query(query)
+    assert len(facets) == 3
+    assert facets[0].startswith("According to this chapter, why can retrieval metrics look good while the final answer is poor?")
+    assert facets[1].startswith("Explain the distinct failure points")
+    assert facets[2].startswith("give the practical evaluation approach it recommends.")
+    assert all(query in facet for facet in facets)
 
 
 def test_focused_question_is_not_decomposed():

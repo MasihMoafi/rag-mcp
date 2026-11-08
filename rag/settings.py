@@ -15,10 +15,10 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 from collections.abc import Callable, Mapping
 from pathlib import Path
-from typing import Any, TextIO
+from typing import Any, TextIO, cast
 from utils.persistence import write_json_atomic
 
-_query_settings = ContextVar('rag_query_settings', default=None)
+_query_settings: ContextVar[dict[str, str] | None] = ContextVar('rag_query_settings', default=None)
 REVISION_UNSET = object()
 
 
@@ -27,7 +27,7 @@ class SettingsConflict(ValueError):
 
 
 @contextmanager
-def locked_settings(environ: Mapping[str, str] | None = None, *, create=True):
+def locked_settings(environ: Mapping[str, str] | None = None, *, create: bool = True):
     """Serialize local config writes without a second file beside the config on POSIX."""
     path = config_path(environ)
     if create:
@@ -76,7 +76,8 @@ def frozen_settings():
     environ = dict(os.environ)
     saved = load_settings(environ)
     values = {**_merged_config(DEFAULTS, ENV_KEYS, str, environ, saved=saved),
-              **_resolved_retrieval_config(environ, saved)}
+              **_resolved_retrieval_config(environ, saved),
+              'openrouter_api_key': str(saved.get('openrouter_api_key') or '').strip()}
     token = _query_settings.set(values)
     try:
         yield
@@ -178,7 +179,7 @@ def load_settings(environ: Mapping[str, str] | None = None) -> dict[str, Any]:
         raise ValueError("Invalid RAG settings JSON; repair the configuration file before continuing.") from None
     if not isinstance(data, dict):
         raise ValueError("Invalid RAG settings: expected a JSON object.")
-    return data
+    return cast(dict[str, Any], data)
 
 
 def save_settings(settings: Mapping[str, Any], environ: Mapping[str, str] | None = None) -> Path:
@@ -188,7 +189,11 @@ def save_settings(settings: Mapping[str, Any], environ: Mapping[str, str] | None
     return path
 
 
-def _merged_config(defaults, env_keys, value_types, environ, *, saved=None):
+def _merged_config(
+    defaults: Mapping[str, str], env_keys: Mapping[str, str],
+    value_types: type | tuple[type, ...], environ: Mapping[str, str] | None,
+    *, saved: Mapping[str, Any] | None = None,
+) -> dict[str, str]:
     frozen = _query_settings.get() if environ is None else None
     if frozen is not None:
         return {key: frozen[key] for key in defaults}
@@ -204,12 +209,53 @@ def _merged_config(defaults, env_keys, value_types, environ, *, saved=None):
         value = environ.get(name, "").strip()
         if value:
             merged[key] = value
+    if 'embed_api_key' in merged and not environ.get('RAG_MCP_EMBED_API_KEY', '').strip():
+        saved_origin = str(saved.get('embed_key_origin') or _embedding_origin(str(saved.get('embed_base_url') or '')))
+        if not saved_origin or saved_origin != _embedding_origin(merged['embed_base_url']):
+            merged['embed_api_key'] = ''
     return merged
+
+
+def _embedding_origin(url: str) -> str:
+    from urllib.parse import urlsplit
+    try:
+        parsed = urlsplit(url or 'https://api.openai.com/v1')
+        if not parsed.scheme or not parsed.hostname:
+            return ''
+        port = parsed.port or {'http': 80, 'https': 443}.get(parsed.scheme.lower())
+        return f'{parsed.scheme.lower()}://{parsed.hostname.lower()}:{port}'
+    except ValueError:
+        return ''
 
 
 def embedding_config(environ: Mapping[str, str] | None = None) -> dict[str, str]:
     """Defaults, then the saved file, then RAG_MCP_* environment overrides."""
-    return _merged_config(DEFAULTS, ENV_KEYS, str, environ)
+    config = _merged_config(DEFAULTS, ENV_KEYS, str, environ)
+    frozen = _query_settings.get() if environ is None else None
+    config['openrouter_api_key'] = (frozen['openrouter_api_key'] if frozen is not None else
+                                    str(load_settings(environ).get('openrouter_api_key') or '').strip())
+    return config
+
+
+def resolve_openrouter_key(config: Mapping[str, Any], environ: Mapping[str, str] | None = None) -> str:
+    """Resolve the dedicated key, legacy OpenRouter embedding key, then environment."""
+    from urllib.parse import urlsplit
+    env = os.environ if environ is None else environ
+    dedicated = str(config.get('openrouter_api_key') or '').strip()
+    legacy = (str(config.get('embed_api_key') or '').strip()
+              if urlsplit(str(config.get('embed_base_url') or '')).hostname == 'openrouter.ai' else '')
+    return dedicated or legacy or env.get('OPENROUTER_API_KEY', '').strip()
+
+
+def resolve_openrouter_embedding_key(config: Mapping[str, Any], environ: Mapping[str, str] | None = None) -> str:
+    from urllib.parse import urlsplit
+    env = os.environ if environ is None else environ
+    explicit = env.get('RAG_MCP_EMBED_API_KEY', '').strip()
+    if _embedding_origin(str(config.get('embed_base_url') or '')) != 'https://openrouter.ai:443':
+        return explicit or str(config.get('embed_api_key') or '').strip()
+    selected = (str(config.get('embed_api_key') or '').strip()
+                if urlsplit(str(config.get('embed_base_url') or '')).hostname == 'openrouter.ai' else '')
+    return explicit or selected or resolve_openrouter_key(config, environ)
 
 
 def _resolved_retrieval_config(environ: Mapping[str, str], saved: Mapping[str, Any]) -> dict[str, str]:
@@ -218,9 +264,7 @@ def _resolved_retrieval_config(environ: Mapping[str, str], saved: Mapping[str, A
                 or environ.get(RETRIEVAL_ENV['reranker_type'], '').strip())
     if not explicit:
         embedding = _merged_config(DEFAULTS, ENV_KEYS, str, environ, saved=saved)
-        has_key = (environ.get('OPENROUTER_API_KEY', '').strip()
-                   or (embedding['embed_api_key'].strip()
-                       if 'openrouter.ai' in embedding['embed_base_url'].lower() else ''))
+        has_key = resolve_openrouter_key({**embedding, 'openrouter_api_key': saved.get('openrouter_api_key')}, environ)
         if not has_key:
             config['reranker_type'] = 'off'
     if config['reranker_type'] in {'disabled', 'none', 'off'}:
@@ -238,7 +282,7 @@ def retrieval_config(environ: Mapping[str, str] | None = None) -> dict[str, str]
 
 def update_settings(changes: Mapping[str, str], environ: Mapping[str, str] | None = None, *,
                     expected_data: Mapping[str, Any] | None = None,
-                    expected_revision=REVISION_UNSET) -> Path:
+                    expected_revision: object = REVISION_UNSET) -> Path:
     """Change a few keys and keep everything else in the file."""
     path = config_path(environ)
     with locked_settings(environ):
@@ -246,7 +290,12 @@ def update_settings(changes: Mapping[str, str], environ: Mapping[str, str] | Non
         if ((expected_data is not None and data != expected_data)
                 or (expected_revision is not REVISION_UNSET and config_revision(environ) != expected_revision)):
             raise SettingsConflict('Engine settings changed. Reload before saving.')
+        if (data.get('embed_api_key') and 'embed_key_origin' not in data
+                and 'embed_base_url' in changes and 'embed_api_key' not in changes):
+            data['embed_key_origin'] = _embedding_origin(str(data.get('embed_base_url') or ''))
         data.update({key: str(value) for key, value in changes.items()})
+        if 'embed_api_key' in changes:
+            data['embed_key_origin'] = _embedding_origin(str(data.get('embed_base_url') or '')) if changes['embed_api_key'] else ''
         write_json_atomic(path, data)
     return path
 
@@ -358,13 +407,24 @@ def finish_setup(
     verify: Callable[[Mapping[str, str]], int] | None = None,
 ) -> int:
     """Embed one probe sentence with the chosen model, then save the choice."""
+    from urllib.parse import urlsplit
+    config = dict(config)
+    if urlsplit(config.get('embed_base_url', '')).hostname == 'openrouter.ai' and config.get('embed_api_key'):
+        override = (os.environ if environ is None else environ).get('RAG_MCP_EMBED_API_KEY', '').strip()
+        if override and override != config['embed_api_key']:
+            stderr.write('Unset RAG_MCP_EMBED_API_KEY before saving a different setup key. Nothing was saved.\n')
+            return 1
     if verify is not None and has_embedding(config):
         stdout.write("Checking the embedding model...\n")
         stdout.flush()
         try:
-            dimensions = verify(config)
-        except Exception as error:  # shown to the user; nothing is saved
-            stderr.write(f"Could not embed a test sentence: {error}\nNothing was saved.\n")
+            probe_config = dict(config)
+            if urlsplit(config.get('embed_base_url', '')).hostname == 'openrouter.ai':
+                probe_config['openrouter_api_key'] = resolve_openrouter_embedding_key(
+                    {**embedding_config(environ), **config}, environ)
+            dimensions = verify(probe_config)
+        except Exception:
+            stderr.write("Embedding verification failed. Check the model, credentials and provider availability; nothing was saved.\n")
             return 1
         stdout.write(f"Works: {dimensions} dimensions.\n")
     path = update_settings(config, environ)

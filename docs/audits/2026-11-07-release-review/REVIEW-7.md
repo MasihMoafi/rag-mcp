@@ -1,0 +1,23 @@
+**Verdict: No.** At `9a5847c`, five findings meet the release-blocking criteria.
+
+1. **API keys appear in process arguments.** The documented `rag setup --provider openai_compatible ... --api-key fake-key` exposes `fake-key` in `ps` while setup runs, on Linux systems with normal `/proc` access. An interactive shell may also save it in history. [README.md:354](../../../README.md:354), [rag/cli.py:731](../../../rag/cli.py:731)
+
+2. **Provider errors can put a key in CLI logs.** With an OpenAI-compatible embedding provider that responds `401` and echoes `Bearer fake-key`, `rag search ... --json` writes that key to stderr during index construction. An in-memory HTTP probe reproduced the raw diagnostic. [rag/embeddings.py:218](../../../rag/embeddings.py:218), [rag/fetch.py:218](../../../rag/fetch.py:218)
+
+3. **Workspace type filters select the wrong files.** Import `main.py`, then run `rag query "alpha" --workspace W --type py`: it reports `RAG query failed (ValueError)`. The store renamed the source to `.txt`, and filtering uses that stored suffix. Conversely, `--type txt` can search the imported Python source and send its text to the configured provider. MCP workspace queries share this path. [rag/workspaces.py:35](../../../rag/workspaces.py:35), [rag/server.py:1005](../../../rag/server.py:1005), [rag/server.py:1110](../../../rag/server.py:1110)
+
+4. **A multi-part question can lose an entire request.** With BM25 only and a document containing `backup schedule: nightly`, query `What is the retention period? For each system, give the backup schedule.` The search drops the second sentence and returns `No relevant information found.` An in-memory Tantivy probe found zero matches for the retained facet and one for `backup schedule`. [rag/query_decomposition.py:14](../../../rag/query_decomposition.py:14), [rag/server.py:1141](../../../rag/server.py:1141), [rag/core.py:245](../../../rag/core.py:245)
+
+5. **A test-only folder cannot be queried.** If `tests/` contains `test_login.py`, `rag query "What does login cover?" --path tests` exits 2 with `No readable documents found in the selected scope.` Folder discovery excludes `test_*.py`, even though explicitly selecting the same file is now allowed. [rag/server.py:66](../../../rag/server.py:66), [rag/cli.py:908](../../../rag/cli.py:908)
+
+**LATER**
+
+- A workspace import of a mixed Markdown/CSV folder fails on the light install instead of skipping CSV; the new skip applies to path queries. [rag/workspace_import.py:94](../../../rag/workspace_import.py:94), [rag/server.py:1118](../../../rag/server.py:1118)
+- Re-adding a folder retains sources removed from it. [rag/workspace_import.py:120](../../../rag/workspace_import.py:120)
+- Multi-facet queries use a fixed five-passage combination limit, even with `--top 1`. [rag/server.py:1155](../../../rag/server.py:1155)
+- Imported PDFs are stored as text, so their original page locations are unavailable. [rag/workspaces.py:35](../../../rag/workspaces.py:35), [rag/passage_answers.py:113](../../../rag/passage_answers.py:113)
+- The installed-artifact smoke checks a keyless answer failure, but not a successful synthesized answer. [tests/install/smoke.sh:40](../../../tests/install/smoke.sh:40)
+
+In the sampled engineering comparison, both projects gate publication on checks. rag-mcp uses a handwritten MCP argument validator and tests installed artifacts on Python 3.13; the reference SDK uses constrained response models and its release workflow exercises installed SDK/MCP paths on Python 3.10 and 3.14. This is a sampled comparison. [rag/server.py:579](../../../rag/server.py:579), [rag release workflow](../../../.github/workflows/release.yml:55), [reference models](deepseek-harness/python/sdk/src/deepseek_harness/models.py:35), [reference release workflow](deepseek-harness/.github/workflows/python-release.yml:33)
+
+Checked: checkout CLI help, MCP initialization and tool listing, source paths, and the in-memory probes above. **Not checked:** installed artifacts, live providers, real MCP hosts, or Python 3.10–3.12. The test suite was not run; no files were changed.

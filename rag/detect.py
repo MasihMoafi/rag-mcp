@@ -106,6 +106,14 @@ def detect_all(environ: Mapping[str, str] | None = None, ollama_url: str | None 
             "cached_cpu_models": cached_cpu_models(os.environ if environ is None else environ)}
 
 
+def safe_detect_all(environ: Mapping[str, str] | None = None, ollama_url: str | None = None) -> dict[str, Any]:
+    """Keep provider failures out of client-visible detection errors."""
+    try:
+        return detect_all(environ) if ollama_url is None else detect_all(environ, ollama_url)
+    except Exception:
+        raise ValueError('Provider detection failed. Check runtime and provider availability.') from None
+
+
 def describe(detection: Mapping[str, Any]) -> list[str]:
     lines = []
     ollama = detection.get("ollama") or {}

@@ -21,6 +21,7 @@ _SCALARS = {
     'manifest_id', 'generation_id', 'prompt_sha256', 'source_id',
     'client', 'workspace_id', 'workspace_revision', 'configuration_revision', 'mode',
     'runtime_manifest_sha256', 'runtime_manifest_status',
+    'failure_stage', 'failure_class',
 }
 
 

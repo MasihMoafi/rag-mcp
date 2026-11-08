@@ -45,6 +45,7 @@ def test_bundle_rejects_unsafe_entries():
 
 
 def test_missing_node_and_occupied_port_fail_without_launch(monkeypatch):
+    monkeypatch.setattr(studio_bundle, '_archive_path', lambda: __import__('pathlib').Path(__file__))
     monkeypatch.setattr(studio_bundle.shutil, 'which', lambda *_args, **_kwargs: None)
     with pytest.raises(studio_bundle.StudioBundleError, match='Node.js 22'):
         with studio_bundle.serve_studio(3000):
@@ -53,6 +54,22 @@ def test_missing_node_and_occupied_port_fail_without_launch(monkeypatch):
         occupied.bind(('127.0.0.1', 0))
         with pytest.raises(studio_bundle.StudioBundleError, match='already in use'):
             studio_bundle._check_port(occupied.getsockname()[1])
+
+
+def test_missing_bundle_is_reported_before_checking_node(monkeypatch, tmp_path):
+    monkeypatch.setattr(studio_bundle, '_archive_path', lambda: tmp_path / 'missing.tar.gz')
+    monkeypatch.setattr(studio_bundle.shutil, 'which', lambda *_args, **_kwargs: None)
+    with pytest.raises(studio_bundle.StudioBundleError, match='Studio is not included in this release'):
+        with studio_bundle.serve_studio():
+            pass
+
+
+def test_studio_cli_exits_when_bundle_is_missing(monkeypatch, tmp_path):
+    from rag.cli import main
+    monkeypatch.setattr(studio_bundle, '_archive_path', lambda: tmp_path / 'missing.tar.gz')
+    errors = io.StringIO()
+    assert main(['studio', '--no-open'], stdout=io.StringIO(), stderr=errors) != 0
+    assert 'Studio is not included in this release' in errors.getvalue()
 
 
 @pytest.mark.skipif(os.name != 'posix', reason='POSIX TIME_WAIT socket behavior')

@@ -2,11 +2,11 @@
 
 import hashlib
 import json
-from pathlib import Path
 import shutil
 import tempfile
-from filelock import FileLock
+from pathlib import Path
 
+from filelock import FileLock
 from utils.persistence import write_json_atomic
 
 from .formats import INDEXABLE_EXTENSIONS
@@ -32,7 +32,7 @@ def source_snapshot(document_paths):
     sources = []
     for document_path in document_paths:
         source = Path(document_path)
-        paths = source.rglob('*') if source.is_dir() else [source]
+        paths = source.rglob("*") if source.is_dir() else [source]
         for path in paths:
             # Inside a folder only the files the index reads can invalidate it:
             # a hidden or unsupported file is never indexed, so touching it is
@@ -41,40 +41,60 @@ def source_snapshot(document_paths):
                 continue
             if path.is_file():
                 stat = path.stat()
-                sources.append([str(path.resolve()), stat.st_size, stat.st_mtime_ns, stat.st_ctime_ns])
+                sources.append(
+                    [
+                        str(path.resolve()),
+                        stat.st_size,
+                        stat.st_mtime_ns,
+                        stat.st_ctime_ns,
+                    ]
+                )
     return sorted(sources)
 
 
 def _indexable(relative_path):
-    return (relative_path.name.lower().endswith(INDEXABLE_EXTENSIONS)
-            and not any(part.startswith('.') for part in relative_path.parts))
+    return relative_path.name.lower().endswith(INDEXABLE_EXTENSIONS) and not any(
+        part.startswith(".") for part in relative_path.parts
+    )
 
 
 def source_delta(previous_stamp, stamp):
     """Sources to re-read and to drop when nothing but the file list changed."""
     if not isinstance(previous_stamp, dict) or previous_stamp == stamp:
         return None
-    settings = lambda manifest: {name: value for name, value in manifest.items() if name != 'sources'}
+    settings = lambda manifest: {
+        name: value for name, value in manifest.items() if name != "sources"
+    }
     if settings(previous_stamp) != settings(stamp):
         return None  # Chunking, parsing, storage or the embedding model changed.
-    previous = {entry[0]: tuple(entry[1:]) for entry in previous_stamp.get('sources', [])}
-    current = {entry[0]: tuple(entry[1:]) for entry in stamp['sources']}
-    delta = {'changed': sorted(path for path, revision in current.items() if previous.get(path) != revision),
-             'removed': sorted(set(previous) - set(current))}
-    return delta if delta['changed'] or delta['removed'] else None
+    previous = {
+        entry[0]: tuple(entry[1:]) for entry in previous_stamp.get("sources", [])
+    }
+    current = {entry[0]: tuple(entry[1:]) for entry in stamp["sources"]}
+    delta = {
+        "changed": sorted(
+            path for path, revision in current.items() if previous.get(path) != revision
+        ),
+        "removed": sorted(set(previous) - set(current)),
+    }
+    return delta if delta["changed"] or delta["removed"] else None
 
 
 def active_directory(scope_root):
     root = Path(scope_root)
     try:
-        generation = json.loads((root / 'active-index.json').read_text())
+        generation = json.loads((root / "active-index.json").read_text())
     except FileNotFoundError:
         return root  # Legacy indexes stored data directly in their scope directory.
-    if not isinstance(generation, str) or not generation.startswith('generation-') or Path(generation).name != generation:
-        raise ValueError('Invalid active index generation')
+    if (
+        not isinstance(generation, str)
+        or not generation.startswith("generation-")
+        or Path(generation).name != generation
+    ):
+        raise ValueError("Invalid active index generation")
     directory = root / generation
     if not directory.is_dir() or directory.is_symlink():
-        raise ValueError('Active index generation is missing or invalid')
+        raise ValueError("Active index generation is missing or invalid")
     return directory
 
 
@@ -83,28 +103,42 @@ def _build_generation(config, build, pending, active, delta):
     if delta is not None:
         shutil.copytree(active, pending, dirs_exist_ok=True)
         try:
-            return build({**config, 'persist_dir': str(pending), 'force_reindex': False})
+            return build(
+                {**config, "persist_dir": str(pending), "force_reindex": False}
+            )
         except RebuildRequired:
             shutil.rmtree(pending)
             pending.mkdir()
-    return build({**config, 'persist_dir': str(pending), 'force_reindex': True, 'source_delta': None})
+    return build(
+        {
+            **config,
+            "persist_dir": str(pending),
+            "force_reindex": True,
+            "source_delta": None,
+        }
+    )
 
 
 def _remove_superseded(root, keep):
     """Remove finished generations older than the replaced one. A running reader can still use the replaced one."""
-    for generation in root.glob('generation-*'):
+    for generation in root.glob("generation-*"):
         # A generation without its manifest is still being built by another process.
-        if generation not in keep and (generation / 'source-manifest.json').is_file():
+        if generation not in keep and (generation / "source-manifest.json").is_file():
             shutil.rmtree(generation, ignore_errors=True)
 
 
 def open_or_build(config, build):
     """The builder must close its own resources if construction fails."""
-    root = Path(config.get('index_scope', config['persist_dir']))
+    root = Path(config.get("index_scope", config["persist_dir"]))
     active = active_directory(root)
-    config = {**config, 'index_scope': str(root), 'persist_dir': str(active)}
-    delta = config.get('source_delta')
-    if not config.get('force_reindex', False) and delta is None and active.is_dir() and any(active.iterdir()):
+    config = {**config, "index_scope": str(root), "persist_dir": str(active)}
+    delta = config.get("source_delta")
+    if (
+        not config.get("force_reindex", False)
+        and delta is None
+        and active.is_dir()
+        and any(active.iterdir())
+    ):
         try:
             return build(config)
         except RebuildRequired:
@@ -113,26 +147,30 @@ def open_or_build(config, build):
         delta = None  # A legacy index has no generation to carry forward.
 
     root.mkdir(parents=True, exist_ok=True)
-    document_paths = config.get('document_paths', [])
-    sources = config.get('source_stamp', {}).get('sources')
+    document_paths = config.get("document_paths", [])
+    sources = config.get("source_stamp", {}).get("sources")
     if sources is None:
         sources = source_snapshot(document_paths)
-    pending = Path(tempfile.mkdtemp(prefix='generation-', dir=root))
+    pending = Path(tempfile.mkdtemp(prefix="generation-", dir=root))
     instance = None
     published = False
     try:
         instance = _build_generation(config, build, pending, active, delta)
-        if 'source_stamp' in config:
-            write_json_atomic(pending / 'source-manifest.json', config['source_stamp'])
+        if "source_stamp" in config:
+            write_json_atomic(pending / "source-manifest.json", config["source_stamp"])
         # Storage and metadata must succeed before this generation becomes active.
-        with FileLock(str(root / '.publication.lock'), timeout=30):
+        with FileLock(str(root / ".publication.lock"), timeout=30):
             if active_directory(root) != active:
-                raise RuntimeError('Index changed during another refresh; retry the query.')
+                raise RuntimeError(
+                    "Index changed during another refresh; retry the query."
+                )
             if source_snapshot(document_paths) != sources:
-                raise RuntimeError('Sources changed during indexing; retry the query.')
-            published = True  # Once publication starts, retain data unless proven unpublished.
+                raise RuntimeError("Sources changed during indexing; retry the query.")
+            published = (
+                True  # Once publication starts, retain data unless proven unpublished.
+            )
             try:
-                write_json_atomic(root / 'active-index.json', pending.name)
+                write_json_atomic(root / "active-index.json", pending.name)
             except BaseException:
                 # Check under the publication lock: replacement may have succeeded.
                 try:
@@ -144,11 +182,16 @@ def open_or_build(config, build):
         return instance
     except BaseException as error:
         try:
-            close = getattr(instance, 'close', None)
+            close = getattr(instance, "close", None)
             if close is not None:
                 close()
             if not published:
                 shutil.rmtree(pending)
         except Exception as cleanup_error:
-            error.add_note(f"Staging cleanup failed ({type(cleanup_error).__name__}); inspect {pending}")
+            note = f"Staging cleanup failed ({type(cleanup_error).__name__}); inspect {pending}"
+            # BaseException.add_note is Python 3.11+; ragmcp supports 3.10, where __notes__ is set directly.
+            if hasattr(error, "add_note"):
+                error.add_note(note)
+            else:
+                error.__notes__ = [*getattr(error, "__notes__", []), note]
         raise

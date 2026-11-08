@@ -2,11 +2,16 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import hashlib
+import os
+import stat
+import tempfile
 from pathlib import Path
 
 from rag.parsing import extract_content
-from rag.server import _validate_rag_scope
+from rag.server import _normalize_path, _validate_rag_scope
 from rag.workspaces import WorkspaceConflict, WorkspaceStore
 
 
@@ -19,9 +24,31 @@ _SOURCE_TYPES = {
 _UNSPECIFIED_REVISION = object()
 
 
+def _open_source(path: Path) -> int:
+    """Open every path component without following links, including directory swaps."""
+    if not hasattr(os, 'O_NOFOLLOW') or not hasattr(os, 'O_DIRECTORY'):
+        descriptor = os.open(path, os.O_RDONLY)
+        try:
+            if path.resolve(strict=True) != path or not os.path.samestat(os.fstat(descriptor), os.stat(path)):
+                raise ValueError('A source changed during import. Retry with a stable folder.')
+            return descriptor
+        except BaseException:
+            os.close(descriptor)
+            raise
+    directory = os.open(path.anchor, os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        for part in path.parts[1:-1]:
+            next_directory = os.open(part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=directory)
+            os.close(directory)
+            directory = next_directory
+        return os.open(path.name, os.O_RDONLY | os.O_NOFOLLOW, dir_fd=directory)
+    finally:
+        os.close(directory)
+
+
 def import_workspace_sources(store: WorkspaceStore, workspace_id: str, path: Path | str,
                              extensions: list[str] | None = None,
-                             *, expected_revision: str | None | object = _UNSPECIFIED_REVISION) -> dict:
+                             *, expected_revision: str | None | object = _UNSPECIFIED_REVISION) -> dict[str, Any]:
     """Extract one file or a bounded folder before publishing a CAS source snapshot."""
     workspace_id = store.validate_id(workspace_id)
     if expected_revision is not _UNSPECIFIED_REVISION and expected_revision is not None and (
@@ -33,7 +60,7 @@ def import_workspace_sources(store: WorkspaceStore, workspace_id: str, path: Pat
         observed = store.get(workspace_id)['revision'] if manifest_path.exists() else None
         if observed != expected_revision:
             raise WorkspaceConflict('Workspace changed in another client. Reload before importing.')
-    path = Path(path).expanduser().resolve()
+    path = Path(_normalize_path(str(path)))
     scope = _validate_rag_scope(path, extensions)
     files = sorted(scope.files) if scope is not None else [str(path)]
     if not files:
@@ -42,25 +69,45 @@ def import_workspace_sources(store: WorkspaceStore, workspace_id: str, path: Pat
     imported, skipped = [], []
     for file in files:
         source = Path(file)
-        before = source.stat()
-        if before.st_size > store.max_document_bytes:
-            raise ValueError(f'Source file exceeds the {store.max_document_bytes}-byte import limit.')
         try:
-            content = extract_content(file)
+            with os.fdopen(_open_source(source), 'rb') as stream:
+                before = os.fstat(stream.fileno())
+                if not stat.S_ISREG(before.st_mode):
+                    raise ValueError('Source is not a regular file.')
+                if before.st_size > store.max_document_bytes:
+                    raise ValueError(f'Source file exceeds the {store.max_document_bytes}-byte import limit.')
+                with tempfile.TemporaryDirectory(prefix='rag-import-') as directory:
+                    snapshot = Path(directory) / source.name
+                    with snapshot.open('wb') as output:
+                        remaining = store.max_document_bytes + 1
+                        while remaining:
+                            block = stream.read(min(65536, remaining))
+                            if not block:
+                                break
+                            output.write(block)
+                            remaining -= len(block)
+                        if remaining == 0:
+                            raise ValueError('Source file exceeds the import limit.')
+                    after = os.fstat(stream.fileno())
+                    if (before.st_mtime_ns, before.st_size) != (after.st_mtime_ns, after.st_size):
+                        raise ValueError('A source changed during import. Retry with a stable folder.')
+                    content = extract_content(str(snapshot))
+                    empty = not snapshot.read_bytes().strip() if not content or not content.strip() else False
+                current = source.lstat()
+                if source.resolve(strict=True) != source or (current.st_dev, current.st_ino, current.st_mtime_ns, current.st_size) != (
+                        before.st_dev, before.st_ino, before.st_mtime_ns, before.st_size):
+                    raise ValueError('A source changed during import. Retry with a stable folder.')
         except (OSError, ValueError, RuntimeError) as error:
             where = source.relative_to(path) if scope is not None else source.name
             raise ValueError(f'Cannot read {where}: {error}') from error
         if not content or not content.strip():
             # An empty file (a package's __init__.py) loses nothing; text the parser lost does.
-            if scope is not None and not source.read_bytes().strip():
+            if scope is not None and empty:
                 skipped.append(str(source.relative_to(path)))
                 continue
             raise ValueError(f'No readable text found in {source.name}.')
-        after = source.stat()
-        if (before.st_mtime_ns, before.st_size) != (after.st_mtime_ns, after.st_size):
-            raise ValueError('A source changed during import. Retry with a stable folder.')
         imported.append({
-            'id': 'file-' + hashlib.sha256(str(source.resolve()).encode()).hexdigest(),
+            'id': 'file-' + hashlib.sha256(str(source).encode()).hexdigest(),
             'name': str(source.relative_to(path)) if scope is not None else source.name,
             'sourceType': _SOURCE_TYPES.get(source.suffix.lower(), 'text'),
             'content': content,

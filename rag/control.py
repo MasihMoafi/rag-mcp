@@ -113,7 +113,8 @@ def capabilities():
                 'openrouter.ai': ('openrouter_key', ('OPENROUTER_API_KEY',))}
         if host in keys:
             embedding_credential, names = keys[host]
-            embedding_availability = ('unknown' if embedding['embed_api_key'].strip()
+            embedding_availability = ('unknown' if (host == 'openrouter.ai' and hosted == 'unknown')
+                                      or (host != 'openrouter.ai' and embedding['embed_api_key'].strip())
                                       or any(os.environ.get(name, '').strip() for name in names) else 'unavailable')
         else:
             embedding_availability = 'unknown'

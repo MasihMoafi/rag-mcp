@@ -35,7 +35,7 @@ def test_tool_failure_is_isolated_to_its_request(monkeypatch, capsys, error):
 
     monkeypatch.setattr(server, 'query_knowledge_base', query)
     call = {'jsonrpc': '2.0', 'method': 'tools/call',
-            'params': {'name': 'query_knowledge_base', 'arguments': {'query': 'q'}}}
+            'params': {'name': 'query_knowledge_base', 'arguments': {'query': 'q', 'workspace_id': 'book'}}}
     replies, output = _run(monkeypatch, capsys, [
         {'jsonrpc': '2.0', 'id': 1, 'method': 'initialize', 'params': {}},
         {**call, 'id': 2},
