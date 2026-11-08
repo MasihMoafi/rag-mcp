@@ -1,6 +1,10 @@
 import json
 
-from evals.benchmarks.answers_codex import ANSWER_SCHEMA, run, subscription_env
+from evals.benchmarks.answers_codex import (
+    ANSWER_SCHEMA,
+    run,
+    subscription_env,
+)
 
 
 def job(number):
@@ -16,6 +20,13 @@ def job(number):
 def good_call(_prompt, schema, _model, _effort):
     if schema is ANSWER_SCHEMA:
         return {"text": "Ten [d1].", "citations": ["d1"]}
+    if schema is QUALITY_SCHEMA:
+        return {
+            "claims": [{"claim": "Ten", "supported": True}],
+            "relevance": "full",
+            "passages": [True],
+            "facts": [],
+        }
     return {"label": "correct", "reason": "matches"}
 
 
@@ -33,7 +44,65 @@ def test_rerun_skips_finished_questions(tmp_path):
 
     assert run([job(1)], tmp_path, "m", "e", 1, call=counting)["correct"] == 1
     summary = run([job(1), job(2)], tmp_path, "m", "e", 1, call=counting)
-    assert summary["answered"] == 2 and len(calls) == 4
+    assert summary["answered"] == 2 and len(calls) == 6
+
+
+def test_a_different_model_judges_the_answer(tmp_path):
+    used = {}
+
+    def recording(prompt, schema, model, effort):
+        used[id(schema)] = model
+        return good_call(prompt, schema, model, effort)
+
+    run([job(1)], tmp_path, "writer", "e", 1, call=recording)
+    assert used[id(ANSWER_SCHEMA)] == "writer"
+    assert (
+        used[id(GRADE_SCHEMA)] == used[id(QUALITY_SCHEMA)] == DEFAULT_JUDGE != "writer"
+    )
+
+
+def test_quality_metrics_follow_their_definitions():
+    case = dict(
+        job(1),
+        passages=[{"doc_id": "d1", "text": "a"}, {"doc_id": "d2", "text": "b"}],
+        answer_facts=["f1", "f2"],
+        gold_doc_ids=["d1"],
+    )
+    verdict = {
+        "claims": [
+            {"claim": "x", "supported": True},
+            {"claim": "y", "supported": False},
+        ],
+        "relevance": "partial",
+        "passages": [False, True],
+        "facts": [
+            {"in_passages": True, "in_answer": False},
+            {"in_passages": True, "in_answer": True},
+        ],
+    }
+    scores = quality_scores(
+        verdict, case, {"text": "x [d1] y [d2]", "citations": ["d1", "d2"]}
+    )
+    assert scores == {
+        "faithfulness": 0.5,
+        "answer_relevance": 0.5,
+        "context_precision": 0.5,
+        "context_recall": 1.0,
+        "completeness": 0.5,
+        "citation_precision": 0.5,
+    }
+    assert average_precision([True, False, True]) == (1 + 2 / 3) / 2
+
+
+def test_refusal_has_no_faithfulness_and_miscounted_verdicts_fail():
+    import pytest
+
+    case = job(1)
+    verdict = {"claims": [], "relevance": "none", "passages": [False], "facts": []}
+    refused = {"text": "Insufficient evidence", "citations": []}
+    assert quality_scores(verdict, case, refused)["faithfulness"] is None
+    with pytest.raises(ValueError, match="wrong number"):
+        quality_scores(dict(verdict, passages=[]), case, refused)
 
 
 def test_uncited_answer_is_retried_then_recorded_as_failed(tmp_path):

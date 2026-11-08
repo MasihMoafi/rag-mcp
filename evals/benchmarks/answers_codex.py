@@ -22,6 +22,10 @@ from threading import Lock
 
 from .answers import answer_prompt, grade_prompt, validate_answer
 from .common import read_ledger, write_json
+from .quality import QUALITY_SCHEMA, mean_scores, quality_prompt, quality_scores
+
+# The answer writer should not mark its own work.
+DEFAULT_JUDGE = "gpt-6.1-terra"
 
 ANSWER_SCHEMA = {
     "type": "object",
@@ -92,25 +96,34 @@ def run_codex(prompt, schema, model, effort):
         return json.loads((folder / "reply.json").read_text())
 
 
-def load_jobs(retrieval, arm, limit):
+def load_jobs(retrieval, arm, limit, questions=None):
+    """Completed searches for one arm; `questions` is the dataset's file, for facts and gold documents."""
     _, events = read_ledger(retrieval)
+    labels = {}
+    if questions:
+        for line in Path(questions).read_text().splitlines():
+            row = json.loads(line)
+            labels[row["question_id"]] = row
     jobs = {}
     for event in events:
         if event.get("event") == "complete" and event.get("arm") == arm:
+            label = labels.get(event["question_id"], {})
             jobs[event["question_id"]] = {
                 "id": event["question_id"],
                 "arm": arm,
                 "question": event["question"],
                 "gold_answer": event["gold_answer"],
                 "passages": event["passages"][:5],
+                "answer_facts": label.get("answer_facts", []),
+                "gold_doc_ids": label.get("expected_doc_ids", []),
             }
     if not jobs:
         raise ValueError(f"No completed questions for arm {arm!r}")
     return list(jobs.values())[:limit]
 
 
-def answer_one(job, call, model, effort):
-    """Answer then grade one question; an invalid answer gets one retry."""
+def answer_one(job, call, model, effort, judge):
+    """Answer with `model`, then grade and score with a different `judge`; an invalid answer gets one retry."""
     started = time.monotonic()
     for attempt in (1, 2):
         answer = call(answer_prompt(job), ANSWER_SCHEMA, model, effort)
@@ -120,7 +133,8 @@ def answer_one(job, call, model, effort):
         except ValueError:
             if attempt == 2:
                 raise
-    grade = call(grade_prompt(job, answer), GRADE_SCHEMA, model, effort)
+    grade = call(grade_prompt(job, answer), GRADE_SCHEMA, judge, effort)
+    verdict = call(quality_prompt(job, answer), QUALITY_SCHEMA, judge, effort)
     return {
         "question_id": job["id"],
         "arm": job["arm"],
@@ -128,7 +142,10 @@ def answer_one(job, call, model, effort):
         "answer": answer,
         "label": grade["label"],
         "reason": grade["reason"],
+        "quality": quality_scores(verdict, job, answer),
+        "verdict": verdict,
         "model": model,
+        "judge": judge,
         "effort": effort,
         "seconds": round(time.monotonic() - started, 1),
     }
@@ -148,10 +165,11 @@ def summarize(rows, jobs):
         "partial": labels["partial"],
         "wrong": labels["wrong"],
         "accuracy": round(labels["correct"] / len(finished), 4) if finished else None,
+        "quality": mean_scores(finished),
     }
 
 
-def run(jobs, output, model, effort, workers, call=run_codex):
+def run(jobs, output, model, effort, workers, call=run_codex, judge=DEFAULT_JUDGE):
     """Never raises once calls have started: failures are recorded and the summary still written."""
     output = Path(output)
     output.mkdir(parents=True, exist_ok=True)
@@ -170,7 +188,7 @@ def run(jobs, output, model, effort, workers, call=run_codex):
         if failures[0] >= MAX_CONSECUTIVE_FAILURES:
             return
         try:
-            row = answer_one(job, call, model, effort)
+            row = answer_one(job, call, model, effort, judge)
         except Exception as error:  # noqa: BLE001 - runbook: record and stop, never lose finished results
             row = {
                 "question_id": job["id"],
@@ -201,11 +219,24 @@ def main():
     parser.add_argument("--model", default="gpt-6.1-sol")
     parser.add_argument("--effort", default="medium")
     parser.add_argument("--workers", type=int, default=2)
+    parser.add_argument("--judge", default=DEFAULT_JUDGE)
+    parser.add_argument(
+        "--questions",
+        help="the dataset's questions.jsonl, for facts and gold documents",
+    )
     args = parser.parse_args()
-    jobs = load_jobs(args.retrieval, args.arm, args.limit)
+    jobs = load_jobs(args.retrieval, args.arm, args.limit, args.questions)
     print(
         json.dumps(
-            run(jobs, args.output, args.model, args.effort, args.workers), indent=2
+            run(
+                jobs,
+                args.output,
+                args.model,
+                args.effort,
+                args.workers,
+                judge=args.judge,
+            ),
+            indent=2,
         )
     )
 
