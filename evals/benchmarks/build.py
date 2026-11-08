@@ -169,6 +169,7 @@ def build_notebook(
     candidates=50,
     resume_from=None,
     distractors=None,
+    rag_ref="main",
 ):
     output = Path(output)
     output.mkdir(parents=True, exist_ok=False)
@@ -217,9 +218,9 @@ if SCHEMA is not None:
     main()
 """
     )
-    install = """import subprocess, sys
+    install = f"""import subprocess, sys
 subprocess.run([sys.executable, '-m', 'pip', 'install',
-    'ragmcp[full] @ git+https://github.com/MasihMoafi/rag-mcp',
+    'ragmcp[full] @ git+https://github.com/MasihMoafi/rag-mcp@{rag_ref}',
     'huggingface_hub', 'pyarrow'], check=True)
 """
     notebook = {
@@ -285,6 +286,9 @@ def main():
     notebook.add_argument("--file", action="append", default=[])
     notebook.add_argument("--schema", type=Path)
     notebook.add_argument("--limit", type=int, default=30)
+    notebook.add_argument(
+        "--rag-ref", default="main", help="rag-mcp commit or branch to install"
+    )
     notebook.add_argument(
         "--distractors",
         type=int,
