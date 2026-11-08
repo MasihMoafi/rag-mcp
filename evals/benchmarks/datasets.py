@@ -296,6 +296,7 @@ def normalize(root, schema_path, output, limit=30, distractors=None):
     if not questions or len({q["id"] for q in questions}) != len(questions):
         raise ValueError("Schema: empty questions or duplicate question ids")
     documents = {}
+    ambiguous = set()
     if source["dataset"] == "frames":
         # Validate URLs for the entire schema first; fetch just the selected pilot.
         for question in questions:
@@ -341,8 +342,13 @@ def normalize(root, schema_path, output, limit=30, distractors=None):
                 if ds.get("id_split"):
                     key = str(key).split(ds["id_split"], 1)[0]
                 key = doc_id(key)
-                if key in documents:
-                    raise ValueError(f"Schema: duplicate document id {key!r}")
+                if key in documents or key in ambiguous:
+                    if ds.get("duplicate_ids") != "drop":
+                        raise ValueError(f"Schema: duplicate document id {key!r}")
+                    # The id names two different documents, so a hit on it proves nothing.
+                    documents.pop(key, None)
+                    ambiguous.add(key)
+                    continue
                 documents[key] = nonempty(text, f"document {key}")
     qualified = [
         q
@@ -382,6 +388,7 @@ def normalize(root, schema_path, output, limit=30, distractors=None):
         documents=len(documents),
         documents_before_sampling=documents_total,
         sampled_corpus_not_a_score=distractors is not None,
+        ambiguous_document_ids_dropped=sorted(ambiguous),
         questions_total=len(questions),
         questions_without_gold=sum(not q["gold_doc_ids"] for q in questions),
         questions_qualified=len(qualified),
