@@ -168,6 +168,7 @@ def build_notebook(
     embedding_size="0.6B",
     candidates=50,
     resume_from=None,
+    distractors=None,
 ):
     output = Path(output)
     output.mkdir(parents=True, exist_ok=False)
@@ -202,7 +203,7 @@ if SCHEMA is not None:
     schema_path = working / 'schema.json'
     write_json(schema_path, SCHEMA)
     bundle = scratch / 'bundle'
-    normalize(source, schema_path, bundle, {limit!r})
+    normalize(source, schema_path, bundle, {limit!r}, {distractors!r})
     result = working / 'retrieval_results'
     result.mkdir(exist_ok=True)
     seed = {seed!r}
@@ -284,6 +285,11 @@ def main():
     notebook.add_argument("--file", action="append", default=[])
     notebook.add_argument("--schema", type=Path)
     notebook.add_argument("--limit", type=int, default=30)
+    notebook.add_argument(
+        "--distractors",
+        type=int,
+        help="pipeline check: gold documents plus this many others",
+    )
     notebook.add_argument(
         "--embedding-size", choices=("0.6B", "4B", "8B"), default="0.6B"
     )
