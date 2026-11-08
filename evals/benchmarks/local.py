@@ -102,6 +102,10 @@ def main():
     )
     args = parser.parse_args()
     load_key(args.config)
+    # Hosted embedding providers limit tokens per minute; a long index waits instead of failing.
+    from rag.embeddings import OpenAICompatibleWrapper
+
+    OpenAICompatibleWrapper._create_with_retry.__defaults__ = ((10,) * 360,)
     # This machine sets ALL_PROXY to a socks:// URL, which httpx refuses; HTTPS_PROXY still applies.
     os.environ.pop("ALL_PROXY", None)
     os.environ.pop("all_proxy", None)
