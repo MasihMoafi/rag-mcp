@@ -23,6 +23,10 @@ from .common import (
 EMBEDDINGS = {size: f"Qwen/Qwen3-Embedding-{size}" for size in ("0.6B", "4B", "8B")}
 RERANKER = "Qwen/Qwen3-Reranker-4B"
 ARMS = ("bm25", "hybrid_qwen")
+# Only local.py asks for this arm; it uses Masih's key on this machine (8 Nov), never on Kaggle.
+API_ARM = "hybrid_api"
+API_EMBEDDING = "qwen/qwen3-embedding-8b"
+API_RERANKER = "cohere/rerank-4-fast"
 
 
 PAID_KEYS = (
@@ -177,14 +181,27 @@ class RagRetriever:
             from rag.fetch import get_rag_pipeline_v2
             from rag.settings import save_settings
 
-            save_settings(
+            hosted = (
                 {
+                    "embed_provider": "openai_compatible",
+                    "embed_model": API_EMBEDDING,
+                    "embed_base_url": "https://openrouter.ai/api/v1",
+                    "reranker_type": "openrouter",
+                    "reranker_model": API_RERANKER,
+                }
+                if arm == API_ARM
+                else {
                     "embed_provider": "none"
                     if arm == "bm25"
                     else "sentencetransformer",
                     "embed_model": embed_path,
                     "reranker_type": "off" if arm == "bm25" else "cross-encoder",
                     "reranker_model": reranker_path,
+                }
+            )
+            save_settings(
+                {
+                    **hosted,
                     "top_k": str(candidates),
                     "candidate_k": str(candidates),
                     "contextual_retrieval": "off",
@@ -256,7 +273,7 @@ class RagRetriever:
             if results != "No relevant information found.":
                 raise ValueError(f"Unexpected search response: {results}")
             results = []
-        if self.arm == "hybrid_qwen" and len(fused) >= 2 and not reranked:
+        if self.arm in ("hybrid_qwen", API_ARM) and len(fused) >= 2 and not reranked:
             raise ValueError(
                 "Reranker fell back without producing ranked scores; arm invalid"
             )
@@ -394,20 +411,24 @@ def main():
     parser.add_argument("--bundle", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--embedding-size", choices=EMBEDDINGS, default="0.6B")
-    parser.add_argument("--arm", choices=ARMS, action="append")
+    parser.add_argument("--arm", choices=(*ARMS, API_ARM), action="append")
+    parser.add_argument(
+        "--rag-commit", help="commit of a rag-mcp not installed from GitHub"
+    )
     parser.add_argument("--candidates", type=int, default=50)
     parser.add_argument("--chunk-size", type=int, default=700)
     args = parser.parse_args()
     if args.candidates < 10 or args.chunk_size < 100:
         parser.error("--candidates must be >=10; --chunk-size must be >=100")
-    forbid_paid_calls()
+    if API_ARM not in (args.arm or ()):
+        forbid_paid_calls()
     dataset, mapping, questions = check_bundle(args.bundle)
     embedding = EMBEDDINGS[args.embedding_size]
     arms = list(dict.fromkeys(args.arm or ARMS))
     models = preflight_models(embedding) if "hybrid_qwen" in arms else {}
     dist = importlib.metadata.distribution("ragmcp")
     direct = json.loads(dist.read_text("direct_url.json") or "{}")
-    commit = direct.get("vcs_info", {}).get("commit_id")
+    commit = args.rag_commit or direct.get("vcs_info", {}).get("commit_id")
     if not commit:
         raise ValueError(
             "Install ragmcp from GitHub main; pip must record its commit in direct_url.json"
@@ -418,8 +439,16 @@ def main():
         "rag_mcp_commit": commit,
         "rag_mcp_version": dist.version,
         "models": models,
-        "embedding": embedding if "hybrid_qwen" in arms else None,
-        "reranker": RERANKER if "hybrid_qwen" in arms else None,
+        "embedding": API_EMBEDDING
+        if API_ARM in arms
+        else embedding
+        if "hybrid_qwen" in arms
+        else None,
+        "reranker": API_RERANKER
+        if API_ARM in arms
+        else RERANKER
+        if "hybrid_qwen" in arms
+        else None,
         "flags": {
             "arms": arms,
             "candidates": args.candidates,
