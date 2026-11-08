@@ -266,6 +266,7 @@ def test_retrieval_graceful_stop_resume_keeps_partial_and_skips_done(bundle, tmp
 def test_rag_adapter_explicit_files_index_audit_and_passage_scores(
     bundle, tmp_path, monkeypatch, arm, missing_document
 ):
+    monkeypatch.setattr("evals.benchmarks.retrieve.tune_embeddings", lambda: None)
     questions, output, manifest = retrieval_fixture(bundle, tmp_path)
     mapping = json.loads((bundle / "documents.json").read_text())
     files = [str((bundle / "corpus" / name).resolve()) for name in sorted(mapping)]
