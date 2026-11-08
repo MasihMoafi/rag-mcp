@@ -7,9 +7,11 @@ then normalize all rows before allowing a retrieval run.
 import argparse
 import json
 import re
+import time
 import zipfile
 from collections import Counter
 from pathlib import Path
+from urllib.error import HTTPError, URLError
 from urllib.parse import quote, unquote, urlparse
 from urllib.request import Request, urlopen
 
@@ -18,19 +20,43 @@ from .common import digest, file_hash, write_json
 USER_AGENT = "rag-mcp-bench/1.0 (https://github.com/MasihMoafi/rag-mcp)"
 
 
+def with_retries(action, attempts=6, wait=20, sleep=time.sleep):
+    """GitHub's download host times out and answers 503 at times; a long run must not die of it."""
+    for attempt in range(1, attempts + 1):
+        try:
+            return action()
+        except (URLError, TimeoutError, ConnectionError) as error:
+            if (
+                isinstance(error, HTTPError) and error.code < 500
+            ) or attempt == attempts:
+                raise
+            sleep(wait * attempt)
+    return None
+
+
 def get_json(url):
-    request = Request(url, headers={"User-Agent": USER_AGENT})
-    with urlopen(request, timeout=120) as response:
-        return json.load(response)
+    def fetch():
+        request = Request(url, headers={"User-Agent": USER_AGENT})
+        with urlopen(request, timeout=120) as response:
+            return json.load(response)
+
+    return with_retries(fetch)
 
 
 def download(url, destination):
     destination = Path(destination)
     destination.parent.mkdir(parents=True, exist_ok=True)
-    request = Request(url, headers={"User-Agent": USER_AGENT})
-    with urlopen(request, timeout=120) as response, destination.open("wb") as stream:
-        while block := response.read(1024 * 1024):
-            stream.write(block)
+
+    def fetch():
+        request = Request(url, headers={"User-Agent": USER_AGENT})
+        with (
+            urlopen(request, timeout=120) as response,
+            destination.open("wb") as stream,
+        ):
+            while block := response.read(1024 * 1024):
+                stream.write(block)
+
+    with_retries(fetch)
 
 
 def safe_path(root, relative):
