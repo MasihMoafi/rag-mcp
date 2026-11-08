@@ -2,9 +2,12 @@ import json
 
 from evals.benchmarks.answers_codex import (
     ANSWER_SCHEMA,
+    DEFAULT_JUDGE,
+    GRADE_SCHEMA,
     run,
     subscription_env,
 )
+from evals.benchmarks.quality import QUALITY_SCHEMA, average_precision, quality_scores
 
 
 def job(number):
