@@ -113,7 +113,9 @@ class RagRetriever:
         self.mapping = mapping
         self.arm = arm
         try:
-            env = isolated_env(Path(output) / "stores" / arm, os.environ)
+            # Indexes go to scratch when set, so saved notebook output stays small.
+            stores = Path(os.environ.get("RAG_BENCH_SCRATCH") or output) / "stores"
+            env = isolated_env(stores / arm, os.environ)
             # Do not inherit retrieval/model/credential choices from a notebook.
             for key in list(os.environ):
                 if key.startswith("RAG_MCP_"):
