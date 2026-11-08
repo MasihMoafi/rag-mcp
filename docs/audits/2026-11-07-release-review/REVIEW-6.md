@@ -1,0 +1,31 @@
+## Verdict
+
+**No.** Release blockers are the workspace filter bypass, unrelated query rewriting, failure on mixed folders in the default install, and exclusion of explicitly selected test files.
+
+Engineering is mixed against the sampled DeepSeek harness. Both projects gate publication on quality and installed-artifact checks. DeepSeek’s sampled SDK uses constrained response models and tests installed SDK/MCP paths on Python 3.10 and 3.14; rag-mcp uses a handwritten MCP validator and tests its installed artifacts on Python 3.13. This is a sampled comparison, not a whole-project parity assessment. [rag-mcp release](../../../.github/workflows/release.yml:55), [DeepSeek models](deepseek-harness/python/sdk/src/deepseek_harness/models.py:35), [DeepSeek release](deepseek-harness/.github/workflows/python-release.yml:33)
+
+## Release-blocking findings
+
+1. **RELEASE-BLOCKING — Workspace type filters can expose extra sources.** For `rag query "alpha" --workspace W --type md`, a workspace containing Markdown and non-Markdown sources is validated against Markdown, then the full workspace file list replaces that filtered list. An in-memory wiring probe validated only `facts.md` but passed both `facts.md` and `default_store_smoke.py` to retrieval. A hosted embedding provider can receive the extra source text. The MCP workspace query takes the same path. [execution.py](../../../rag/execution.py:223), [server.py](../../../rag/server.py:1103), [lancedb_backend.py](../../../rag/lancedb_backend.py:114)
+
+2. **RELEASE-BLOCKING — Query rewriting discards the requested subject.** “How do we measure retrieval latency? Recommend a practical caching strategy.” becomes three searches, none containing *caching*; two instead ask about generic offline and online evaluation. In an in-memory BM25 example, the original question retrieved the caching passage, while the rewritten searches returned only unrelated evaluation passages. [query_decomposition.py](../../../rag/query_decomposition.py:39), [server.py](../../../rag/server.py:1123)
+
+3. **RELEASE-BLOCKING — A common mixed folder breaks the default install.** With `docs/readme.md` and `docs/data.csv`, `rag query "What changed?" --path docs` attempts CSV parsing even though the light install omits its required `unstructured` dependency. The parser probe raised `ModuleNotFoundError`; the query boundary turns that into `RAG retrieval failed (OtherError). Check the document scope, index and embedding settings.` The error does not identify the missing extra or file. [pyproject.toml](../../../pyproject.toml:25), [parsing.py](../../../rag/parsing.py:45), [ingestion.py](../../../rag/ingestion.py:130), [server.py](../../../rag/server.py:1054)
+
+4. **RELEASE-BLOCKING — Explicit Python test files cannot be searched.** `rag query "What does this test cover?" --path tests/test_cli.py` fails with `The selected file is excluded from indexing.` Folder searches also silently omit `test_*.py` and `*_test.py`. This blocks a common coding-agent use of an explicitly selected source file. [server.py](../../../rag/server.py:63), [file validation](../../../rag/server.py:960), [folder filtering](../../../rag/server.py:1020)
+
+## LATER
+
+1. **LATER — Re-import retains removed sources.** Removing `a.md` from a previously imported folder and adding the folder again leaves the saved copy of `a.md` in the workspace, where later searches may retrieve it. The CLI exposes only source addition. [workspace_import.py](../../../rag/workspace_import.py:120), [cli.py](../../../rag/cli.py:311)
+
+2. **LATER — Imported PDF passages lose page locations.** Imported PDF text is stored as `.txt`, so indexing assigns line locations; a page-two fixture rendered as `manual.pdf. Exact PDF page: unavailable.` [workspaces.py](../../../rag/workspaces.py:35), [ingestion.py](../../../rag/ingestion.py:153), [passage_answers.py](../../../rag/passage_answers.py:110)
+
+3. **LATER — Multi-part questions ignore the final passage limit.** With `--top 1`, a two-part question supplied two passages to a stub synthesizer because the facet combiner uses a fixed limit of five. [server.py](../../../rag/server.py:1129)
+
+4. **LATER — A named pipe can stall the server.** A folder containing a FIFO named `notes.md` passes discovery; opening it for reading can block before the regular-file check, holding the synchronous MCP session. [server.py](../../../rag/server.py:1002), [workspace_import.py](../../../rag/workspace_import.py:27)
+
+5. **LATER — Claude reconnect leaves a complete config backup.** Replacement writes a persistent backup of the entire Claude config, potentially including other integrations’ secrets, even when replacement succeeds. [cli_agents.py](../../../rag/cli_agents.py:93), [backup creation](../../../rag/cli_agents.py:134)
+
+6. **LATER — The release smoke does not prove a successful answer.** It checks a keyless answer failure and retrieval, including mocked embeddings, but no successful synthesized answer through the installed CLI or MCP. [smoke.sh](../../../tests/install/smoke.sh:34)
+
+The review used file inspection and small read-only probes with in-memory stubs. **Not checked:** the test suite, CI results, built or installed artifacts, live providers, real MCP hosts, prompt-injection behavior, and other operating systems. No files were changed.

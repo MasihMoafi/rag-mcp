@@ -2,17 +2,16 @@ import os
 import sys
 import time
 import tempfile
-import torch
-
-# Clean proxy environment for local execution
-for var in ["HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "http_proxy", "https_proxy", "all_proxy"]:
-    if var in os.environ:
-        del os.environ[var]
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 from rag.core import RAGPipelineV2
 
 def run_smoke_test():
+    import torch
+
+    # This standalone GPU experiment must not alter pytest's environment on import.
+    for var in ["HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "http_proxy", "https_proxy", "all_proxy"]:
+        os.environ.pop(var, None)
     print("=" * 65)
     print("PRE-FLIGHT SMOKE TEST: UNIFIED RAG PIPELINE (LANCEDB + QWEN3-8B)")
     print("=" * 65)

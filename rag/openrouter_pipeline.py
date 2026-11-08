@@ -46,6 +46,15 @@ def _restore_pdf_pages(passage: Mapping[str, Any], content: str,
 
 def _answer_evidence(passage: Mapping[str, Any], *, source_details: bool,
                      pdf_cache: dict[str, str]) -> str:
+    """Add the source document's name (never its private path) and its location, so a cited answer can say which
+    document a quote came from (4 Nov: asked to cite article names, an answer could only say "passage 2")."""
+    evidence = _located_evidence(passage, source_details=source_details, pdf_cache=pdf_cache)
+    name = os.path.basename(str(passage.get('name') or passage.get('file_path') or '')).strip()
+    return f'Source document: {name}\n{evidence}' if source_details and name else evidence
+
+
+def _located_evidence(passage: Mapping[str, Any], *, source_details: bool,
+                      pdf_cache: dict[str, str]) -> str:
     """Add available source locations without private paths or scores."""
     content = str(passage.get('content') or '').strip()
     if not source_details:
@@ -53,7 +62,8 @@ def _answer_evidence(passage: Mapping[str, Any], *, source_details: bool,
     content = str(passage.get('original_content') or content).strip()
     location = str(passage.get('location') or '')
     pdf = re.fullmatch(r'p\.([1-9]\d*)(?:-([1-9]\d*))?', location)
-    if pdf and int(pdf[2] or pdf[1]) >= int(pdf[1]):
+    name = str(passage.get('name') or passage.get('file_path') or passage.get('source') or '')
+    if pdf and name.lower().endswith('.pdf') and int(pdf[2] or pdf[1]) >= int(pdf[1]):
         first, last = int(pdf[1]), int(pdf[2] or pdf[1])
         if first != last and '\f' not in content:
             content = _restore_pdf_pages(passage, content, first, last, pdf_cache)
@@ -70,12 +80,9 @@ def _answer_evidence(passage: Mapping[str, Any], *, source_details: bool,
 
 
 def openrouter_key(config: Mapping[str, Any]) -> str:
-    """Reuse the configured OpenRouter embedding key, else its environment key."""
-    configured = str(config.get("embed_api_key") or "").strip()
-    base_url = str(config.get("embed_base_url") or "").lower()
-    if configured and "openrouter.ai" in base_url:
-        return configured
-    key = os.environ.get("OPENROUTER_API_KEY", "").strip()
+    """Return the shared OpenRouter credential or explain how to configure it."""
+    from rag.settings import resolve_openrouter_key
+    key = resolve_openrouter_key(config)
     if key:
         return key
     raise ValueError("OpenRouter needs OPENROUTER_API_KEY or an OpenRouter key saved by `rag setup`.")

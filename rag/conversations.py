@@ -1,6 +1,8 @@
 """Private, revisioned conversations anchored to saved workspace runs."""
 from __future__ import annotations
 
+from typing import Any, Callable
+
 import json
 import math
 import os
@@ -83,7 +85,7 @@ class ConversationStore:
                     raise ValueError('Invalid conversation evidence.')
                 ranks.add(item['rank'])
 
-    def get(self, workspace_id: str, conversation_id: str) -> dict:
+    def get(self, workspace_id: str, conversation_id: str) -> dict[str, Any]:
         self.workspaces.get(workspace_id)
         path = self.path(workspace_id, conversation_id)
         try:
@@ -97,7 +99,7 @@ class ConversationStore:
         except (ValueError, TypeError, UnicodeError, RecursionError) as error:
             raise OSError('Conversation is invalid.') from error
 
-    def list(self, workspace_id: str, *, limit=20, offset=0) -> dict:
+    def list(self, workspace_id: str, *, limit=20, offset=0) -> dict[str, Any]:
         self.workspaces.get(workspace_id)
         if type(limit) is not int or not 1 <= limit <= 100 or type(offset) is not int or not 0 <= offset <= 10000:
             raise ValueError('Invalid conversation list bounds.')
@@ -117,7 +119,7 @@ class ConversationStore:
                 'skipped': skipped, 'next_offset': offset + limit if len(paths) > offset + limit else None}
 
     def append(self, workspace_id: str, conversation_id: str, run_id: str, question: str,
-               *, expected_revision: str | None) -> dict:
+               *, expected_revision: str | None) -> dict[str, Any]:
         self.workspaces.validate_id(workspace_id)
         path = self.path(workspace_id, conversation_id)
         if (not isinstance(run_id, str) or not _ID.fullmatch(run_id)
@@ -198,7 +200,7 @@ def prepare_conversation_query(question: str, workspace_id: str, conversation_id
 
 def run_conversation_query(question: str, workspace_id: str, conversation_id: str, *, client='cli',
                            expected_revision=_UNSET, store: ConversationStore | None = None,
-                           result_store: RunResultStore | None = None, executor=None) -> dict:
+                           result_store: RunResultStore | None = None, executor: Callable[..., Any] | None = None) -> dict[str, Any]:
     """Answer using the recorded previous question, then attach the saved run."""
     from rag.execution import execute_run
 

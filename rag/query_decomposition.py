@@ -12,11 +12,13 @@ _FACET_START = (
     r"compare|list|summarize|outline|provide"
 )
 _ANSWER_INSTRUCTION = re.compile(
-    r"^(?:for each\b|"
+    r"^(?:"
     r"(?:return|give|provide|list)\b[^?]*\b(?:passages?|quotes?|excerpts?)\s+"
     r"from (?:this|the) (?:PDF|document|book|file|text)[.!]?$|"
     r"(?:return|respond|reply|output|format)\b[^?]*\bas (?:JSON|Markdown|a table|bullets)\b|"
-    r"(?:state|include|give|provide)\b[^?]*(?:page number|source reference|citation|format)\b|"
+    r"(?:state\s+when\s+a\s+page number|"
+    r"(?:state|include|give|provide)\s+(?:(?:the|a|an|exact|one-based|PDF|printed)\s+)*"
+    r"(?:page number|source reference|citation|format))\b|"
     r"do not (?:invent|fabricate)\b)",
     re.IGNORECASE,
 )
@@ -25,6 +27,17 @@ _EVIDENCE_ALTERNATIVES = re.compile(
     r'(?:show|describe|discuss|warn against|help someone) )(.+)\?',
     re.IGNORECASE,
 )
+
+
+def _searchable_instruction(text: str) -> str:
+    """Remove output-only instructions without discarding their subject."""
+    text = re.sub(r"^for each(?:\s+[^,]+)?,\s*", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"\s+(?:with|and)\s+(?:a\s+|the\s+)?(?:citations?|source references?|page numbers?)\b", "", text, flags=re.IGNORECASE)
+    match = re.match(r"^(?:return|respond|reply|output|format)\s+(.+?)\s+as\s+(?:JSON|Markdown|a table|bullets)\b.*$", text, re.IGNORECASE)
+    if match:
+        subject = match[1].strip()
+        return '' if re.fullmatch(r'(?:the\s+)?(?:answer|response|output|result)', subject, re.IGNORECASE) else subject
+    return '' if _ANSWER_INSTRUCTION.search(text) else text
 
 
 def _evidence_alternatives(facet: str) -> list[str]:
@@ -36,34 +49,17 @@ def _evidence_alternatives(facet: str) -> list[str]:
     return [topic.strip() for topic in topics if topic.strip()]
 
 
-def _evaluation_lifecycle_facets(facets: list[str], query: str) -> list[str] | None:
-    """Separate broad evaluation questions into failure, offline, and online evidence."""
-    combined = f"{' '.join(facets)} {query}".lower()
-    asks_for_practice = any(
-        term in combined
-        for term in ("practical", "approach", "framework", "strategy", "recommend")
-    )
-    concerns_evaluation = any(
-        term in combined for term in ("evaluat", "assess", "measure", "benchmark")
-    )
-    if asks_for_practice and concerns_evaluation:
-        failure = (
-            "Failure points across document ingestion (including outdated or improperly parsed "
-            "documents), flawed retrieval, and hallucinated or incomplete answer generation: "
-            f"{' '.join(facets[:-1]).strip()}"
-        )
-        return [
-            failure,
-            (
-                "Recommended practical offline evaluation lifecycle: fixed golden dataset, "
-                "CI/CD evaluation gates, regression thresholds, and tuning."
-            ),
-            (
-                "Recommended practical online evaluation lifecycle: asynchronous sampled live "
-                "traffic, monitoring, A/B testing, and human feedback."
-            ),
-        ]
-    return None
+def _evaluation_lifecycle_facets(facets: list[str], query: str, max_facets: int) -> list[str] | None:
+    """Add evaluation evidence only after retaining the user's own searches."""
+    if not (re.search(r'\bevaluat\w*\b', query, re.I)
+            and re.search(r'\b(?:rag|retrieval[ -]augmented|answer quality|hallucinat\w*)\b', query, re.I)):
+        return None
+    fixed = [
+        "Failure points across document ingestion, flawed retrieval, and hallucinated or incomplete answer generation.",
+        "Recommended practical offline evaluation lifecycle: fixed golden dataset, CI/CD evaluation gates, regression thresholds, and tuning.",
+        "Recommended practical online evaluation lifecycle: asynchronous sampled live traffic, monitoring, A/B testing, and human feedback.",
+    ]
+    return (facets + fixed)[:max_facets]
 
 
 def decompose_query(query: str, *, max_facets: int = 3) -> list[str]:
@@ -72,21 +68,29 @@ def decompose_query(query: str, *, max_facets: int = 3) -> list[str]:
     sentences = [part.strip() for part in re.split(r"(?<=[?!.])\s+", normalized) if part.strip()]
     facets: list[str] = []
     for sentence in sentences:
-        if _ANSWER_INSTRUCTION.search(sentence):
+        sentence = _searchable_instruction(sentence)
+        if not sentence:
             continue
         parts = re.split(
             rf",?\s+and\s+(?=(?:{_FACET_START})\b)",
             sentence,
             flags=re.IGNORECASE,
         )
-        facets.extend(
-            part.strip() for part in parts
-            if len(part.split()) >= 3 and not _ANSWER_INSTRUCTION.search(part.strip())
-        )
+        facets.extend(search for part in parts if (search := _searchable_instruction(part.strip())))
     if len(facets) < 2:
-        return _evidence_alternatives(facets[0])[:max_facets] if facets else [normalized]
-    facets = facets[:max_facets]
-    return _evaluation_lifecycle_facets(facets, normalized) or facets
+        facets = _evidence_alternatives(facets[0]) if facets else [normalized]
+        if len(facets) > max_facets:
+            facets = facets[:max_facets - 1] + [' '.join(facets[max_facets - 1:])]
+        return facets
+    if len(facets) > max_facets:
+        facets = facets[:max_facets - 1] + [' '.join(facets[max_facets - 1:])]
+    rewritten = _evaluation_lifecycle_facets(facets, normalized, max_facets)
+    if rewritten:
+        return rewritten
+    if (re.search(r'\b(?:evaluat\w*|assess\w*|measur\w*|benchmark\w*)\b', normalized, re.I)
+            and re.search(r'\b(?:practical|approach|framework|strategy|recommend\w*)\b', normalized, re.I)):
+        return [f'{facet} Context: {normalized}' for facet in facets]
+    return facets
 
 
 def _passage_key(passage: Mapping[str, Any]) -> tuple[str, str, str]:

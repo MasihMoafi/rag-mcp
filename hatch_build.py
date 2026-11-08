@@ -1,4 +1,4 @@
-"""Reject distributions that cannot launch the packaged Studio."""
+"""Include and validate the optional Studio bundle when present."""
 from pathlib import Path
 import importlib.util
 
@@ -16,8 +16,9 @@ class CustomBuildHook(BuildHookInterface):
     def initialize(self, version, build_data):
         bundle = Path(self.root) / 'rag' / 'studio_dist' / 'bundle.tar.gz'
         if not bundle.is_file():
-            raise RuntimeError('Studio bundle missing. Run scripts/build_studio_bundle.py before building ragmcp.')
+            return
         try:
             read_bundle_manifest(bundle)
         except ValueError as error:
             raise RuntimeError('Studio bundle is incomplete or has invalid build provenance. Restage it before packaging.') from error
+        build_data.setdefault('force_include', {})[str(bundle)] = 'rag/studio_dist/bundle.tar.gz'

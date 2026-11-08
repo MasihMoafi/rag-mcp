@@ -1,6 +1,8 @@
 """Durable retrieval batches shared by Studio, CLI, and MCP."""
 from __future__ import annotations
 
+from typing import Any, Callable, TYPE_CHECKING
+
 import hashlib
 import json
 import math
@@ -16,6 +18,9 @@ from filelock import FileLock, Timeout
 from rag.evaluation_sets import EvaluationSetStore
 from rag.workspaces import WorkspaceConflict, WorkspaceStore
 from utils.persistence import write_json_atomic
+
+if TYPE_CHECKING:
+    from rag.run_results import RunResultStore
 
 _ID = re.compile(r'[0-9a-f]{32}')
 _MAX_BYTES = 2 * 1024 * 1024
@@ -76,7 +81,7 @@ class EvaluationRunStore:
                     or (row.get('error') is not None and (not isinstance(row['error'], str) or len(row['error']) > 4000))):
                 raise ValueError('Invalid evaluation row metrics.')
 
-    def get(self, workspace_id, batch_id):
+    def get(self, workspace_id: str, batch_id: str) -> dict[str, Any]:
         self.workspaces.get(workspace_id)
         path = self.path(workspace_id, batch_id)
         try:
@@ -106,7 +111,7 @@ class EvaluationRunStore:
         write_json_atomic(path, value)
         path.chmod(0o600)
 
-    def list(self, workspace_id, *, limit=20, offset=0):
+    def list(self, workspace_id: str, *, limit: int = 20, offset: int = 0) -> dict[str, Any]:
         self.workspaces.get(workspace_id)
         if type(limit) is not int or not 1 <= limit <= 100 or type(offset) is not int or not 0 <= offset <= 10000:
             raise ValueError('Invalid batch list bounds.')
@@ -126,9 +131,12 @@ class EvaluationRunStore:
                 'next_offset': offset + limit if len(paths) > offset + limit else None}
 
 
-def execute_evaluation(workspace_id, *, batch_id=None, question_revision=None, workspace_revision=None,
-                       source_ids=None, configuration_revision=None, client='cli', cancelled=None,
-                       store=None, executor=None, result_store=None):
+def execute_evaluation(workspace_id: str, *, batch_id: str | None = None,
+                       question_revision: str | None = None, workspace_revision: str | None = None,
+                       source_ids: list[str] | None = None, configuration_revision: str | None = None,
+                       client: str = 'cli', cancelled: Event | None = None,
+                       store: EvaluationRunStore | None = None, executor: Callable[..., Any] | None = None,
+                       result_store: RunResultStore | None = None) -> dict[str, Any]:
     from rag.control import read_config
     from rag.execution import execute_run
 

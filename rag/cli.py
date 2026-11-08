@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import getpass
 import json
 import os
 import re
@@ -20,19 +21,19 @@ from rag import settings as user_settings
 from rag.answer_contract import decode_public_answer
 from rag.cli_agents import (
     AGENT_LABELS,
-    available_agents as _available_agents,
+    available_agents as _available_agents,  # noqa: F401 - compatibility export
     connect_agent as _connect_agent,
-    connect_agy as _connect_agy,
-    connect_claude as _connect_claude,
+    connect_agy as _connect_agy,  # noqa: F401 - compatibility export
+    connect_claude as _connect_claude,  # noqa: F401 - compatibility export
     connect_codex as _connect_codex,
-    connect_copilot as _connect_copilot,
-    connect_gemini as _connect_gemini,
-    install_slash_commands as _install_slash_commands,
-    offer_agent_connection as _offer_agent_connection,
-    server_command as _server_command,
-    show_generic_mcp_config as _show_generic_mcp_config,
+    connect_copilot as _connect_copilot,  # noqa: F401 - compatibility export
+    connect_gemini as _connect_gemini,  # noqa: F401 - compatibility export
+    install_slash_commands as _install_slash_commands,  # noqa: F401 - compatibility export
+    offer_agent_connection as _offer_agent_connection,  # noqa: F401 - compatibility export
+    server_command as _server_command,  # noqa: F401 - compatibility export
+    show_generic_mcp_config as _show_generic_mcp_config,  # noqa: F401 - compatibility export
 )
-from rag.cli_menu import MENU, menu as _menu
+from rag.cli_menu import MENU, menu as _menu  # noqa: F401 - compatibility export
 
 
 def _codex_status(environ: Mapping[str, str]) -> dict[str, object]:
@@ -101,7 +102,7 @@ def _resolve_embedding_choice(model: str, provider: str | None, environ: Mapping
     config = {**user_settings.DEFAULTS,
               **{key: value for key, value in saved.items()
                  if key in user_settings.DEFAULTS and isinstance(value, str)}}
-    detection = detect.detect_all(environ)
+    detection = detect.safe_detect_all(environ)
     ollama_models = (detection.get("ollama") or {}).get("embedding_models") or []
     if runtime is not None:
         endpoint = dict(detect.LOCAL_OPENAI_RUNTIMES).get(runtime) if isinstance(runtime, str) else None
@@ -140,6 +141,9 @@ def _resolve_embedding_choice(model: str, provider: str | None, environ: Mapping
         config["embed_base_url"] = base_url
         if saved.get("embed_base_url") == base_url and saved.get("embed_api_key"):
             config["embed_api_key"] = str(saved["embed_api_key"])
+        elif family == 'openrouter' and user_settings.resolve_openrouter_key(
+                user_settings.embedding_config(environ), environ):
+            config["embed_api_key"] = ""
         elif family not in detection.get("api_keys", []):
             raise ValueError(f"No API key for {family} in the environment. Run `rag setup` to enter one.")
         else:
@@ -226,7 +230,9 @@ def _parser() -> argparse.ArgumentParser:
     setup.add_argument("--provider", choices=user_settings.PROVIDERS, help="Skip the questions and set the provider directly")
     setup.add_argument("--model", default="", help="Embedding model name for the provider")
     setup.add_argument("--base-url", default="", dest="base_url", help="OpenAI-compatible endpoint URL")
-    setup.add_argument("--api-key", default="", dest="api_key", help="API key for openai_compatible")
+    key_input = setup.add_mutually_exclusive_group()
+    key_input.add_argument("--api-key", default="", dest="api_key", help="API key (visible in process lists and shell history)")
+    key_input.add_argument("--api-key-stdin", action="store_true", help="Read the API key from standard input")
     setup.add_argument("--ollama-url", default="", dest="ollama_url", help="Ollama URL (default http://localhost:11434)")
     setup.add_argument("--no-verify", action="store_true", dest="no_verify", help="Save without embedding a test sentence")
     setup.add_argument("--auto", action="store_true", help="Pick the best option this machine already has, no questions")
@@ -238,6 +244,9 @@ def _parser() -> argparse.ArgumentParser:
     config.add_argument("--provider", choices=user_settings.PROVIDERS, help="Where the embedding model runs (guessed when omitted)")
     config.add_argument("--runtime", help="Detected local OpenAI-compatible runtime (LM Studio or vLLM) for an embedding model")
     config.add_argument("--no-verify", action="store_true", dest="no_verify")
+
+    key = commands.add_parser("key", help="Show, set (hidden paste) or remove the saved OpenRouter key")
+    key.add_argument("action", nargs="?", choices=["show", "set", "remove"], default="show")
 
     doctor = commands.add_parser("doctor", help="Check local RAG, embedding and MCP-app setup")
     doctor.add_argument("--json", action="store_true", dest="as_json")
@@ -352,6 +361,90 @@ def _parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _capabilities_command(args: argparse.Namespace, *, stdout: TextIO, stderr: TextIO) -> int:
+    from rag.control import capabilities
+    try:
+        value = capabilities()
+    except (ValueError, OSError) as error:
+        print(f"Cannot read capabilities: {error}", file=stderr)
+        return 2
+    if args.as_json:
+        print(json.dumps(value, ensure_ascii=False), file=stdout)
+    else:
+        for stage in value['stages']:
+            print(f"{stage['stage']:<12} {stage['availability']:<11} {stage['provider']} · {stage['model'] or '—'}", file=stdout)
+    return 0
+
+
+def _models_command(args: argparse.Namespace, *, stdout: TextIO, stderr: TextIO) -> int:
+    from rag.control import model_inventory
+    try:
+        value = model_inventory()
+    except (ValueError, OSError) as error:
+        print(f"Cannot discover models: {error}", file=stderr)
+        return 2
+    if args.as_json:
+        print(json.dumps(value, ensure_ascii=False), file=stdout)
+    else:
+        for item in value['models']:
+            marker = ' [configured]' if item['configured'] else ''
+            print(f"{item['stage']:<12} {item['provider']:<20} {item['model']}{marker}", file=stdout)
+        for source in value['sources']:
+            if source['status'] != 'complete':
+                print(f"{source['source']}: {source['status']}", file=stderr)
+    return 0
+
+
+def _runs_command(args: argparse.Namespace, *, stdout: TextIO, stderr: TextIO) -> int:
+    from rag.trace_reader import list_traces, read_trace
+
+    if args.result and not args.trace_id:
+        print("--result requires a run ID.", file=stderr)
+        return 2
+
+    try:
+        if args.result:
+            from rag.run_results import RunResultStore
+            value = RunResultStore().read(args.trace_id)
+        else:
+            value = read_trace(args.trace_id) if args.trace_id else list_traces(limit=args.limit, offset=args.offset)
+    except (ValueError, OSError) as error:
+        print(f"Cannot read runs: {error}", file=stderr)
+        return 2
+    if value is None:
+        print("Run not found or unavailable. Saved answers expire after seven days; use rag runs to list metadata traces.", file=stderr)
+        return 2
+    if args.as_json:
+        print(json.dumps(value, ensure_ascii=False), file=stdout)
+    elif args.result:
+        print(f"Run {args.trace_id}: {value['status']}", file=stdout)
+        print(value.get('answer') or value.get('error') or 'No answer saved.', file=stdout)
+        for passage in value.get('evidence', []):
+            print(f"\n[{passage['rank']}] {passage['name']}\n{passage['content']}", file=stdout)
+    elif args.trace_id:
+        print(f"Run {args.trace_id}", file=stdout)
+        for span in value["spans"]:
+            attributes = span["attributes"]
+            label = span.get("error_class") or attributes.get("failure_class") or attributes.get("model") or ""
+            if attributes.get("failure_stage"):
+                label = f"{attributes['failure_stage']}: {label}"
+            print(f"{span['operation']:<28} {span['status']:<10} {span['duration_ms']:>8.1f} ms  {label}", file=stdout)
+        cost = value["accounting"]["reported_cost_subtotal_usd"]
+        label = f"${cost:.6f}" if cost is not None else "unknown"
+        print(f"Reported cost subtotal: {label}. Use --json for recorded attributes and passage ranks.", file=stdout)
+    elif not value["traces"]:
+        print("No completed metadata runs." if value["enabled"] else "Tracing is disabled.", file=stdout)
+    else:
+        print("RUN ID                            STATUS       DURATION   REPORTED COST SUBTOTAL", file=stdout)
+        for run in value["traces"]:
+            cost = run["reported_cost_subtotal_usd"]
+            label = f"${cost:.6f}" if cost is not None else "unknown"
+            print(f"{run['trace_id']}  {run['status']:<10} {run['duration_ms']:>8.1f} ms  {label}", file=stdout)
+    if not args.as_json and value.get("skipped"):
+        print(f"Skipped {value['skipped']} unavailable records.", file=stderr)
+    return 0
+
+
 def _main(
     argv: Sequence[str] | None = None,
     *,
@@ -376,82 +469,13 @@ def _main(
     args = _parser().parse_args(_normalize_argv(raw))
 
     if args.command == "capabilities":
-        from rag.control import capabilities
-        try:
-            value = capabilities()
-        except (ValueError, OSError) as error:
-            print(f"Cannot read capabilities: {error}", file=stderr)
-            return 2
-        if args.as_json:
-            print(json.dumps(value, ensure_ascii=False), file=stdout)
-        else:
-            for stage in value['stages']:
-                print(f"{stage['stage']:<12} {stage['availability']:<11} {stage['provider']} · {stage['model'] or '—'}", file=stdout)
-        return 0
+        return _capabilities_command(args, stdout=stdout, stderr=stderr)
 
     if args.command == "models":
-        from rag.control import model_inventory
-        try:
-            value = model_inventory()
-        except (ValueError, OSError) as error:
-            print(f"Cannot discover models: {error}", file=stderr)
-            return 2
-        if args.as_json:
-            print(json.dumps(value, ensure_ascii=False), file=stdout)
-        else:
-            for item in value['models']:
-                marker = ' [configured]' if item['configured'] else ''
-                print(f"{item['stage']:<12} {item['provider']:<20} {item['model']}{marker}", file=stdout)
-            for source in value['sources']:
-                if source['status'] != 'complete':
-                    print(f"{source['source']}: {source['status']}", file=stderr)
-        return 0
+        return _models_command(args, stdout=stdout, stderr=stderr)
 
     if args.command == "runs":
-        from rag.trace_reader import list_traces, read_trace
-
-        if args.result and not args.trace_id:
-            print("--result requires a run ID.", file=stderr)
-            return 2
-
-        try:
-            if args.result:
-                from rag.run_results import RunResultStore
-                value = RunResultStore().read(args.trace_id)
-            else:
-                value = read_trace(args.trace_id) if args.trace_id else list_traces(limit=args.limit, offset=args.offset)
-        except (ValueError, OSError) as error:
-            print(f"Cannot read runs: {error}", file=stderr)
-            return 2
-        if value is None:
-            print("Run not found or unavailable. Saved answers expire after seven days; use rag runs to list metadata traces.", file=stderr)
-            return 2
-        if args.as_json:
-            print(json.dumps(value, ensure_ascii=False), file=stdout)
-        elif args.result:
-            print(f"Run {args.trace_id}: {value['status']}", file=stdout)
-            print(value.get('answer') or value.get('error') or 'No answer saved.', file=stdout)
-            for passage in value.get('evidence', []):
-                print(f"\n[{passage['rank']}] {passage['name']}\n{passage['content']}", file=stdout)
-        elif args.trace_id:
-            print(f"Run {args.trace_id}", file=stdout)
-            for span in value["spans"]:
-                label = span.get("error_class") or span["attributes"].get("model") or ""
-                print(f"{span['operation']:<28} {span['status']:<10} {span['duration_ms']:>8.1f} ms  {label}", file=stdout)
-            cost = value["accounting"]["reported_cost_subtotal_usd"]
-            label = f"${cost:.6f}" if cost is not None else "unknown"
-            print(f"Reported cost subtotal: {label}. Use --json for recorded attributes and passage ranks.", file=stdout)
-        elif not value["traces"]:
-            print("No completed metadata runs." if value["enabled"] else "Tracing is disabled.", file=stdout)
-        else:
-            print("RUN ID                            STATUS       DURATION   REPORTED COST SUBTOTAL", file=stdout)
-            for run in value["traces"]:
-                cost = run["reported_cost_subtotal_usd"]
-                label = f"${cost:.6f}" if cost is not None else "unknown"
-                print(f"{run['trace_id']}  {run['status']:<10} {run['duration_ms']:>8.1f} ms  {label}", file=stdout)
-        if not args.as_json and value.get("skipped"):
-            print(f"Skipped {value['skipped']} unavailable records.", file=stderr)
-        return 0
+        return _runs_command(args, stdout=stdout, stderr=stderr)
 
     if args.command == "conversations":
         from filelock import Timeout
@@ -544,7 +568,8 @@ def _main(
             print('No answer checks for this batch. Run again with --check (two paid model calls per question).', file=stdout)
             return 0
         summary = value['summary']
-        score = lambda number: '—' if number is None else f'{number:.2f}'
+        def score(number):
+            return '—' if number is None else f'{number:.2f}'
         print(f"faithfulness {score(summary['faithfulness'])}  relevance {score(summary['relevance'])}", file=stdout)
         print(f"{summary['answered']} answered, {summary['abstained']} abstained, {summary['unsupported_claims']} unsupported claims, "
               f"{summary['missing_evidence']} with expired evidence · {value['status']} · judge {value['judge_model']}", file=stdout)
@@ -713,8 +738,17 @@ def _main(
         if args.provider is None:
             code = user_settings.run_setup(stdin=stdin, stdout=stdout, stderr=stderr, environ=environ, verify=verify)
             return code
-        if args.provider == "openai_compatible" and not args.api_key:
-            print("--api-key is required for openai_compatible.", file=stderr)
+        api_key = args.api_key
+        if api_key:
+            print("Warning: --api-key is visible in process lists and shell history.", file=stderr)
+        elif args.api_key_stdin:
+            api_key = stdin.readline().strip()
+        else:
+            api_key = environ.get("RAG_MCP_EMBED_API_KEY", "").strip()
+            if args.provider == "openai_compatible" and not api_key and stdin.isatty():
+                api_key = getpass.getpass("API key: ", stream=stderr).strip()
+        if args.provider == "openai_compatible" and not api_key:
+            print("--api-key is required for openai_compatible; use --api-key-stdin, RAG_MCP_EMBED_API_KEY, or a terminal prompt.", file=stderr)
             return 2
         config = dict(user_settings.DEFAULTS)
         config.update(
@@ -722,12 +756,17 @@ def _main(
                 "embed_provider": args.provider,
                 "embed_model": args.model or user_settings.default_model(args.provider),
                 "embed_base_url": args.base_url,
-                "embed_api_key": args.api_key,
+                "embed_api_key": api_key,
             }
         )
         if args.ollama_url:
             config["ollama_url"] = args.ollama_url
         return user_settings.finish_setup(config, stdout=stdout, stderr=stderr, environ=environ, verify=verify)
+
+    if args.command == "key":
+        from rag.keys import key_command
+
+        return key_command(args.action, stdin=stdin, stdout=stdout, stderr=stderr, environ=environ)
 
     if args.command == "config":
         verify = None if args.no_verify else (embedding_probe or _probe_embedding)

@@ -216,7 +216,7 @@ def _get_scoped_pipeline(key, doc_path):
         sys.stderr.flush()
         return instance
     except Exception as e:
-        sys.stderr.write(f"[RAG] FATAL ERROR: {e}\n")
+        sys.stderr.write(f"[RAG] FATAL ERROR: {type(e).__name__}\n")
         sys.stderr.flush()
         raise
 

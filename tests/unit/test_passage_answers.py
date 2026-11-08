@@ -22,6 +22,7 @@ def test_reference_request_is_not_always_a_passage_selection():
     'Return two useful passages. Use an anchor of at most ten words.',
     'Find 2 short passages that mention the retreat.',
     'Give me three passages about courage.',
+    'Give one passage about courage.',
     'Which of the passages warn against haste?',
 ])
 def test_a_request_for_passages_selects_passages(query):
@@ -63,13 +64,21 @@ def test_a_question_that_only_mentions_sources_gets_no_references(query):
 
 def test_quote_page_and_word_limit_come_from_source_evidence():
     quote = 'One two three four five six seven eight nine ten eleven.'
-    result = render_selections(_selection(quote), [{'content': quote}],
+    result = render_selections(_selection(quote), [{'content': quote, 'file_path': 'book.pdf'}],
         ['Printed page number: unavailable.\n[PDF page 19]\nEarlier.\n[PDF page 20]\n' + quote],
         cite_sources=True, max_anchor_words=8)
     assert 'PDF page 20.' in result
     assert '“One two three four five six seven eight”' in result
     assert 'nine' not in result
     assert '[1]' in result
+
+
+def test_markdown_selection_names_file_and_lines_without_pdf_page():
+    result = render_selections(_selection('Evidence'),
+        [{'content': 'Evidence', 'file_path': '/private/notes.md', 'location': 'L4-L6'}],
+        ['Source document: notes.md\nSource lines: L4-L6\nEvidence'], cite_sources=False)
+    assert 'notes.md' in result and 'L4-L6' in result
+    assert 'PDF' not in result and '/private/' not in result
 
 
 def test_empty_selections_abstain():
@@ -92,7 +101,7 @@ def test_invalid_or_invented_quote_is_an_error(answer):
 
 
 def test_missing_page_data_stays_unavailable():
-    result = render_selections(_selection('Evidence'), [{'content': 'Evidence'}],
+    result = render_selections(_selection('Evidence'), [{'content': 'Evidence', 'file_path': 'book.pdf'}],
         ['Evidence'], cite_sources=False)
     assert 'Exact PDF page: unavailable' in result
 
@@ -106,7 +115,7 @@ def test_requested_counts_and_shorter_anchor_limits():
 def test_unique_quote_can_correct_a_model_passage_number():
     answer = _selection('The speaker\'s advice.')
     result = render_selections(answer, [
-        {'content': 'Unrelated text.'}, {'content': 'The speaker’s advice.'}],
+        {'content': 'Unrelated text.', 'file_path': 'book.pdf'}, {'content': 'The speaker’s advice.', 'file_path': 'book.pdf'}],
         ['[PDF page 1]\nUnrelated text.', '[PDF page 2]\nThe speaker’s advice.'],
         cite_sources=True)
     assert 'PDF page 2.' in result
@@ -117,7 +126,7 @@ def test_unique_quote_can_correct_a_model_passage_number():
 def test_invalid_quote_does_not_discard_a_verified_selection():
     answer = json.loads(_selection('A verified quote.'))
     answer['selections'].extend(json.loads(_selection('A changed quote.'))['selections'])
-    result = render_selections(json.dumps(answer), [{'content': 'A verified quote.'}],
+    result = render_selections(json.dumps(answer), [{'content': 'A verified quote.', 'file_path': 'book.pdf'}],
         ['[PDF page 7]\nA verified quote.'], cite_sources=False)
     assert '“A verified quote.”' in result
     assert 'PDF page 7.' in result

@@ -4,6 +4,8 @@ Each answered question costs two paid model calls (answer, then judge), so check
 """
 from __future__ import annotations
 
+from typing import Any
+
 import json
 import os
 import stat
@@ -72,7 +74,7 @@ class EvaluationAnswerStore:
     def path(self, workspace_id, batch_id):
         return self.batches.path(workspace_id, batch_id).with_suffix('.answers.json')
 
-    def get(self, workspace_id, batch_id):
+    def get(self, workspace_id: str, batch_id: str) -> dict[str, Any]:
         self.batches.get(workspace_id, batch_id)
         path = self.path(workspace_id, batch_id)
         try:
@@ -99,6 +101,9 @@ class EvaluationAnswerStore:
                     value = {**value, 'status': 'interrupted', 'error': 'Answer checks stopped before they finished. Completed checks are preserved.'}
             except Timeout:
                 pass
+        for item in value['items']:
+            if item['status'] == 'error':
+                item['error'] = 'Model call failed. Check the model, credentials and provider availability.'
         return {**value, 'summary': summarize(value['items'])}
 
     def save(self, value):
@@ -168,8 +173,8 @@ def check_answers(workspace_id, batch_id, *, store=None, cancelled=None, answer=
                         supported = [claim['supported'] for claim in verdict['claims']]
                         item['faithfulness'] = round(sum(supported) / len(supported), 4) if supported else None
                         item['relevance'] = RELEVANCE[verdict['relevance']]
-                except Exception as error:
-                    item.update(status='error', error=str(error)[:500] or type(error).__name__)
+                except Exception:
+                    item.update(status='error', error='Model call failed. Check the model, credentials and provider availability.')
                     value.update(status='error', error='A model call failed. Completed checks are preserved.')
                     break
                 finally:

@@ -1,6 +1,8 @@
 """Private human judgments about passages retained for one evaluation batch."""
 from __future__ import annotations
 
+from typing import Any
+
 import hashlib
 import json
 import os
@@ -51,7 +53,7 @@ class EvaluationLabelStore:
                 raise ValueError('Invalid evaluation label.')
             seen.add((item['run_id'], item['rank']))
 
-    def get(self, workspace_id: str, batch_id: str) -> dict:
+    def get(self, workspace_id: str, batch_id: str) -> dict[str, Any]:
         batch = self.batches.get(workspace_id, batch_id)
         path = self.path(workspace_id, batch_id)
         try:
@@ -69,7 +71,7 @@ class EvaluationLabelStore:
             raise OSError('Evaluation labels are invalid.') from error
 
     def set(self, workspace_id: str, batch_id: str, run_id: str, rank: int, label: str | None,
-            *, expected_revision: str | None) -> dict:
+            *, expected_revision: str | None) -> dict[str, Any]:
         if (not isinstance(run_id, str) or not _HEX32.fullmatch(run_id) or type(rank) is not int
                 or not 1 <= rank <= 10000 or label not in ('relevant', 'irrelevant', None)
                 or expected_revision is not None and (not isinstance(expected_revision, str)

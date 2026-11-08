@@ -5,6 +5,8 @@ run with another configuration is scored against the same answers.
 """
 from __future__ import annotations
 
+from typing import Any
+
 import math
 
 from rag.evaluation_labels import EvaluationLabelStore
@@ -59,7 +61,7 @@ def _score(relevant_ranks, answers_found, answer_count, passage_count):
     }
 
 
-def score_batch(workspace_id: str, batch_id: str, labels: EvaluationLabelStore | None = None) -> dict:
+def score_batch(workspace_id: str, batch_id: str, labels: EvaluationLabelStore | None = None) -> dict[str, Any]:
     labels = labels or EvaluationLabelStore()
     batch = labels.batches.get(workspace_id, batch_id)
     answers, judged = _judgments(workspace_id, batch['workspace_revision'], labels)

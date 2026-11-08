@@ -18,6 +18,9 @@ def test_reranker_initialization_contract(monkeypatch, tmp_path, setting, model,
     fast = Mock()
     tokenizer = Mock()
     causal = Mock()
+    torch = SimpleNamespace(float16=object(), float32=object())
+    monkeypatch.setitem(sys.modules, "torch", torch)
+    monkeypatch.setattr(core, "torch", torch)
     monkeypatch.setitem(sys.modules, "sentence_transformers", None if setting == "auto" else SimpleNamespace(CrossEncoder=cross))
     monkeypatch.setitem(sys.modules, "transformers", SimpleNamespace(AutoTokenizer=tokenizer, AutoModelForCausalLM=causal))
     monkeypatch.setattr(embeddings, "FastEmbedReranker", fast)
@@ -39,7 +42,7 @@ def test_reranker_initialization_contract(monkeypatch, tmp_path, setting, model,
         assert pipeline.reranker is cross.return_value
     else:
         tokenizer.from_pretrained.assert_called_once_with(model, padding_side="left", local_files_only=True)
-        dtype = core.torch.float16 if device == "cuda" else core.torch.float32
+        dtype = torch.float16 if device == "cuda" else torch.float32
         causal.from_pretrained.assert_called_once_with(model, torch_dtype=dtype, device_map=device, local_files_only=True)
         assert pipeline.reranker_type == "qwen3"
         assert pipeline.reranker_model is causal.from_pretrained.return_value.eval.return_value
