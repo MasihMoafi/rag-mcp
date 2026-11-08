@@ -250,12 +250,30 @@ class LanceDBBackend:
                 name for name in ("content", "symbols") if name in names
             ] or ["content"]
             payload = [name for name in names if name not in ("vector", "symbols")]
-            results = (
-                self.table.search(query, query_type="fts", fts_columns=fts_columns)
-                .select(payload + ["_score"])
-                .limit(top_k)
-                .to_list()
-            )
+
+            def keyword_search(text, columns):
+                return (
+                    self.table.search(text, query_type="fts", fts_columns=columns)
+                    .select(payload + ["_score"])
+                    .limit(top_k)
+                    .to_list()
+                )
+
+            # LanceDB treats text wrapped in double quotes as one phrase, which it refuses across
+            # several columns. A single quoted phrase searches the prose column; when it finds
+            # nothing (a whole question in quotes, say), or the quotes are not one phrase, the
+            # words are searched normally.
+            stripped = query.strip()
+            results = []
+            if len(stripped) >= 2 and stripped[0] == stripped[-1] == '"':
+                inner = stripped[1:-1]
+                if inner.strip() and '"' not in inner:
+                    results = keyword_search(stripped, ["content"])
+                if not results:
+                    words = " ".join(stripped.replace('"', " ").split())
+                    results = keyword_search(words, fts_columns) if words else []
+            else:
+                results = keyword_search(query, fts_columns)
             formatted = []
             for hit in results:
                 score = hit.get("_score", 1.0)
