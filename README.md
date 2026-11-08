@@ -710,3 +710,19 @@ work. Per-question evidence and unresolved retrieval failures are recorded in
 ## Summary
 
 MIT-licensed ([LICENSE](LICENSE)), rag-mcp searches selected documents and returns answers or passages through its CLI and MCP server. It gives agents a scoped way to find useful context without loading an entire repository.
+
+<!-- more-projects:start -->
+## More projects
+
+- [Elpis](https://github.com/MasihMoafi/Elpis): a coding agent for the terminal and desktop, with explicit context control
+- [Rustidian](https://github.com/MasihMoafi/rustidian): a native Markdown notebook for Linux that opens Obsidian-format vaults
+- [Skills](https://github.com/MasihMoafi/skills): SKILL.md workflows for coding agents
+- [WhisperType](https://github.com/MasihMoafi/WhisperType): local voice input for developers
+- [Read Aloud](https://github.com/MasihMoafi/read-aloud): select text, press Super+R, hear it in a local voice
+- [Love Spot](https://github.com/MasihMoafi/love-spot): a shared drawing board where characters talk, draw and compete with you
+- [SVG Studio](https://svg.masihmoafi.com): high-quality image vectorization
+- [Pin](https://github.com/MasihMoafi/pin): an always-on-top priority note, saved as plain Markdown
+- [Clocki](https://github.com/MasihMoafi/clocki): a floating desktop timer for tracking focus hours
+
+All of them: [masihmoafi.com](https://masihmoafi.com/projects)
+<!-- more-projects:end -->
