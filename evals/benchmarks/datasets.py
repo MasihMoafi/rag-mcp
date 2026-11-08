@@ -337,6 +337,9 @@ def normalize(root, schema_path, output, limit=30):
             else:
                 raise ValueError("Schema: document format must be text or records")
             for key, text in rows:
+                # EnterpriseRAG-Bench names files "<document id>__<slug>.txt".
+                if ds.get("id_split"):
+                    key = str(key).split(ds["id_split"], 1)[0]
                 key = doc_id(key)
                 if key in documents:
                     raise ValueError(f"Schema: duplicate document id {key!r}")

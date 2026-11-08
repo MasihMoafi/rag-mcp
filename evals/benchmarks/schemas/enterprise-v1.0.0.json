@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "dataset": "enterprise",
+  "readme_sha256": "e20f087f76ef89464e1a56a9dc692e656e845da34cb52085096f40b72e41315a",
+  "questions": {
+    "file": "questions.jsonl",
+    "id": "question_id",
+    "text": "question",
+    "answer": "gold_answer",
+    "gold": "expected_doc_ids"
+  },
+  "documents": {
+    "format": "text",
+    "globs": ["extracted/**/*.txt"],
+    "id": "$stem",
+    "id_split": "__"
+  }
+}
