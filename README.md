@@ -18,7 +18,7 @@ type: scoped hybrid-RAG CLI and MCP server for agents and document workflows
 
 Beta · v0.2.0 · Linux (verified; Python 3.13)
 
-[Install](#quick-start) • [Evals](#benchmark--retrieval-evaluations) • [How it works](#how-it-works) • [Deep-Dive Post](https://masihmoafi.com/projects/rag-mcp)
+[Install](#quick-start) • [Evals](#benchmark-and-retrieval-evaluations) • [How it works](#how-it-works) • [Deep-Dive Post](https://masihmoafi.com/projects/rag-mcp)
 
 </div>
 
@@ -380,7 +380,7 @@ These are design choices, not novelty claims:
 
 No third-party logo or benchmark — the image above is the actual [retrieval-accuracy evidence](#retrieval-accuracy) this repo ships, not decoration.
 
-The current measurement is under [Benchmark & Retrieval Evaluations](#benchmark--retrieval-evaluations). Per-question results for every recorded run are under [`evals/`](evals/).
+The current measurement is under [Benchmark & Retrieval Evaluations](#benchmark-and-retrieval-evaluations). Per-question results for every recorded run are under [`evals/`](evals/).
 
 Measured on 28 October 2026: 153 questions with known answers over five collections (a paper, a textbook, a biography, a novel and a mixed Rust, Python and notebook codebase). For each question the top 5 passages were graded **exact** (the rubric asks for a passage that states the answer), **partial** or **miss**. Opus 5.5 subagents used the same rubric to grade this run and regrade the passages saved from August. The [run record](evals/experiments/search-quality-2026-10-28/experiment.md) notes that seven answers split across passages were graded exact and that graders differed on split answers. The report, per-question grades and run traces are in [`evals/experiments/report-2026-10-28/`](evals/experiments/report-2026-10-28/).
 
