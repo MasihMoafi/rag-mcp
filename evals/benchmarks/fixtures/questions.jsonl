@@ -1,0 +1,3 @@
+{"key":"q1","prompt":"When is the Cedar release?","answer":"Thursday","evidence":[{"key":"d1"}],"group":"release"}
+{"key":"q2","prompt":"Who owns the Maple service?","answer":"Platform","evidence":[{"key":"d2"}],"group":"ownership"}
+{"key":"q3","prompt":"What is Birch's retry limit?","answer":"Three","evidence":[{"key":"d3"}],"group":"configuration"}
