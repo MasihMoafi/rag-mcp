@@ -42,6 +42,7 @@ RELEVANCE = {"full": 1.0, "partial": 0.5, "none": 0.0}
 METRICS = (
     "faithfulness",
     "answer_relevance",
+    "context_relevance",
     "context_precision",
     "context_recall",
     "completeness",
@@ -98,6 +99,7 @@ def quality_scores(verdict, job, answer):
         if refused
         else share([c["supported"] for c in verdict["claims"]]),
         "answer_relevance": RELEVANCE[verdict["relevance"]],
+        "context_relevance": share(verdict["passages"]),
         "context_precision": average_precision(verdict["passages"]),
         "context_recall": share([f["in_passages"] for f in verdict["facts"]]),
         "completeness": share([f["in_answer"] for f in verdict["facts"]]),
