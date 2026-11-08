@@ -89,6 +89,7 @@ def test_quality_metrics_follow_their_definitions():
     assert scores == {
         "faithfulness": 0.5,
         "answer_relevance": 0.5,
+        "context_relevance": 0.5,
         "context_precision": 0.5,
         "context_recall": 1.0,
         "completeness": 0.5,

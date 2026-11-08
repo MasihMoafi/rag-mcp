@@ -9,6 +9,8 @@ questions. Run a few first:
 """
 
 import argparse
+import hashlib
+import inspect
 import json
 import os
 import shutil
@@ -26,6 +28,14 @@ from .quality import QUALITY_SCHEMA, mean_scores, quality_prompt, quality_scores
 
 # The answer writer should not mark its own work.
 DEFAULT_JUDGE = "gpt-6.1-terra"
+# Masih, 8 Nov: a second, blind Sol grades a sample to check the judge.
+BLIND_JUDGE = "gpt-6.1-sol"
+# Scores from different judge wording must not be compared; every result records this.
+PROMPTS_SHA256 = hashlib.sha256(
+    "".join(
+        inspect.getsource(f) for f in (answer_prompt, grade_prompt, quality_prompt)
+    ).encode()
+).hexdigest()
 
 ANSWER_SCHEMA = {
     "type": "object",
@@ -122,8 +132,39 @@ def load_jobs(retrieval, arm, limit, questions=None):
     return list(jobs.values())[:limit]
 
 
-def answer_one(job, call, model, effort, judge):
-    """Answer with `model`, then grade and score with a different `judge`; an invalid answer gets one retry."""
+def agreement(rows):
+    """How often a blind second grader matches the judge: raw share and Cohen's kappa."""
+    pairs = [
+        (row["label"], row["blind_label"]) for row in rows if row.get("blind_label")
+    ]
+    if not pairs:
+        return None
+    observed = sum(a == b for a, b in pairs) / len(pairs)
+    first, second = Counter(a for a, _ in pairs), Counter(b for _, b in pairs)
+    chance = sum(first[k] * second[k] for k in first) / len(pairs) ** 2
+    kappa = 1.0 if chance == 1 else (observed - chance) / (1 - chance)
+    return {
+        "graded_twice": len(pairs),
+        "agreement": round(observed, 4),
+        "cohen_kappa": round(kappa, 4),
+    }
+
+
+def blind_sample_ids(jobs, size):
+    """A fixed sample that does not depend on question order."""
+    return set(
+        sorted(
+            (job["id"] for job in jobs),
+            key=lambda q: hashlib.sha256(q.encode()).hexdigest(),
+        )[:size]
+    )
+
+
+def answer_one(job, call, model, effort, judge, blind_judge=None):
+    """Answer with `model`, then grade and score with `judge`; an invalid answer gets one retry.
+
+    `blind_judge` grades again in a separate session that sees only the question, the reference
+    answer and the candidate: not the first grade, the arm or which model wrote the answer."""
     started = time.monotonic()
     for attempt in (1, 2):
         answer = call(answer_prompt(job), ANSWER_SCHEMA, model, effort)
@@ -135,7 +176,15 @@ def answer_one(job, call, model, effort, judge):
                 raise
     grade = call(grade_prompt(job, answer), GRADE_SCHEMA, judge, effort)
     verdict = call(quality_prompt(job, answer), QUALITY_SCHEMA, judge, effort)
+    blind = (
+        call(grade_prompt(job, answer), GRADE_SCHEMA, blind_judge, effort)
+        if blind_judge
+        else None
+    )
     return {
+        "blind_label": blind["label"] if blind else None,
+        "blind_judge": blind_judge if blind else None,
+        "prompts_sha256": PROMPTS_SHA256,
         "question_id": job["id"],
         "arm": job["arm"],
         "status": "ok",
@@ -166,10 +215,22 @@ def summarize(rows, jobs):
         "wrong": labels["wrong"],
         "accuracy": round(labels["correct"] / len(finished), 4) if finished else None,
         "quality": mean_scores(finished),
+        "judge_agreement": agreement(finished),
+        "prompts_sha256": PROMPTS_SHA256,
     }
 
 
-def run(jobs, output, model, effort, workers, call=run_codex, judge=DEFAULT_JUDGE):
+def run(
+    jobs,
+    output,
+    model,
+    effort,
+    workers,
+    call=run_codex,
+    judge=DEFAULT_JUDGE,
+    blind_judge=BLIND_JUDGE,
+    blind_sample=0,
+):
     """Never raises once calls have started: failures are recorded and the summary still written."""
     output = Path(output)
     output.mkdir(parents=True, exist_ok=True)
@@ -183,12 +244,20 @@ def run(jobs, output, model, effort, workers, call=run_codex, judge=DEFAULT_JUDG
     pending = [job for job in jobs if (job["arm"], job["id"]) not in done]
     lock = Lock()
     failures = [0]
+    sampled = blind_sample_ids(jobs, blind_sample)
 
     def work(job):
         if failures[0] >= MAX_CONSECUTIVE_FAILURES:
             return
         try:
-            row = answer_one(job, call, model, effort, judge)
+            row = answer_one(
+                job,
+                call,
+                model,
+                effort,
+                judge,
+                blind_judge if job["id"] in sampled else None,
+            )
         except Exception as error:  # noqa: BLE001 - runbook: record and stop, never lose finished results
             row = {
                 "question_id": job["id"],
@@ -220,6 +289,8 @@ def main():
     parser.add_argument("--effort", default="medium")
     parser.add_argument("--workers", type=int, default=2)
     parser.add_argument("--judge", default=DEFAULT_JUDGE)
+    parser.add_argument("--blind-judge", default=BLIND_JUDGE)
+    parser.add_argument("--blind-sample", type=int, default=20)
     parser.add_argument(
         "--questions",
         help="the dataset's questions.jsonl, for facts and gold documents",
@@ -235,6 +306,8 @@ def main():
                 args.effort,
                 args.workers,
                 judge=args.judge,
+                blind_judge=args.blind_judge,
+                blind_sample=args.blind_sample,
             ),
             indent=2,
         )
