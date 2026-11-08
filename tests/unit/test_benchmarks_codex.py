@@ -128,7 +128,7 @@ def test_repeated_failures_stop_early_and_keep_results(tmp_path):
 
     def failing(prompt, schema, model, effort):
         seen.append(prompt)
-        if len(seen) > 2:
+        if len(seen) > 3:  # one question takes three calls: answer, grade, quality
             raise RuntimeError("limit reached")
         return good_call(prompt, schema, model, effort)
 
