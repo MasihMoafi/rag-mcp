@@ -9,6 +9,8 @@ import time
 from pathlib import Path
 
 from .common import (
+    ANSWER_PASSAGES,
+    CONTEXT_RADIUS,
     Ledger,
     digest,
     file_hash,
@@ -52,7 +54,7 @@ def forbid_paid_calls(environ=os.environ):
     return removed
 
 
-def tune_embeddings(batch_size=128):
+def tune_embeddings(batch_size=64):
     """rag calls encode() with library defaults and is silent until indexing ends: use
     half precision and larger batches on the GPU, and print progress for every batch rag sends."""
     from sentence_transformers import SentenceTransformer
@@ -142,6 +144,8 @@ class RagRetriever:
 
         self.old_env = dict(os.environ)
         self.pipeline = None
+        self.stored = None
+        self.sources = None
         self.old_config = None
         self.mapping = mapping
         self.arm = arm
@@ -277,6 +281,7 @@ class RagRetriever:
             raise ValueError(
                 "Reranker fell back without producing ranked scores; arm invalid"
             )
+        results = self.with_neighbours(results)
         scores = reranked or fused
         passages = []
         for result in results:
@@ -302,8 +307,22 @@ class RagRetriever:
         return {
             "ranked_doc_ids": list(unique),
             "scores": list(unique.values()),
-            "passages": passages[:5],
+            "passages": passages[:ANSWER_PASSAGES],
         }
+
+    def with_neighbours(self, results):
+        """The answer's passages get rag's own neighbour expansion; ranking is unchanged."""
+        from rag.context_window import expand_passage_windows
+        from rag.ingestion import read_documents, source_files
+
+        if self.stored is None:
+            self.stored = read_documents(self.pipeline)
+            self.sources = set(source_files(self.pipeline))
+        expanded = expand_passage_windows(
+            results[:ANSWER_PASSAGES], self.stored, self.pipeline._extract_content,
+            CONTEXT_RADIUS, self.sources,
+        )
+        return expanded + results[ANSWER_PASSAGES:]
 
     def close(self):
         try:

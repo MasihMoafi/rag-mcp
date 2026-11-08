@@ -23,7 +23,7 @@ from pathlib import Path
 from threading import Lock
 
 from .answers import answer_prompt, grade_prompt, validate_answer
-from .common import read_ledger, write_json
+from .common import ANSWER_PASSAGES, read_ledger, write_json
 from .quality import QUALITY_SCHEMA, mean_scores, quality_prompt, quality_scores
 
 # Masih, 8 Nov: Sol writes and judges, each call in its own session.
@@ -123,7 +123,7 @@ def load_jobs(retrieval, arm, limit, questions=None):
                 "arm": arm,
                 "question": event["question"],
                 "gold_answer": event["gold_answer"],
-                "passages": event["passages"][:5],
+                "passages": event["passages"][:ANSWER_PASSAGES],
                 "answer_facts": label.get("answer_facts", []),
                 "gold_doc_ids": label.get("expected_doc_ids", []),
             }

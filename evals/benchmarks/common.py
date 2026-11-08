@@ -10,6 +10,11 @@ from pathlib import Path
 import signal
 
 
+# Masih's rag settings: 20 passages for the answer, one neighbouring chunk on each side.
+ANSWER_PASSAGES = 20
+CONTEXT_RADIUS = 1
+
+
 def digest(value):
     return hashlib.sha256(json.dumps(value, sort_keys=True, ensure_ascii=False,
                                      allow_nan=False).encode()).hexdigest()
