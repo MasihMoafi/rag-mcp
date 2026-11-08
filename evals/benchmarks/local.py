@@ -88,19 +88,29 @@ def main():
         "--commit", required=True, help="the rag-mcp commit being measured"
     )
     parser.add_argument("--limit", type=int, default=104)
+    parser.add_argument(
+        "--run", default="full", help="subfolder of --scratch for this run"
+    )
+    parser.add_argument(
+        "--distractors",
+        type=int,
+        help="pipeline check: gold documents plus this many others",
+    )
     parser.add_argument("--slice", action="append", default=["github", "confluence"])
     parser.add_argument(
         "--config", type=Path, default=Path.home() / ".config/rag/config.json"
     )
     args = parser.parse_args()
     load_key(args.config)
-    os.environ["RAG_BENCH_SCRATCH"] = str(args.scratch)
-    source, bundle = args.scratch / "dataset_source", args.scratch / "bundle"
+    source = args.scratch / "dataset_source"
+    bundle = args.scratch / args.run / "bundle"
+    os.environ["RAG_BENCH_SCRATCH"] = str(args.scratch / args.run)
     if not bundle.exists():
         if not source.exists():
             datasets.download, datasets.get_json = gh_download, gh_json
             datasets.prepare("enterprise", source, args.slice, "v1.0.0", None, [])
-        datasets.normalize(source, SCHEMA, bundle, args.limit)
+        bundle.parent.mkdir(parents=True, exist_ok=True)
+        datasets.normalize(source, SCHEMA, bundle, args.limit, args.distractors)
     args.work.mkdir(parents=True, exist_ok=True)
     sys.argv = [
         "retrieve",
