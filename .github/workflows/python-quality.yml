@@ -22,6 +22,23 @@ jobs:
       - run: uv sync --frozen --python 3.10
       - run: .venv/bin/python tests/install/default_store_smoke.py
 
+  # The README's one install line, on a runner without uv: install.sh must fetch uv, then install this commit.
+  curl-installer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install with install.sh as a new user would
+        run: |
+          set -eu
+          if command -v uv; then echo "uv is preinstalled; this job would not test installing it" >&2; exit 1; fi
+          RAGMCP_SOURCE="$GITHUB_WORKSPACE" sh install.sh
+          "$HOME/.local/bin/rag" --help > /dev/null
+          echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"ci","version":"0"}}}' \
+            | timeout 60 "$HOME/.local/bin/rag" mcp | grep -q '"serverInfo"'
+
   keyless:
     runs-on: ubuntu-latest
     timeout-minutes: 45

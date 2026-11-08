@@ -24,7 +24,14 @@ Beta · v0.2.0 · Linux (verified; Python 3.13)
 
 ## Quick start
 
-Prerequisite for these paths: [`uv`](https://docs.astral.sh/uv/getting-started/installation/), the Python package runner. The npm package is a thin launcher that calls it. Studio is not included in this release.
+```bash
+curl -LsSf https://raw.githubusercontent.com/MasihMoafi/rag-mcp/main/install.sh | sh
+rag setup
+rag query "What changed?" --path ./docs
+```
+
+The installer adds [uv](https://docs.astral.sh/uv/) if it is missing (uv provides Python), then the `rag` command.
+Tested on Linux. Studio is not included in this release.
 
 Exact-word retrieval works without a key. Answer synthesis sends the question and
 selected evidence to OpenRouter and needs an OpenRouter key (`rag key set` or
@@ -35,27 +42,13 @@ retrieval also send text to their configured providers. Source files and indexes
 remain local. FastEmbed may download models unless `HF_HUB_OFFLINE=1` or
 `TRANSFORMERS_OFFLINE=1` is set. Replace `./docs` with a path that exists.
 
-```bash
-uvx --from ragmcp rag setup
-uvx --from ragmcp rag query "What changed?" --path ./docs
-```
-
-On success, a query prints an answer from the selected scope. The PyPI and npm commands apply once this release is published.
+On success, a query prints an answer from the selected scope.
 
 <details>
-<summary>Other install and client setup options</summary>
+<summary>More commands and client setup</summary>
 
 ```bash
-npx ragmcp setup                                    # same, from the Node ecosystem
-pnpm dlx ragmcp query "What changed?" --path ./docs
-```
-
-Install permanently and use plain `rag`:
-
-```bash
-uv tool install ragmcp        # or: pipx install ragmcp · npm install -g ragmcp
 rag                           # print help
-rag setup                     # choose a provider first, then one of its real embedding models
 rag setup --auto              # take the recommendation without questions
 rag doctor
 rag query "What changed?" --path /absolute/path/to/document-or-folder --top3
@@ -66,22 +59,8 @@ rag connect codex             # or: claude, copilot, gemini or agy (registers th
 ```
 
 Bare `rag` prints help. `rag setup` offers an interactive provider picker. Use explicit command flags for automation.
-
-### Before it is on npm and PyPI: test from this checkout
-
-Build and test the engine and launcher from local files:
-
-```bash
-cd rag-mcp && uv build && (cd npm && npm pack)
-export RAGMCP_UVX_FROM=$PWD/dist/ragmcp-0.2.0-py3-none-any.whl       # tell the launcher where the engine is
-npx --yes file:$PWD/npm/ragmcp-0.2.0.tgz --help
-npx --yes file:$PWD/npm/ragmcp-0.2.0.tgz setup --auto
-npx --yes file:$PWD/npm/ragmcp-0.2.0.tgz query "What changed?" --path README.md --top3
-npx --yes file:$PWD/npm/ragmcp-0.2.0.tgz connect claude              # or: connect codex
-bash tests/install/run.sh                                            # offline artifact smoke in Docker
-```
-
-Use a fresh uv cache when testing a rebuilt wheel with the same version.
+Run the installer again to update. `RAGMCP_EXTRAS=office` (or `full`, `qdrant`, `anthropic`) before `sh` adds
+extras; `RAGMCP_REF` installs a tag or branch.
 
 ### From a checkout
 
@@ -99,7 +78,7 @@ uv sync --all-extras --group dev
 .venv/bin/python -m pytest tests/ -v
 ```
 
-Any MCP client can register `rag mcp` after `uv tool install ragmcp`, or `uvx --from ragmcp rag mcp` without installing.
+Any MCP client can register `rag mcp` once `rag` is installed.
 
 ### Claude Code
 
@@ -316,7 +295,7 @@ instead of caching a partial file manifest.
 The provider-first picker lists only sources detected on the machine or explicitly supported by the CLI. Selecting Ollama opens the embedding models reported by its `/api/show` capabilities; selecting an API provider loads that provider's live embedding catalog. “Local CPU” opens FastEmbed's supported-model catalog and labels download sizes. Custom server URLs and model identifiers are requested only in their dedicated final-entry flows, with the required format shown in the question.
 
 `--top N` (or `--top3`, `--top-5`) sets how many reranked passages the internal
-synthesis step may use; those passages are not returned. `rag connect claude --scope project` writes `.mcp.json` in the current folder instead of the user config. Registration always uses a command that outlives the current process: `rag mcp` when installed, or `uvx --from ragmcp==<version> rag mcp` when launched through npx/uvx.
+synthesis step may use; those passages are not returned. `rag connect claude --scope project` writes `.mcp.json` in the current folder instead of the user config. Registration uses `rag mcp`, a command that outlives the current process.
 
 ### Change settings later: CLI, menu, or chat
 
@@ -353,7 +332,7 @@ credential entry.
 
 `rag setup --provider <none|fastembed|ollama|openai_compatible|sentencetransformer> [--model M] [--base-url URL] [--api-key-stdin] [--ollama-url URL]` sets the provider directly. Set `RAG_MCP_EMBED_API_KEY` or pass the key on stdin with `--api-key-stdin`; otherwise a terminal prompts for it without echo. The saved choice lives in `~/.config/rag/config.json` (owner-readable only); `RAG_MCP_EMBED_*` environment variables override it per process.
 
-Extras: `ragmcp[full]` adds PyTorch, sentence-transformers and the cross-encoder reranker (GPU); `ragmcp[office]` parses DOCX/PPTX/XLSX/CSV; `ragmcp[qdrant]` adds the Qdrant backend; `ragmcp[anthropic]` enables contextual retrieval. With npm: `RAGMCP_EXTRAS=full npx ragmcp ...`.
+Extras: `ragmcp[full]` adds PyTorch, sentence-transformers and the cross-encoder reranker (GPU); `ragmcp[office]` parses DOCX/PPTX/XLSX/CSV; `ragmcp[qdrant]` adds the Qdrant backend; `ragmcp[anthropic]` enables contextual retrieval. Install one with `RAGMCP_EXTRAS=full` before `sh` in the install line.
 
 ### Shared workspaces
 
