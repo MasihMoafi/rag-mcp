@@ -83,6 +83,16 @@ def pin_embedding_provider(provider="DeepInfra"):
 
     Embeddings.create = create
 
+    # DeepInfra accepts 32,768 tokens per request, and rag's batches of 512 chunks are larger.
+    from rag.lancedb_backend import LanceDBBackend
+
+    plain_add = LanceDBBackend.add_documents_batch
+
+    def add_documents_batch(self, documents, batch_size=96):
+        return plain_add(self, documents, batch_size=min(batch_size, 96))
+
+    LanceDBBackend.add_documents_batch = add_documents_batch
+
 
 def load_key(path):
     """The OpenRouter key from rag's saved settings; only this process's environment gets it."""
