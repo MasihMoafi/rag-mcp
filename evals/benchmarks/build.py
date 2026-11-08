@@ -7,7 +7,7 @@ import math
 from pathlib import Path
 
 from .answers import validate_answer_ledger
-from .common import digest, read_ledger, write_json
+from .common import ANSWER_PASSAGES, digest, read_ledger, write_json
 
 HERE = Path(__file__).resolve().parent
 
@@ -86,7 +86,7 @@ def build_answer_task(
             "arm": arm,
             "question": e["question"],
             "gold_answer": e["gold_answer"],
-            "passages": e["passages"][:5],
+            "passages": e["passages"][:ANSWER_PASSAGES],
             "caveat": e.get("caveat"),
         }
         for e in list(results.values())[offset : offset + limit]

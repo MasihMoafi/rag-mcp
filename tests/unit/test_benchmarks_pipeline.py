@@ -267,6 +267,7 @@ def test_rag_adapter_explicit_files_index_audit_and_passage_scores(
     bundle, tmp_path, monkeypatch, arm, missing_document
 ):
     monkeypatch.setattr("evals.benchmarks.retrieve.tune_embeddings", lambda: None)
+    monkeypatch.setattr("evals.benchmarks.retrieve.RagRetriever.with_neighbours", lambda self, results: results)
     questions, output, manifest = retrieval_fixture(bundle, tmp_path)
     mapping = json.loads((bundle / "documents.json").read_text())
     files = [str((bundle / "corpus" / name).resolve()) for name in sorted(mapping)]
