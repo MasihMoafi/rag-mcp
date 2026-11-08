@@ -263,7 +263,7 @@ def wikipedia_text(url, cache):
     return nonempty(pages[0].get("extract"), f"Wikipedia text for {url}")
 
 
-def normalize(root, schema_path, output, limit=30):
+def normalize(root, schema_path, output, limit=30, distractors=None):
     """Validate ALL rows and gold references before creating any corpus output."""
     root, output = Path(root), Path(output)
     source = json.loads((root / "source.json").read_text())
@@ -355,6 +355,14 @@ def normalize(root, schema_path, output, limit=30):
             "check exact document-id mapping before indexing"
         )
     selected = qualified[:limit]
+    documents_total = len(documents)
+    if distractors is not None:
+        # A pipeline check: every selected question's gold documents, plus a fixed sample of others.
+        gold = {doc for q in selected for doc in q["gold_doc_ids"]}
+        others = sorted((doc for doc in documents if doc not in gold), key=digest)
+        documents = {
+            doc: documents[doc] for doc in [*sorted(gold), *others[:distractors]]
+        }
     output.mkdir(parents=True, exist_ok=False)
     corpus = output / "corpus"
     corpus.mkdir()
@@ -372,6 +380,8 @@ def normalize(root, schema_path, output, limit=30):
         schema_sha256=file_hash(schema_path),
         source_files=inspect_source(root),
         documents=len(documents),
+        documents_before_sampling=documents_total,
+        sampled_corpus_not_a_score=distractors is not None,
         questions_total=len(questions),
         questions_without_gold=sum(not q["gold_doc_ids"] for q in questions),
         questions_qualified=len(qualified),

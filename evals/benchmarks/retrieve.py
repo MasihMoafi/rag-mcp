@@ -48,6 +48,35 @@ def forbid_paid_calls(environ=os.environ):
     return removed
 
 
+def tune_embeddings(batch_size=128):
+    """rag calls encode() with library defaults and is silent until indexing ends: use
+    half precision and larger batches on the GPU, and print progress for every batch rag sends."""
+    from sentence_transformers import SentenceTransformer
+
+    if getattr(SentenceTransformer, "_rag_bench_tuned", False):
+        return
+    plain_init, plain_encode = SentenceTransformer.__init__, SentenceTransformer.encode
+    embedded, started = [0], time.monotonic()
+
+    def init(self, *args, **kwargs):
+        kwargs.setdefault("model_kwargs", {"torch_dtype": "float16"})
+        plain_init(self, *args, **kwargs)
+
+    def encode(self, texts, *args, **kwargs):
+        kwargs.setdefault("batch_size", batch_size)
+        vectors = plain_encode(self, texts, *args, **kwargs)
+        if isinstance(texts, list) and len(texts) > 1:
+            embedded[0] += len(texts)
+            print(
+                f"[bench] embedded {embedded[0]} chunks in {time.monotonic() - started:.0f}s",
+                flush=True,
+            )
+        return vectors
+
+    SentenceTransformer.__init__, SentenceTransformer.encode = init, encode
+    SentenceTransformer._rag_bench_tuned = True
+
+
 def check_bundle(bundle):
     bundle = Path(bundle)
     dataset = json.loads((bundle / "dataset.json").read_text())
@@ -144,6 +173,7 @@ class RagRetriever:
                 reranker_path = snapshot_download(
                     RERANKER, revision=revisions[RERANKER], local_files_only=True
                 )
+                tune_embeddings()
             from rag.fetch import get_rag_pipeline_v2
             from rag.settings import save_settings
 
