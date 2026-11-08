@@ -102,6 +102,9 @@ def main():
     )
     args = parser.parse_args()
     load_key(args.config)
+    # This machine sets ALL_PROXY to a socks:// URL, which httpx refuses; HTTPS_PROXY still applies.
+    os.environ.pop("ALL_PROXY", None)
+    os.environ.pop("all_proxy", None)
     source = args.scratch / "dataset_source"
     bundle = args.scratch / args.run / "bundle"
     os.environ["RAG_BENCH_SCRATCH"] = str(args.scratch / args.run)
