@@ -68,6 +68,22 @@ def gh_download(url, target):
         )
 
 
+def pin_embedding_provider(provider="DeepInfra"):
+    """OpenRouter sends Qwen3 8B to the first provider it picks, and Nebius's quota runs out at
+    once. Same price at DeepInfra; no fallback, because SiliconFlow charges four times as much."""
+    from openai.resources.embeddings import Embeddings
+
+    plain_create = Embeddings.create
+
+    def create(self, **kwargs):
+        kwargs.setdefault(
+            "extra_body", {"provider": {"order": [provider], "allow_fallbacks": False}}
+        )
+        return plain_create(self, **kwargs)
+
+    Embeddings.create = create
+
+
 def load_key(path):
     """The OpenRouter key from rag's saved settings; only this process's environment gets it."""
     from rag.settings import resolve_openrouter_key
@@ -106,6 +122,7 @@ def main():
     from rag.embeddings import OpenAICompatibleWrapper
 
     OpenAICompatibleWrapper._create_with_retry.__defaults__ = ((10,) * 360,)
+    pin_embedding_provider()
     # This machine sets ALL_PROXY to a socks:// URL, which httpx refuses; HTTPS_PROXY still applies.
     os.environ.pop("ALL_PROXY", None)
     os.environ.pop("all_proxy", None)
