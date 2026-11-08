@@ -1,0 +1,214 @@
+"""Answer and grade saved Kaggle search results locally through a signed-in Codex CLI.
+
+Calls use the ChatGPT subscription: every *_API_KEY is removed from the child environment, so
+Codex cannot bill an API account. Results append to answers.jsonl and a rerun skips finished
+questions. Run a few first:
+
+    python -m evals.benchmarks.answers_codex --retrieval retrieval.jsonl --arm hybrid_qwen \
+        --output answers-pilot --limit 5
+"""
+
+import argparse
+import json
+import os
+import shutil
+import subprocess
+import tempfile
+import time
+from collections import Counter
+from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
+from threading import Lock
+
+from .answers import answer_prompt, grade_prompt, validate_answer
+from .common import read_ledger, write_json
+
+ANSWER_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "text": {"type": "string"},
+        "citations": {"type": "array", "items": {"type": "string"}},
+    },
+    "required": ["text", "citations"],
+    "additionalProperties": False,
+}
+GRADE_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "label": {"type": "string", "enum": ["correct", "partial", "wrong"]},
+        "reason": {"type": "string"},
+    },
+    "required": ["label", "reason"],
+    "additionalProperties": False,
+}
+MAX_CONSECUTIVE_FAILURES = 3
+
+
+def subscription_env(environ):
+    """The child environment without API keys, so only the subscription sign-in can be used."""
+    return {
+        key: value for key, value in environ.items() if not key.endswith("_API_KEY")
+    }
+
+
+def run_codex(prompt, schema, model, effort):
+    """One read-only Codex turn in an empty folder; returns the parsed JSON reply."""
+    executable = shutil.which("codex")
+    if executable is None:
+        raise RuntimeError("Codex is not installed or is not on PATH")
+    with tempfile.TemporaryDirectory(prefix="rag-bench-codex-") as directory:
+        folder = Path(directory)
+        (folder / "schema.json").write_text(json.dumps(schema))
+        completed = subprocess.run(
+            [
+                executable,
+                "exec",
+                "--ephemeral",
+                "--ignore-user-config",
+                "--ignore-rules",
+                "--skip-git-repo-check",
+                "--sandbox",
+                "read-only",
+                "--model",
+                model,
+                "-c",
+                f"model_reasoning_effort={effort}",
+                "--cd",
+                directory,
+                "--output-schema",
+                str(folder / "schema.json"),
+                "--output-last-message",
+                str(folder / "reply.json"),
+                prompt,
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=300,
+            env=subscription_env(os.environ),
+        )
+        if completed.returncode != 0 or not (folder / "reply.json").exists():
+            raise RuntimeError(f"Codex failed with exit code {completed.returncode}")
+        return json.loads((folder / "reply.json").read_text())
+
+
+def load_jobs(retrieval, arm, limit):
+    _, events = read_ledger(retrieval)
+    jobs = {}
+    for event in events:
+        if event.get("event") == "complete" and event.get("arm") == arm:
+            jobs[event["question_id"]] = {
+                "id": event["question_id"],
+                "arm": arm,
+                "question": event["question"],
+                "gold_answer": event["gold_answer"],
+                "passages": event["passages"][:5],
+            }
+    if not jobs:
+        raise ValueError(f"No completed questions for arm {arm!r}")
+    return list(jobs.values())[:limit]
+
+
+def answer_one(job, call, model, effort):
+    """Answer then grade one question; an invalid answer gets one retry."""
+    started = time.monotonic()
+    for attempt in (1, 2):
+        answer = call(answer_prompt(job), ANSWER_SCHEMA, model, effort)
+        try:
+            validate_answer(answer, job)
+            break
+        except ValueError:
+            if attempt == 2:
+                raise
+    grade = call(grade_prompt(job, answer), GRADE_SCHEMA, model, effort)
+    return {
+        "question_id": job["id"],
+        "arm": job["arm"],
+        "status": "ok",
+        "answer": answer,
+        "label": grade["label"],
+        "reason": grade["reason"],
+        "model": model,
+        "effort": effort,
+        "seconds": round(time.monotonic() - started, 1),
+    }
+
+
+def summarize(rows, jobs):
+    finished = [row for row in rows if row["status"] == "ok"]
+    labels = Counter(row["label"] for row in finished)
+    return {
+        "questions": len(jobs),
+        "answered": len(finished),
+        "failed": len(
+            {row["question_id"] for row in rows if row["status"] == "error"}
+            - {row["question_id"] for row in finished}
+        ),
+        "correct": labels["correct"],
+        "partial": labels["partial"],
+        "wrong": labels["wrong"],
+        "accuracy": round(labels["correct"] / len(finished), 4) if finished else None,
+    }
+
+
+def run(jobs, output, model, effort, workers, call=run_codex):
+    """Never raises once calls have started: failures are recorded and the summary still written."""
+    output = Path(output)
+    output.mkdir(parents=True, exist_ok=True)
+    ledger = output / "answers.jsonl"
+    rows = (
+        [json.loads(line) for line in ledger.read_text().splitlines()]
+        if ledger.exists()
+        else []
+    )
+    done = {(row["arm"], row["question_id"]) for row in rows if row["status"] == "ok"}
+    pending = [job for job in jobs if (job["arm"], job["id"]) not in done]
+    lock = Lock()
+    failures = [0]
+
+    def work(job):
+        if failures[0] >= MAX_CONSECUTIVE_FAILURES:
+            return
+        try:
+            row = answer_one(job, call, model, effort)
+        except Exception as error:  # noqa: BLE001 - runbook: record and stop, never lose finished results
+            row = {
+                "question_id": job["id"],
+                "arm": job["arm"],
+                "status": "error",
+                "error": f"{type(error).__name__}: {str(error)[:300]}",
+            }
+        with lock:
+            failures[0] = 0 if row["status"] == "ok" else failures[0] + 1
+            rows.append(row)
+            with ledger.open("a") as stream:
+                stream.write(json.dumps(row, ensure_ascii=False) + "\n")
+
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        list(pool.map(work, pending))
+    summary = summarize(rows, jobs)
+    summary["stopped_early"] = failures[0] >= MAX_CONSECUTIVE_FAILURES
+    write_json(output / "summary.json", summary)
+    return summary
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--retrieval", required=True)
+    parser.add_argument("--arm", default="hybrid_qwen")
+    parser.add_argument("--output", required=True)
+    parser.add_argument("--limit", type=int, default=5)
+    parser.add_argument("--model", default="gpt-6.1-sol")
+    parser.add_argument("--effort", default="medium")
+    parser.add_argument("--workers", type=int, default=2)
+    args = parser.parse_args()
+    jobs = load_jobs(args.retrieval, args.arm, args.limit)
+    print(
+        json.dumps(
+            run(jobs, args.output, args.model, args.effort, args.workers), indent=2
+        )
+    )
+
+
+if __name__ == "__main__":
+    main()
