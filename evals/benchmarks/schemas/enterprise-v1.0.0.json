@@ -13,6 +13,7 @@
     "format": "text",
     "globs": ["extracted/**/*.txt"],
     "id": "$stem",
-    "id_split": "__"
+    "id_split": "__",
+    "duplicate_ids": "drop"
   }
 }
