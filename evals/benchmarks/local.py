@@ -20,19 +20,31 @@ REPOSITORY = "onyx-dot-app/EnterpriseRAG-Bench"
 SCHEMA = Path(__file__).with_name("schemas") / "enterprise-v1.0.0.json"
 
 
-def release_download(url, target):
-    """GitHub's direct release links fail on this network; `gh` works, without the proxy."""
-    if "/releases/download/" not in url:
-        return plain_download(url, target)
-    tag, name = url.rsplit("/", 2)[-2:]
+def gh(*args, **options):
+    """Plain GitHub URLs return 503 on this network; `gh` without the proxy works."""
     environ = {
         k: v
         for k, v in os.environ.items()
         if k.lower() not in ("https_proxy", "http_proxy", "all_proxy")
     }
-    subprocess.run(
-        [
-            "gh",
+    return subprocess.run(
+        ["gh", *args],
+        check=True,
+        env=environ,
+        timeout=600,
+        capture_output=True,
+        **options,
+    ).stdout
+
+
+def gh_json(url):
+    return json.loads(gh("api", url.removeprefix("https://api.github.com/")))
+
+
+def gh_download(url, target):
+    if "/releases/download/" in url:
+        tag, name = url.rsplit("/", 2)[-2:]
+        gh(
             "release",
             "download",
             tag,
@@ -43,15 +55,17 @@ def release_download(url, target):
             "-O",
             str(target),
             "--clobber",
-        ],
-        check=True,
-        env=environ,
-        timeout=600,
-    )
-    return None
-
-
-plain_download = datasets.download
+        )
+    else:
+        commit, name = url.rsplit("/", 2)[-2:]
+        Path(target).write_bytes(
+            gh(
+                "api",
+                "-H",
+                "Accept: application/vnd.github.raw",
+                f"repos/{REPOSITORY}/contents/{name}?ref={commit}",
+            )
+        )
 
 
 def load_key(path):
@@ -84,7 +98,7 @@ def main():
     source, bundle = args.scratch / "dataset_source", args.scratch / "bundle"
     if not bundle.exists():
         if not source.exists():
-            datasets.download = release_download
+            datasets.download, datasets.get_json = gh_download, gh_json
             datasets.prepare("enterprise", source, args.slice, "v1.0.0", None, [])
         datasets.normalize(source, SCHEMA, bundle, args.limit)
     args.work.mkdir(parents=True, exist_ok=True)
