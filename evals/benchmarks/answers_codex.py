@@ -26,8 +26,8 @@ from .answers import answer_prompt, grade_prompt, validate_answer
 from .common import read_ledger, write_json
 from .quality import QUALITY_SCHEMA, mean_scores, quality_prompt, quality_scores
 
-# The answer writer should not mark its own work.
-DEFAULT_JUDGE = "gpt-6.1-terra"
+# Masih, 8 Nov: Sol writes and judges, each call in its own session.
+DEFAULT_JUDGE = "gpt-6.1-sol"
 # Masih, 8 Nov: a second, blind Sol grades a sample to check the judge.
 BLIND_JUDGE = "gpt-6.1-sol"
 # Scores from different judge wording must not be compared; every result records this.
