@@ -54,7 +54,7 @@ export BENCH_DIR=/tmp/rag-bench-20261108
   --owner "$KAGGLE_OWNER" --slug rag-bench-enterprise-inspect-20261108 \
   --dataset enterprise --slice github --slice confluence \
   --output "$BENCH_DIR/inspect"
-kaggle kernels push -p "$BENCH_DIR/inspect"
+kaggle kernels push --accelerator NvidiaTeslaT4 -p "$BENCH_DIR/inspect"  # Kaggle's T4 machine has two T4s
 kaggle kernels status "$KAGGLE_OWNER/rag-bench-enterprise-inspect-20261108"
 # Run after status says complete:
 kaggle kernels output "$KAGGLE_OWNER/rag-bench-enterprise-inspect-20261108" \
@@ -147,7 +147,7 @@ export DATASET_REVISION=REPLACE_WITH_source_json_revision
   --schema "$BENCH_DIR/enterprise-schema.json" --limit 30 \
   --embedding-size 0.6B --candidates 50 \
   --output "$BENCH_DIR/pilot"
-kaggle kernels push -p "$BENCH_DIR/pilot"
+kaggle kernels push --accelerator NvidiaTeslaT4 -p "$BENCH_DIR/pilot"
 kaggle kernels status "$KAGGLE_OWNER/rag-bench-enterprise-pilot-20261108"
 # Run after status says complete:
 kaggle kernels output "$KAGGLE_OWNER/rag-bench-enterprise-pilot-20261108" \
