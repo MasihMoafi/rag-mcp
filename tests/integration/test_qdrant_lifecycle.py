@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-pytest.importorskip("qdrant_client")  # optional extra: ragmcp[qdrant]
+pytest.importorskip("qdrant_client")  # optional extra: ragmcp-cli[qdrant]
 
 from rag import core, fetch
 from rag.qdrant_backend import QdrantVectorDB

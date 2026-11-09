@@ -1157,7 +1157,7 @@ def _query_knowledge_base(  # pyright: ignore[reportUnusedFunction] -- called by
                 paths = fetch_doc_path if isinstance(fetch_doc_path, list) else [fetch_doc_path]
                 skipped = [path for path in paths if Path(path).suffix.lower() in OFFICE_EXTENSIONS]
                 if skipped:
-                    notice = f"Skipped {', '.join(skipped)}: install ragmcp[office] to parse these files."
+                    notice = f"Skipped {', '.join(skipped)}: install ragmcp-cli[office] to parse these files."
                     if scope is None:
                         return json.dumps({'error': notice.replace('Skipped ', 'Cannot parse ', 1)})
                     fetch_doc_path = [path for path in paths if path not in skipped]

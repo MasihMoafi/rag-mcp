@@ -3001,7 +3001,7 @@ wheels = [
 ]
 
 [[package]]
-name = "ragmcp"
+name = "ragmcp-cli"
 version = "0.2.0"
 source = { editable = "." }
 dependencies = [
@@ -3058,7 +3058,7 @@ requires-dist = [
     { name = "pymupdf", specifier = ">=1.26.3" },
     { name = "qdrant-client", marker = "extra == 'qdrant'", specifier = ">=1.7.0" },
     { name = "questionary", specifier = ">=2.1,<3" },
-    { name = "ragmcp", extras = ["full", "office", "qdrant", "anthropic"], marker = "extra == 'all'" },
+    { name = "ragmcp-cli", extras = ["full", "office", "qdrant", "anthropic"], marker = "extra == 'all'" },
     { name = "requests", specifier = ">=2.31" },
     { name = "sentence-transformers", marker = "extra == 'full'", specifier = ">=5.0.0" },
     { name = "tantivy", specifier = ">=0.26.0" },

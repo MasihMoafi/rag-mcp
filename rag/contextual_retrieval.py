@@ -71,7 +71,7 @@ class AnthropicContextualizer:
         except ImportError as error:
             raise RuntimeError(
                 "Contextual retrieval needs the optional Anthropic dependency. "
-                "Install `ragmcp[anthropic]` and set ANTHROPIC_API_KEY."
+                "Install `ragmcp-cli[anthropic]` and set ANTHROPIC_API_KEY."
             ) from error
         return Anthropic(timeout=timeout)
 

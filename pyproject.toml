@@ -1,5 +1,5 @@
 [project]
-name = "ragmcp"
+name = "ragmcp-cli"
 version = "0.2.0"
 description = "Scoped hybrid-RAG CLI and MCP server with BM25, vector retrieval, reranking, and answer synthesis"
 readme = "README.md"
@@ -43,7 +43,7 @@ office = ["unstructured[docx,pptx,xlsx,csv]>=0.18.32"]
 qdrant = ["qdrant-client>=1.7.0"]
 # Optional ingestion-time contextual retrieval through Anthropic's Messages API.
 anthropic = ["anthropic>=0.40.0"]
-all = ["ragmcp[full,office,qdrant,anthropic]"]
+all = ["ragmcp-cli[full,office,qdrant,anthropic]"]
 
 [project.scripts]
 rag = "rag.cli:main"

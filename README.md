@@ -246,7 +246,7 @@ are never returned applies to the answer tool; retrieval-only search has a separ
 boundary.
 
 Contextual retrieval is off by default. Enable it with `rag config contextual on` or
-`RAG_MCP_CONTEXTUAL_RETRIEVAL=on`; install `ragmcp[anthropic]` and set
+`RAG_MCP_CONTEXTUAL_RETRIEVAL=on`; install `ragmcp-cli[anthropic]` and set
 `ANTHROPIC_API_KEY` before indexing. Turning it off changes the index stamp and rebuilds
 an uncontextualized index.
 
@@ -332,7 +332,7 @@ credential entry.
 
 `rag setup --provider <none|fastembed|ollama|openai_compatible|sentencetransformer> [--model M] [--base-url URL] [--api-key-stdin] [--ollama-url URL]` sets the provider directly. Set `RAG_MCP_EMBED_API_KEY` or pass the key on stdin with `--api-key-stdin`; otherwise a terminal prompts for it without echo. The saved choice lives in `~/.config/rag/config.json` (owner-readable only); `RAG_MCP_EMBED_*` environment variables override it per process.
 
-Extras: `ragmcp[full]` adds PyTorch, sentence-transformers and the cross-encoder reranker (GPU); `ragmcp[office]` parses DOCX/PPTX/XLSX/CSV; `ragmcp[qdrant]` adds the Qdrant backend; `ragmcp[anthropic]` enables contextual retrieval. Install one with `RAGMCP_EXTRAS=full` before `sh` in the install line.
+Extras: `ragmcp-cli[full]` adds PyTorch, sentence-transformers and the cross-encoder reranker (GPU); `ragmcp-cli[office]` parses DOCX/PPTX/XLSX/CSV; `ragmcp-cli[qdrant]` adds the Qdrant backend; `ragmcp-cli[anthropic]` enables contextual retrieval. Install one with `RAGMCP_EXTRAS=full` before `sh` in the install line.
 
 ### Shared workspaces
 
@@ -625,7 +625,7 @@ the pipeline.
 ### Repository layout
 
 The command-line interface, MCP server, and retrieval engine are one project in this
-checkout. Installing `ragmcp` provides the `rag` command; there is no separate
+checkout. Installing `ragmcp-cli` provides the `rag` command; there is no separate
 `rag-cli` source directory to launch.
 
 ```text

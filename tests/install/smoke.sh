@@ -2,7 +2,7 @@
 # Exercise a built wheel and packed npm launcher without provider requests.
 set -euo pipefail
 
-WHEEL=${WHEEL:-$(ls /work/ragmcp-*.whl | head -1)}
+WHEEL=${WHEEL:-$(ls /work/ragmcp_cli-*.whl | head -1)}
 NPM_TGZ=${NPM_TGZ:-$(ls /work/ragmcp-*.tgz | head -1)}
 FACTS=${FACTS:-/work/install/facts.md}
 scratch=$(mktemp -d)

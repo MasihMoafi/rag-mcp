@@ -25,7 +25,7 @@ def _safe_old_args(args: object) -> bool:
     return all(isinstance(value, str) and (
         value in {'mcp', '-m', 'rag.cli', 'rag', '--from'}
         or value.endswith('/server.py')
-        or re.fullmatch(r'ragmcp==[0-9A-Za-z.+_-]+', value) is not None
+        or re.fullmatch(r'ragmcp-cli==[0-9A-Za-z.+_-]+', value) is not None
     ) for value in values)
 
 
@@ -48,7 +48,7 @@ def server_command(environ: Mapping[str, str]) -> list[str]:
     if "/environments-v2/" in sys.executable or "/.cache/uv/" in sys.executable:
         from importlib.metadata import version
 
-        return ["uvx", "--from", f"ragmcp=={version('ragmcp')}", "rag", "mcp"]
+        return ["uvx", "--from", f"ragmcp-cli=={version('ragmcp-cli')}", "rag", "mcp"]
     installed = shutil.which("rag", path=environ.get("PATH"))
     if installed and ".venv" not in installed:
         return [installed, "mcp"]
@@ -497,7 +497,7 @@ description: Change or inspect the RAG answer pipeline in plain words (answer pa
 ---
 The user wants to change or inspect their RAG answer pipeline: $ARGUMENTS
 
-Use the `rag` command line tool through the shell (if `rag` is not on PATH, use `uvx ragmcp` with the same arguments). Map the request to exactly one of these and run it:
+Use the `rag` command line tool through the shell (if `rag` is not on PATH, use `uvx --from ragmcp-cli rag` with the same arguments). Map the request to exactly one of these and run it:
 - `rag config show`
 - `rag config top <N>`                       (also for "top5", "top 5", "use 5 passages for the answer")
 - `rag config reranker off|auto|fastembed|openrouter|<model>`

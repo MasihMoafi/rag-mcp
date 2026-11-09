@@ -3,7 +3,7 @@ description: Change or inspect the RAG answer pipeline in plain words (answer pa
 ---
 The user wants to change or inspect their RAG answer pipeline: $ARGUMENTS
 
-Use the `rag` command line tool through the shell (if `rag` is not on PATH, use `uvx ragmcp` with the same arguments). Map the request to exactly one of these and run it:
+Use the `rag` command line tool through the shell (if `rag` is not on PATH, use `uvx --from ragmcp-cli rag` with the same arguments). Map the request to exactly one of these and run it:
 - `rag config show`
 - `rag config top <N>`                       (also for "top5", "top 5", "use 5 passages for the answer")
 - `rag config reranker off|auto|fastembed|openrouter|<model>`

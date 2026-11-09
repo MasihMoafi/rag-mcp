@@ -111,7 +111,7 @@ def capture_manifest(root: Path | None = None) -> dict:
     root = Path(root) if root is not None else Path(__file__).resolve().parents[1]
     bundle = root / 'rag' / 'studio_dist' / 'bundle.tar.gz'
     try:
-        version = metadata.version('ragmcp')
+        version = metadata.version('ragmcp-cli')
     except metadata.PackageNotFoundError:
         version = None
     if version is not None and not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9!+._-]*', version):

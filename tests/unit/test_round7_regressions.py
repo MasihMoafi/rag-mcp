@@ -85,10 +85,10 @@ def test_folder_skips_missing_office_parser_and_explicit_file_reports_it(tmp_pat
     monkeypatch.setattr(openrouter_pipeline, 'synthesize_answer', lambda query, values, config: values[0]['content'])
     result = json.loads(server._query_knowledge_base('What changed?', str(corpus)))
     assert 'release shipped' in result['result']
-    assert all(term in result['result'] for term in ('data.csv', 'report.docx', 'ragmcp[office]'))
+    assert all(term in result['result'] for term in ('data.csv', 'report.docx', 'ragmcp-cli[office]'))
     for name in ('data.csv', 'report.docx'):
         explicit = json.loads(server._query_knowledge_base('What changed?', str(corpus / name)))
-        assert name in explicit['error'] and 'ragmcp[office]' in explicit['error']
+        assert name in explicit['error'] and 'ragmcp-cli[office]' in explicit['error']
 
 
 @pytest.mark.parametrize('name', ['test_cli.py', 'worker_test.py', 'migrations/001.py'])

@@ -28,8 +28,8 @@ case "$source" in
     http://* | https://* | git@* | file://*) from="git+$source@$ref" ;;
     *) from="$source" ;; # a local checkout: install it as it is
 esac
-package="ragmcp"
-[ -n "$extras" ] && package="ragmcp[$extras]"
+package="ragmcp-cli"
+[ -n "$extras" ] && package="ragmcp-cli[$extras]"
 
 say "Installing rag from $from..."
 uv tool install --force "$package @ $from"

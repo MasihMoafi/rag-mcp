@@ -14,10 +14,10 @@ ENV PATH="/opt/uv/bin:${PATH}"
 RUN npm install -g pnpm@10
 
 WORKDIR /work
-COPY dist/ragmcp-*.whl /work/
+COPY dist/ragmcp_cli-*.whl /work/
 COPY npm/ /work/npm/
 COPY tests/install/ /work/install/
 RUN cd /work/npm && npm pack --pack-destination /work >/dev/null && ls /work
-RUN uvx --from /work/ragmcp-*.whl rag --help >/dev/null
+RUN uvx --from /work/ragmcp_cli-*.whl rag --help >/dev/null
 
 ENTRYPOINT ["bash", "/work/install/smoke.sh"]

@@ -19,7 +19,7 @@ from typing import Any
 from . import tracing
 
 FULL_EXTRA_HINT = (
-    "Install the full extra (uv tool install 'ragmcp[full]') or pick another option in `rag setup`."
+    "Install the full extra (uv tool install 'ragmcp-cli[full]') or pick another option in `rag setup`."
 )
 
 # Seconds after the first send at which a still-unanswered query embedding is sent again.
@@ -100,7 +100,7 @@ class FastEmbedWrapper:
             from fastembed import TextEmbedding
         except ImportError as error:
             raise RuntimeError(
-                "The local embedding model needs the fastembed package. Reinstall ragmcp or run `rag setup`."
+                "The local embedding model needs the fastembed package. Reinstall ragmcp-cli or run `rag setup`."
             ) from error
         self.model_name = model_name
         self.model = TextEmbedding(model_name=model_name, cache_dir=_fastembed_cache_dir(),
@@ -212,7 +212,7 @@ class OpenAICompatibleWrapper:
         try:
             from openai import OpenAI
         except ImportError as error:
-            raise RuntimeError("The API embedding option needs the openai package. Reinstall ragmcp.") from error
+            raise RuntimeError("The API embedding option needs the openai package. Reinstall ragmcp-cli.") from error
         # Fail fast on a wrong URL or key: the setup probe should answer in seconds.
         self.client = OpenAI(api_key=api_key, base_url=base_url, max_retries=1, timeout=30)
         self.model_name = model_name
@@ -295,7 +295,7 @@ class FastEmbedReranker:
         try:
             from fastembed.rerank.cross_encoder import TextCrossEncoder
         except ImportError as error:
-            raise RuntimeError("The local reranker needs the fastembed package. Reinstall ragmcp.") from error
+            raise RuntimeError("The local reranker needs the fastembed package. Reinstall ragmcp-cli.") from error
         self.model_name = model_name
         self.model = TextCrossEncoder(model_name=model_name, cache_dir=_fastembed_cache_dir(),
                                       local_files_only=_fastembed_offline())

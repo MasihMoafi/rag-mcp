@@ -8,7 +8,7 @@ const { spawnSync } = require("node:child_process")
 const { version } = require("../package.json")
 
 const extras = process.env.RAGMCP_EXTRAS ? `[${process.env.RAGMCP_EXTRAS}]` : ""
-const spec = process.env.RAGMCP_UVX_FROM || `ragmcp${extras}==${version}`
+const spec = process.env.RAGMCP_UVX_FROM || `ragmcp-cli${extras}==${version}`
 const args = ["--from", spec, "rag", ...process.argv.slice(2)]
 
 function launch(command, prefix) {
