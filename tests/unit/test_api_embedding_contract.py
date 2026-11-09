@@ -218,6 +218,7 @@ def test_duplicate_inputs_are_embedded_once_without_normalizing(monkeypatch):
 
 def test_query_rejects_empty_vector(monkeypatch):
     wrapper = wrapper_with_response(monkeypatch, [item(0, [])])
+    wrapper.model_name = "fixture"
     with pytest.raises(ValueError, match="embedding response"):
         wrapper.embed_query("question")
 

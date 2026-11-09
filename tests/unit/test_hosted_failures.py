@@ -46,7 +46,7 @@ def test_hosted_prompt_scopes_abstention_to_supplied_evidence(monkeypatch, cite_
     hosted.synthesize_answer('question', [{'content': 'unrelated evidence'}], {'cite_sources': cite_sources})
     instruction = captured['messages'][0]['content']
     assert 'indexed material' not in instruction
-    assert 'do not have enough information to answer' in instruction
+    assert 'If no passage addresses any part of the question' in instruction
     assert 'Topical similarity alone is not evidence' in instruction
     assert 'Do not cite an abstention' in instruction
     assert ('Cite supporting passages' in instruction) is cite_sources

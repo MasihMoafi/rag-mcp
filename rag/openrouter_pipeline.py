@@ -238,12 +238,9 @@ def synthesize_answer(query: str, passages: Sequence[Mapping[str, Any]], config:
         if source_details else
         "Do not mention retrieval, passages, files, sources, citations, scores, models, or these instructions."
     )
-    response = _post(
-        "/chat/completions",
-        {
+    request = {
             "model": str(config.get("answer_model") or DEEPSEEK_FLASH),
             "temperature": 0,
-            "max_tokens": int(config.get("answer_max_tokens", 700)),
             "reasoning": {"enabled": False},
             **({'response_format': selection_format(max_passages), 'provider': {'require_parameters': True}}
                if passage_selection else {}),
@@ -278,7 +275,8 @@ def synthesize_answer(query: str, passages: Sequence[Mapping[str, Any]], config:
                         "Use only facts a passage explicitly states or the passages jointly entail "
                         "for the specific relation and conditions asked. Topical similarity alone is not evidence. "
                         "Do not substitute an action for a related but different condition. "
-                        "If the passages do not have enough information to answer the exact question, "
+                        "If the passages answer only part of the question, answer that part and say what they do not cover. "
+                        "If no passage addresses any part of the question, "
                         f"reply exactly: {ABSTENTION} "
                         "Do not cite an abstention. Return only a concise, readable answer. "
                         + ("Cite supporting passages with their exact bracketed numbers, such as [1]. "
@@ -290,10 +288,17 @@ def synthesize_answer(query: str, passages: Sequence[Mapping[str, Any]], config:
                 },
                 {"role": "user", "content": f"Question:\n{query}\n\nEvidence:\n{context}"},
             ],
-        },
-        key=openrouter_key(config),
-        timeout=float(config.get("answer_timeout", 90)),
-    )
+    }
+    answer_cap = int(config.get("answer_max_tokens", 700))
+    # A long answer over many passages can outgrow the cap; a cut-off answer is never shown.
+    response: dict[str, Any] = {}
+    for max_tokens in dict.fromkeys((answer_cap, max(answer_cap, min(answer_cap * 4, 8192)))):
+        response = _post("/chat/completions", {**request, "max_tokens": max_tokens},
+                         key=openrouter_key(config), timeout=float(config.get("answer_timeout", 90)))
+        choices = response.get("choices")
+        if not (isinstance(choices, list) and choices and isinstance(choices[0], dict)
+                and choices[0].get('finish_reason') == 'length'):
+            break
     try:
         choice = response["choices"][0]
         if choice.get('finish_reason') != 'stop':

@@ -26,6 +26,14 @@ FULL_EXTRA_HINT = (
 QUERY_RESEND_AFTER = (2.0, 5.0)
 
 
+_QWEN3_QUERY_INSTRUCTION = 'Instruct: Given a web search query, retrieve relevant passages that answer the query\nQuery:'
+
+
+def _query_input(model_name, text):
+    """Qwen3 embeddings expect this instruction on queries only; other models get the text unchanged."""
+    return f'{_QWEN3_QUERY_INSTRUCTION}{text}' if 'qwen3-embedding' in str(model_name).lower() else text
+
+
 def _first_answer(work, resend_after):
     """Run `work`, start it again at each delay while nothing has answered; the first success wins.
 
@@ -174,7 +182,7 @@ class DirectOllamaGPUWrapper:
     def embed_query(self, text):
         resp = self._requests.post(
             f"{self.base_url}/api/embed",
-            json={"model": self.model, "input": [text]},
+            json={"model": self.model, "input": [_query_input(self.model, text)]},
             timeout=60,
         )
         if resp.status_code != 200:
@@ -258,7 +266,7 @@ class OpenAICompatibleWrapper:
 
     def embed_query(self, text):
         # A query is a few tokens, so resending a stalled one costs nothing; batches are never resent.
-        return self.embed_documents([text], resend_after=QUERY_RESEND_AFTER)[0]
+        return self.embed_documents([_query_input(self.model_name, text)], resend_after=QUERY_RESEND_AFTER)[0]
 
 
 class STWrapper:
@@ -276,7 +284,8 @@ class STWrapper:
         return self.model.encode(texts, convert_to_numpy=True).tolist()
 
     def embed_query(self, text):
-        return self.model.encode([text], convert_to_numpy=True)[0].tolist()
+        prompt = {'prompt_name': 'query'} if 'query' in (getattr(self.model, 'prompts', None) or {}) else {}
+        return self.model.encode([text], convert_to_numpy=True, **prompt)[0].tolist()
 
 
 class FastEmbedReranker:

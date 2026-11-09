@@ -68,6 +68,7 @@ _DEFAULT_MAX_INDEXED_FILES = 5_000
 _DEFAULT_INDEX_MAX_DEPTH = 12
 _DEFAULT_MAX_DEPTH = 20
 _DEFAULT_MAX_TOKENS = 2_000_000
+_PDF_TOKENS_PER_PAGE = 1_000
 
 
 class _EvaluationQuestion(TypedDict):
@@ -787,6 +788,18 @@ def _normalize_path(path: str) -> str:
     return str(candidate)
 
 
+def _estimated_tokens(path: Path, size: int) -> int:
+    """Estimate a file's text, counting a PDF by pages because its bytes are mostly images and fonts."""
+    if path.suffix.lower() == '.pdf':
+        try:
+            import pymupdf
+            with pymupdf.open(path) as document:
+                return document.page_count * _PDF_TOKENS_PER_PAGE
+        except (ImportError, OSError, RuntimeError, ValueError):
+            return size // 4 + 1  # An unreadable PDF keeps the cautious byte estimate.
+    return size // 4 + 1
+
+
 def _configured_limit(name: str, default: int) -> int:
     """Read a positive RAG scan limit, falling back to its safe default."""
     try:
@@ -966,7 +979,7 @@ def _validate_rag_scope(path: Path, extensions: list[str] | None = None, *, work
                 or _is_git_ignored(path, global_ignore)):
             raise ValueError('The selected file is excluded from indexing.')
         max_tokens = _configured_limit('RAG_MCP_MAX_TOKENS', _DEFAULT_MAX_TOKENS)
-        if path.stat().st_size // 4 + 1 > max_tokens:
+        if _estimated_tokens(path, path.stat().st_size) > max_tokens:
             raise ValueError(f'RAG scan exceeds the configured {max_tokens:,}-token limit.')
         return None
 
@@ -1037,7 +1050,7 @@ def _validate_rag_scope(path: Path, extensions: list[str] | None = None, *, work
             has_non_noise = True
             if candidate.suffix.lower() not in allowed_extensions:
                 continue
-            estimated_tokens += candidate_stat.st_size // 4 + 1
+            estimated_tokens += _estimated_tokens(candidate, candidate_stat.st_size)
             if estimated_tokens > max_tokens:
                 raise ValueError(
                     f"RAG scan exceeds the configured {max_tokens:,}-token limit. "
@@ -1176,7 +1189,7 @@ def _query_knowledge_base(  # pyright: ignore[reportUnusedFunction] -- called by
                         if isinstance(facet_value, list):
                             groups.append(cast(list[Mapping[str, Any]], facet_value))
                     with tracing.span('selection.balance'):
-                        value = balanced_passages(groups, limit=5)
+                        value = balanced_passages(groups, limit=max(1, int(retrieval_config()['top_k'])))
                         tracing.passages('selected', value)
             except Exception as exc:
                 return _query_failure('retrieval', exc, 'Check the document scope, index and embedding settings.')
