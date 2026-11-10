@@ -1,3 +1,4 @@
+from evals.benchmarks.common import retrieval_summary
 """Observable benchmark contracts; all hosted calls and downloads are offline fakes."""
 
 import json
@@ -658,3 +659,49 @@ def test_paid_provider_keys_are_removed_and_unknown_keys_refuse_to_run():
     assert environ == {"PATH": "/bin"}
     with pytest.raises(ValueError, match="MISTRAL_API_KEY"):
         forbid_paid_calls({"MISTRAL_API_KEY": "z"})
+
+
+def test_unlabeled_questions_are_kept_only_when_asked_and_skip_retrieval_scores(
+    source, tmp_path
+):
+    root, path, _ = source
+    rows = [
+        json.loads(line) for line in (root / "questions.jsonl").read_text().splitlines()
+    ]
+    rows[1]["evidence"] = []
+    (root / "questions.jsonl").write_text(
+        "".join(json.dumps(row) + "\n" for row in rows)
+    )
+    assert normalize(root, path, tmp_path / "without")["questions_selected"] == 2
+    output = tmp_path / "with"
+    assert (
+        normalize(root, path, output, keep_unlabeled=True)["questions_selected"] == 3
+    )
+    questions = check_bundle(output)[2]
+    unlabeled = next(q for q in questions if not q["gold_doc_ids"])
+    event = {
+        "event": "complete",
+        "arm": "a",
+        "question_id": unlabeled["id"],
+        "ranked_doc_ids": ["x"],
+    }
+    assert retrieval_summary([event], questions, ["a"], None)["arms"]["a"]["completed"] == 1
+
+
+def test_titles_from_file_names_survive_into_the_bundle(source, tmp_path):
+    # 10 Nov: hash-only names hid EnterpriseRAG's titles from rag.
+    root, path, schema = source
+    rows = (root / "documents.jsonl").read_text().splitlines()
+    (root / "documents.jsonl").write_text(
+        "".join(
+            json.dumps(dict(row, key=f"{row['key']}__Release plan {row['key']}")) + "\n"
+            for row in map(json.loads, rows)
+        )
+    )
+    schema["documents"]["id_split"] = "__"
+    write_json(path, schema)
+    output = tmp_path / "titled"
+    normalize(root, path, output, titles=True)
+    mapping = check_bundle(output)[1]
+    assert "Release-plan-d1.txt" in {Path(name).name for name in mapping}
+    assert sorted(mapping.values()) == ["d1", "d2", "d3"]

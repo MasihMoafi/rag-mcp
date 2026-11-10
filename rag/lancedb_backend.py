@@ -43,7 +43,9 @@ class LanceDBBackend:
         vector_size: int = 768,
         distance: str = "cosine",
         persist_path: str = "./lancedb_storage",
+        keyword_stemming: bool = False,
     ):
+        self.keyword_stemming = keyword_stemming
         self.table_name = re.sub(r"[^A-Za-z0-9_]", "_", table_name)
         self.embedding_fn = embedding_fn
         self.vector_size = vector_size
@@ -199,12 +201,16 @@ class LanceDBBackend:
             # query raise instead of returning results.
             # Native FTS indexes one field each, so the identifier column gets its own.
             for column in ("content", "symbols"):
+                # Prose gains from stemming ("deployment" finds "deploy"); identifiers stay exact.
+                prose = self.keyword_stemming and column == "content"
                 self.table.create_fts_index(
                     column,
                     replace=True,
                     with_position=True,
-                    stem=False,
-                    remove_stop_words=False,
+                    language="English",
+                    stem=prose,
+                    remove_stop_words=prose,
+                    ascii_folding=prose,
                 )
             sys.stderr.write("[LanceDB] Built FTS indexes on 'content' and 'symbols'.\n")
         except Exception as e:

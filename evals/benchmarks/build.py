@@ -170,8 +170,11 @@ def build_notebook(
     resume_from=None,
     distractors=None,
     rag_ref="main",
+    keep_unlabeled=False,
+    options=(),
 ):
     output = Path(output)
+    option_args = [arg for option in options for arg in ("--option", option)]
     output.mkdir(parents=True, exist_ok=False)
     schema_value = json.loads(Path(schema).read_text()) if schema else None
     seed, _ = read_ledger(resume_from) if resume_from else (b"", [])
@@ -198,13 +201,14 @@ info.mkdir(exist_ok=True)
 for name in ('README.md', 'inspection.json', 'source.json'):
     shutil.copyfile(source / name, info / name)
 print((source / 'README.md').read_text())
-print((source / 'inspection.json').read_text())
+print((source / 'inspection.json').read_text()[:4000])
 SCHEMA = {schema_value!r}
 if SCHEMA is not None:
     schema_path = working / 'schema.json'
     write_json(schema_path, SCHEMA)
     bundle = scratch / 'bundle'
-    normalize(source, schema_path, bundle, {limit!r}, {distractors!r})
+    normalize(source, schema_path, bundle, {limit!r}, {distractors!r}, {keep_unlabeled!r},
+              {"titles" in options!r})
     result = working / 'retrieval_results'
     result.mkdir(exist_ok=True)
     seed = {seed!r}
@@ -214,7 +218,8 @@ if SCHEMA is not None:
     # main() performs preflight before entering the durable retrieval loop.
     from evals.benchmarks.retrieve import main
     sys.argv = ['retrieve', '--bundle', str(bundle), '--output', str(result),
-                '--embedding-size', {embedding_size!r}, '--candidates', {str(candidates)!r}]
+                '--embedding-size', {embedding_size!r}, '--candidates', {str(candidates)!r},
+                *{option_args!r}]
     main()
 """
     )
@@ -298,6 +303,19 @@ def main():
         "--embedding-size", choices=("0.6B", "4B", "8B"), default="0.6B"
     )
     notebook.add_argument("--candidates", type=int, default=50)
+    notebook.add_argument(
+        "--keep-unlabeled",
+        action="store_true",
+        help="also search questions with no gold documents, scored on the answer only",
+    )
+    notebook.add_argument(
+        "--option",
+        dest="options",
+        choices=("titles", "stemming", "balanced"),
+        action="append",
+        default=[],
+        help="retrieval option under test (retrieve.OPTIONS)",
+    )
     notebook.add_argument("--resume-from", type=Path)
     answers = sub.add_parser("answers")
     answers.add_argument("--retrieval", type=Path, required=True)

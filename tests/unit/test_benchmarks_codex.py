@@ -38,6 +38,20 @@ def test_child_environment_has_no_api_keys():
     assert subscription_env(environ) == {"HOME": "/h"}
 
 
+def test_child_environment_never_uses_the_vpn():
+    # 9 Nov: inherited proxy variables sent two benchmark runs through his paid VPN.
+    environ = {
+        "HTTPS_PROXY": "p",
+        "https_proxy": "p",
+        "HTTP_PROXY": "p",
+        "http_proxy": "p",
+        "ALL_PROXY": "p",
+        "all_proxy": "p",
+        "PATH": "/b",
+    }
+    assert subscription_env(environ) == {"PATH": "/b"}
+
+
 def test_rerun_skips_finished_questions(tmp_path):
     calls = []
 
@@ -137,3 +151,29 @@ def test_repeated_failures_stop_early_and_keep_results(tmp_path):
     assert (
         summary["stopped_early"] and summary["answered"] == 1 and summary["failed"] == 3
     )
+
+
+def test_answer_only_makes_one_call_per_question(tmp_path):
+    calls = []
+
+    def counting(prompt, schema, model, effort):
+        calls.append(schema)
+        return good_call(prompt, schema, model, effort)
+
+    summary = run([job(1)], tmp_path, "m", "e", 1, call=counting, judge=None)
+    assert summary["answered"] == 1 and calls == [ANSWER_SCHEMA]
+
+
+def test_short_documents_are_read_whole_once_and_long_ones_keep_passages():
+    from evals.benchmarks.answers_codex import whole_documents
+
+    passages = [
+        {"doc_id": "short", "text": "part one"},
+        {"doc_id": "long", "text": "a slice"},
+        {"doc_id": "short", "text": "part two"},
+    ]
+    documents = {"short": "part one ... part two", "long": "x" * 100}
+    assert [p["text"] for p in whole_documents(passages, documents, 50)] == [
+        "part one ... part two",
+        "a slice",
+    ]
