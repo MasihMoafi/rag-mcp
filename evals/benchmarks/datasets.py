@@ -289,7 +289,21 @@ def wikipedia_text(url, cache):
     return nonempty(pages[0].get("extract"), f"Wikipedia text for {url}")
 
 
-def normalize(root, schema_path, output, limit=30, distractors=None):
+def title_path(title):
+    """A file name that keeps the document's title readable (rag reads titles from names)."""
+    words = re.sub(r"[^\w\-]+", "-", title).strip("-")[:150]
+    return f"{words or 'document'}.txt"
+
+
+def normalize(
+    root,
+    schema_path,
+    output,
+    limit=30,
+    distractors=None,
+    keep_unlabeled=False,
+    titles=False,
+):
     """Validate ALL rows and gold references before creating any corpus output."""
     root, output = Path(root), Path(output)
     source = json.loads((root / "source.json").read_text())
@@ -308,7 +322,7 @@ def normalize(root, schema_path, output, limit=30, distractors=None):
         if gold is None:
             gold = []
         if not isinstance(gold, list):
-            raise ValueError(
+            raise ValueError(  # noqa: TRY004 - a schema error, reported like the others
                 "Schema: gold selector must return an array (or null for no labels)"
             )
         question = {
@@ -322,6 +336,7 @@ def normalize(root, schema_path, output, limit=30, distractors=None):
     if not questions or len({q["id"] for q in questions}) != len(questions):
         raise ValueError("Schema: empty questions or duplicate question ids")
     documents = {}
+    names = {}  # document id -> title, from EnterpriseRAG's "<id>__<slug>" file names
     ambiguous = set()
     if source["dataset"] == "frames":
         # Validate URLs for the entire schema first; fetch just the selected pilot.
@@ -365,9 +380,12 @@ def normalize(root, schema_path, output, limit=30, distractors=None):
                 raise ValueError("Schema: document format must be text or records")
             for key, text in rows:
                 # EnterpriseRAG-Bench names files "<document id>__<slug>.txt".
+                title = ""
                 if ds.get("id_split"):
-                    key = str(key).split(ds["id_split"], 1)[0]
+                    key, _, title = str(key).partition(ds["id_split"])
                 key = doc_id(key)
+                if title:
+                    names[key] = title
                 if key in documents or key in ambiguous:
                     if ds.get("duplicate_ids") != "drop":
                         raise ValueError(f"Schema: duplicate document id {key!r}")
@@ -387,6 +405,9 @@ def normalize(root, schema_path, output, limit=30, distractors=None):
             "check exact document-id mapping before indexing"
         )
     selected = qualified[:limit]
+    if keep_unlabeled:
+        # High Level and Info Not Found have no gold documents but are scored on the answer.
+        selected += [q for q in questions if not q["gold_doc_ids"]]
     documents_total = len(documents)
     if distractors is not None:
         # A pipeline check: every selected question's gold documents, plus a fixed sample of others.
@@ -400,7 +421,13 @@ def normalize(root, schema_path, output, limit=30, distractors=None):
     corpus.mkdir()
     mapping = {}
     for key, text in documents.items():
-        name = digest(key) + ".txt"
+        # Without titles the name is a hash: IDs can be URLs, unsafe as file names.
+        name = (
+            f"{digest(key)}/{title_path(names[key])}"
+            if titles and key in names
+            else digest(key) + ".txt"
+        )
+        (corpus / name).parent.mkdir(exist_ok=True)
         (corpus / name).write_text(text, encoding="utf-8")
         mapping[name] = key
     write_json(output / "documents.json", mapping)

@@ -118,6 +118,7 @@ class RAGPipeline:
                 vector_size=vector_size,
                 distance=self.config.get("distance_metric", "cosine"),
                 persist_path=lance_path,
+                keyword_stemming=bool(self.config.get("keyword_stemming")),
             )
             self.bm25_index = None
         else:
@@ -240,7 +241,11 @@ class RAGPipeline:
 
                 fused_docs = self._rrf_fusion(vector_results, bm25_results,
                                               k=self.config.get("rrf_k", 60),
-                                              on_ranked=record_fusion_scores)[:candidate_k]
+                                              on_ranked=record_fusion_scores)
+                if self.config.get("balanced_candidates"):
+                    fused_docs = reranking.balanced_candidates(
+                        fused_docs, [vector_results, bm25_results], candidate_k)
+                fused_docs = fused_docs[:candidate_k]
             
             if not fused_docs:
                 return "No relevant information found."

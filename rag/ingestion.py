@@ -3,6 +3,7 @@
 import json
 import os
 from pathlib import Path
+import re
 import stat
 import sys
 import tempfile
@@ -84,6 +85,14 @@ def source_files(self):
     return files_to_process
 
 _PROSE_EXTENSIONS = (".md", ".markdown", ".txt", ".pdf", ".docx")
+
+
+def source_title(file_path):
+    """A readable title from the file name; none for names that are only an ID or a hash."""
+    words = re.sub(r"[_\-\s]+", " ", Path(file_path).stem).strip()
+    if not words or re.fullmatch(r"[0-9a-fA-F]{16,}", words.replace(" ", "")):
+        return ""
+    return words
 
 
 def build_documents(self, files_to_process):
@@ -174,6 +183,11 @@ def build_documents(self, files_to_process):
                         previous_chunks=int(self.config.get("contextual_prev_chunks", 2)),
                     )
                 contextualized_chunk = self._add_context_to_chunk(searchable, document_context)
+                title = source_title(file_path) if self.config.get("title_context") else ""
+                if title:
+                    # A chunk from the middle of a document otherwise carries no hint of what
+                    # the document is; citations keep the source text in original_content.
+                    contextualized_chunk = f"{title}\n\n{contextualized_chunk}"
 
                 doc = {
                     "content": contextualized_chunk,

@@ -56,12 +56,15 @@ GRADE_SCHEMA = {
     "additionalProperties": False,
 }
 MAX_CONSECUTIVE_FAILURES = 3
+PROXY_VARIABLES = {"http_proxy", "https_proxy", "all_proxy"}
 
 
 def subscription_env(environ):
-    """The child environment without API keys, so only the subscription sign-in can be used."""
+    """The child environment without API keys or proxies: only the sign-in, never the paid VPN."""
     return {
-        key: value for key, value in environ.items() if not key.endswith("_API_KEY")
+        key: value
+        for key, value in environ.items()
+        if not key.endswith("_API_KEY") and key.lower() not in PROXY_VARIABLES
     }
 
 
@@ -106,8 +109,36 @@ def run_codex(prompt, schema, model, effort):
         return json.loads((folder / "reply.json").read_text())
 
 
-def load_jobs(retrieval, arm, limit, questions=None):
-    """Completed searches for one arm; `questions` is the dataset's file, for facts and gold documents."""
+def bundle_documents(bundle):
+    """Document id -> full text, from a normalized bundle (documents.json and corpus/)."""
+    bundle = Path(bundle)
+    mapping = json.loads((bundle / "documents.json").read_text())
+    return {
+        key: (bundle / "corpus" / name).read_text() for name, key in mapping.items()
+    }
+
+
+def whole_documents(passages, documents, max_chars):
+    """A short document replaces its passages, once, at its first rank; long ones keep passages.
+
+    The search finds the right document but often not the part that answers (9 Nov analysis).
+    """
+    whole, seen = [], set()
+    for passage in passages:
+        text = documents.get(passage["doc_id"])
+        if text is None or len(text) > max_chars:
+            whole.append(passage)
+        elif passage["doc_id"] not in seen:
+            seen.add(passage["doc_id"])
+            whole.append(dict(passage, text=text, location="whole document"))
+    return whole
+
+
+def load_jobs(retrieval, arm, limit, questions=None, documents=None, max_chars=8000):
+    """Completed searches for one arm; `questions` is the dataset's file, for facts and gold documents.
+
+    With `documents` (id -> text), short documents are read whole (see whole_documents).
+    """
     _, events = read_ledger(retrieval)
     labels = {}
     if questions:
@@ -123,7 +154,11 @@ def load_jobs(retrieval, arm, limit, questions=None):
                 "arm": arm,
                 "question": event["question"],
                 "gold_answer": event["gold_answer"],
-                "passages": event["passages"][:ANSWER_PASSAGES],
+                "passages": whole_documents(
+                    event["passages"][:ANSWER_PASSAGES], documents, max_chars
+                )
+                if documents
+                else event["passages"][:ANSWER_PASSAGES],
                 "answer_facts": label.get("answer_facts", []),
                 "gold_doc_ids": label.get("expected_doc_ids", []),
             }
@@ -174,8 +209,11 @@ def answer_one(job, call, model, effort, judge, blind_judge=None):
         except ValueError:
             if attempt == 2:
                 raise
-    grade = call(grade_prompt(job, answer), GRADE_SCHEMA, judge, effort)
-    verdict = call(quality_prompt(job, answer), QUALITY_SCHEMA, judge, effort)
+    if judge is None:  # answer only; grading runs separately (regrade_onyx)
+        grade, verdict = {"label": None, "reason": None}, None
+    else:
+        grade = call(grade_prompt(job, answer), GRADE_SCHEMA, judge, effort)
+        verdict = call(quality_prompt(job, answer), QUALITY_SCHEMA, judge, effort)
     blind = (
         call(grade_prompt(job, answer), GRADE_SCHEMA, blind_judge, effort)
         if blind_judge
@@ -191,7 +229,7 @@ def answer_one(job, call, model, effort, judge, blind_judge=None):
         "answer": answer,
         "label": grade["label"],
         "reason": grade["reason"],
-        "quality": quality_scores(verdict, job, answer),
+        "quality": quality_scores(verdict, job, answer) if verdict else {},
         "verdict": verdict,
         "model": model,
         "judge": judge,
@@ -292,11 +330,29 @@ def main():
     parser.add_argument("--blind-judge", default=BLIND_JUDGE)
     parser.add_argument("--blind-sample", type=int, default=20)
     parser.add_argument(
+        "--answer-only",
+        action="store_true",
+        help="write answers without our judge; grade them with regrade_onyx",
+    )
+    parser.add_argument(
         "--questions",
         help="the dataset's questions.jsonl, for facts and gold documents",
     )
+    parser.add_argument(
+        "--whole-documents",
+        metavar="BUNDLE",
+        help="normalized bundle of the searched corpus: read short documents whole",
+    )
+    parser.add_argument("--whole-document-chars", type=int, default=8000)
     args = parser.parse_args()
-    jobs = load_jobs(args.retrieval, args.arm, args.limit, args.questions)
+    jobs = load_jobs(
+        args.retrieval,
+        args.arm,
+        args.limit,
+        args.questions,
+        bundle_documents(args.whole_documents) if args.whole_documents else None,
+        args.whole_document_chars,
+    )
     print(
         json.dumps(
             run(
@@ -305,9 +361,9 @@ def main():
                 args.model,
                 args.effort,
                 args.workers,
-                judge=args.judge,
+                judge=None if args.answer_only else args.judge,
                 blind_judge=args.blind_judge,
-                blind_sample=args.blind_sample,
+                blind_sample=0 if args.answer_only else args.blind_sample,
             ),
             indent=2,
         )

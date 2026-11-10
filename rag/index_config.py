@@ -37,7 +37,17 @@ RAG_CONFIG_V2 = {
     "bm25_b": 0.75,
     "distance_metric": "cosine",  # Vector distance metric
     "backend": _env_str("RAG_MCP_BACKEND", "lancedb"),  # lancedb | qdrant
+    # Off by default until a benchmark shows each helps (EnterpriseRAG-Bench, Nov 2026).
+    # title_context: the file's title heads every chunk, for both searches.
+    # keyword_stemming: English stemming and stop words in keyword search (prose, not code).
+    # balanced_candidates: each search keeps an equal share of the candidates before reranking.
+    "title_context": _env_int("RAG_MCP_TITLE_CONTEXT", 0) == 1,
+    "keyword_stemming": _env_int("RAG_MCP_KEYWORD_STEMMING", 0) == 1,
+    "balanced_candidates": _env_int("RAG_MCP_BALANCED_CANDIDATES", 0) == 1,
 }
+
+# Index-shaping options; they enter the stamp only when on, so existing indexes stay valid.
+INDEX_OPTIONS = ("title_context", "keyword_stemming")
 
 
 def index_root_path() -> str:
@@ -64,7 +74,9 @@ from .chunking import LONG_CHUNK_OVERLAP, LONG_CHUNK_SIZE, LONG_DOCUMENT_CHARS
 
 def build_source_stamp(config, embedding, contextual):
     """The exact stamp a workspace query compares with its published index."""
+    options = {name: True for name in INDEX_OPTIONS if config.get(name)}
     return {
+        **({"options": options} if options else {}),
         "version": 3,
         "parsing_version": 9,
         "storage": {name: config[name] for name in ("backend", "distance_metric")},

@@ -25,6 +25,12 @@ from .common import (
 EMBEDDINGS = {size: f"Qwen/Qwen3-Embedding-{size}" for size in ("0.6B", "4B", "8B")}
 RERANKER = "Qwen/Qwen3-Reranker-4B"
 ARMS = ("bm25", "hybrid_qwen")
+# Retrieval options under test (rag.index_config); "titles" also needs a bundle built with titles.
+OPTIONS = {
+    "titles": "title_context",
+    "stemming": "keyword_stemming",
+    "balanced": "balanced_candidates",
+}
 # Only local.py asks for this arm; it uses Masih's key on this machine (8 Nov), never on Kaggle.
 API_ARM = "hybrid_api"
 API_EMBEDDING = "qwen/qwen3-embedding-8b"
@@ -99,10 +105,7 @@ def check_bundle(bundle):
     if (
         not documents
         or not questions
-        or any(
-            not q["gold_doc_ids"] or not set(q["gold_doc_ids"]).issubset(documents)
-            for q in questions
-        )
+        or any(not set(q["gold_doc_ids"]).issubset(documents) for q in questions)
     ):
         raise ValueError("Invalid normalized corpus or gold scope")
     return dataset, mapping, questions
@@ -139,6 +142,7 @@ class RagRetriever:
         candidates,
         chunk_size,
         revisions=None,
+        options=(),
     ):
         from evals.paidrun import isolated_env
 
@@ -148,6 +152,7 @@ class RagRetriever:
         self.sources = None
         self.old_config = None
         self.mapping = mapping
+        self.corpus = (Path(bundle) / "corpus").resolve()
         self.arm = arm
         try:
             # Indexes go to scratch when set, so saved notebook output stays small.
@@ -220,6 +225,7 @@ class RagRetriever:
                 chunk_overlap=100,
                 top_k=candidates,
                 backend="lancedb",
+                **{key: name in options for name, key in OPTIONS.items()},
             )
             files = [
                 str((Path(bundle) / "corpus" / name).resolve())
@@ -285,7 +291,9 @@ class RagRetriever:
         scores = reranked or fused
         passages = []
         for result in results:
-            key = self.mapping[Path(result["file_path"]).name]
+            key = self.mapping[
+                Path(result["file_path"]).resolve().relative_to(self.corpus).as_posix()
+            ]
             score = scores.get(result["id"])
             if type(score) not in (int, float) or not math.isfinite(score):
                 raise ValueError(
@@ -319,8 +327,11 @@ class RagRetriever:
             self.stored = read_documents(self.pipeline)
             self.sources = set(source_files(self.pipeline))
         expanded = expand_passage_windows(
-            results[:ANSWER_PASSAGES], self.stored, self.pipeline._extract_content,
-            CONTEXT_RADIUS, self.sources,
+            results[:ANSWER_PASSAGES],
+            self.stored,
+            self.pipeline._extract_content,
+            CONTEXT_RADIUS,
+            self.sources,
         )
         return expanded + results[ANSWER_PASSAGES:]
 
@@ -436,7 +447,9 @@ def main():
     )
     parser.add_argument("--candidates", type=int, default=50)
     parser.add_argument("--chunk-size", type=int, default=700)
+    parser.add_argument("--option", choices=OPTIONS, action="append", default=[])
     args = parser.parse_args()
+    options = sorted(set(args.option))
     if args.candidates < 10 or args.chunk_size < 100:
         parser.error("--candidates must be >=10; --chunk-size must be >=100")
     if API_ARM not in (args.arm or ()):
@@ -473,6 +486,7 @@ def main():
             "candidates": args.candidates,
             "chunk_size": args.chunk_size,
             "chunk_overlap": 100,
+            **({"options": options} if options else {}),
         },
         "runner_sha256": {
             name: file_hash(Path(__file__).with_name(name + ".py"))
@@ -495,6 +509,7 @@ def main():
                 args.candidates,
                 args.chunk_size,
                 models.get("revisions"),
+                options,
             ),
             args.output,
             manifest,

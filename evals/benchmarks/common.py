@@ -113,7 +113,7 @@ def retrieval_summary(events, questions, arms, stopped):
     for arm in arms:
         done = {e['question_id']: e for e in events
                 if e.get('event') == 'complete' and e['arm'] == arm}
-        scores = [retrieval_metrics(e['ranked_doc_ids'], gold[qid]) for qid, e in done.items()]
+        scores = [retrieval_metrics(e['ranked_doc_ids'], gold[qid]) for qid, e in done.items() if gold[qid]]
         report['arms'][arm] = {
             'completed': len(done), 'remaining': len(questions) - len(done),
             'error_attempts': sum(e.get('event') == 'error' and e.get('arm') == arm for e in events),

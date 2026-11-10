@@ -96,6 +96,25 @@ def fuse_rankings(self, vector_results: List[Tuple], bm25_results: List[Tuple], 
         on_ranked(rrf_results)
     return [doc for doc, score in rrf_results]
 
+def balanced_candidates(fused: List[Dict], channels: List[List[Tuple]], limit: int) -> List[Dict]:
+    """Take candidates from each search in turn, then fill by fused order; keep fused order.
+
+    A plain cut of the fused list fills with passages both searches found and can drop the
+    best ones only a single search found.
+    """
+    streams = [[doc.get("id", id(doc)) for doc, _ in channel] for channel in channels]
+    chosen = set()
+    for rank in range(max((len(stream) for stream in streams), default=0)):
+        for stream in streams:
+            if len(chosen) < limit and rank < len(stream):
+                chosen.add(stream[rank])
+    for doc in fused:
+        if len(chosen) >= limit:
+            break
+        chosen.add(doc.get("id", id(doc)))
+    return [doc for doc in fused if doc.get("id", id(doc)) in chosen]
+
+
 def rerank_documents(self, docs: List[Dict], query: str, k: int) -> List[Dict]:
     """Rerank bounded passage text, retaining input order if inference fails."""
     if not docs:
