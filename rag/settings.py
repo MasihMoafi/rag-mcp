@@ -118,6 +118,7 @@ CONTEXTUAL_DEFAULTS = {
 CONTEXTUAL_ENV = {key: f"RAG_MCP_{key.upper()}" for key in CONTEXTUAL_DEFAULTS}
 RETRIEVAL_DEFAULTS = {
     "context_radius": "0",
+    "whole_document_chars": "8000",
     "candidate_k": "50",
     "top_k": "5",
     "reranker_type": "openrouter",
@@ -130,6 +131,7 @@ RETRIEVAL_DEFAULTS = {
 }
 RETRIEVAL_ENV = {
     "context_radius": "RAG_MCP_CONTEXT_RADIUS",
+    "whole_document_chars": "RAG_MCP_WHOLE_DOCUMENT_CHARS",
     "candidate_k": "RAG_MCP_CANDIDATE_K",
     "top_k": "RAG_MCP_RERANK_TOP_K",
     "reranker_type": "RAG_MCP_RERANKER_TYPE",
@@ -144,6 +146,8 @@ RERANKER_CHOICES = ("off", "auto", "fastembed", "openrouter")
 # Whole-number settings that chat and `rag config` change: stored key, smallest, largest, meaning.
 NUMBER_SETTINGS = {
     "context_radius": ("context_radius", 0, 3, "Neighbouring chunks on each side of an answer passage; 0 is off"),
+    "whole_documents": ("whole_document_chars", 0, 16000,
+                        "Answer from a whole document of at most this many characters, not its passages; 0 is off"),
     "top": ("top_k", 1, 100, "How many reranked passages answer synthesis may use"),
     "candidates": ("candidate_k", 1, 1000, "Candidate passages before reranking"),
     "answer_max_tokens": ("answer_max_tokens", 64, 8192, "Largest answer length in tokens"),
@@ -337,6 +341,7 @@ def describe_settings(environ: Mapping[str, str] | None = None) -> list[str]:
         f"Candidates after RRF: {retrieval['candidate_k']}",
         f"Passages sent to synthesis: {retrieval['top_k']}",
         f"Neighbouring chunks per match: {retrieval['context_radius']}",
+        f"Whole documents up to: {retrieval['whole_document_chars']} characters (0 is off)",
         f"Reranker: {describe_reranker(retrieval)}",
         f"Answer model: OpenRouter · {retrieval['answer_model']}",
         f"Contextual retrieval: {describe_contextual_retrieval(retrieval)}",

@@ -18,6 +18,7 @@ def isolated(tmp_path, monkeypatch):
     }.items():
         monkeypatch.setenv(key, value)
     monkeypatch.delenv('RAG_MCP_CONTEXT_RADIUS', raising=False)
+    monkeypatch.setenv('RAG_MCP_WHOLE_DOCUMENT_CHARS', '0')  # neighbour windows alone, unless a test turns it on
     monkeypatch.setitem(fetch.RAG_CONFIG_V2, 'chunk_size', 60)
     monkeypatch.setitem(fetch.RAG_CONFIG_V2, 'chunk_overlap', 0)
     fetch.reset_pipelines()
@@ -56,6 +57,31 @@ def test_answer_uses_window_but_search_rank_and_index_generation_stay_unchanged(
     assert len(captured) == 1
     traces = list((isolated / 'traces').rglob('*.json'))
     assert any('selection.context' in path.read_text() for path in traces)
+
+
+def test_short_source_is_read_whole_once_and_long_source_keeps_its_passage(isolated, monkeypatch):
+    short = ('Cedar budget: euros.\n\nOwner: Ada and the finance team of the north office.\n\n'
+             'Reviews happen at the end of each quarter.\n\nCedar meets on Friday.')
+    long = ('Filler line about nothing in particular.\n\n' * 12) + 'Cedar archive moved to the vault.'
+    store = WorkspaceStore()
+    saved = store.replace('fixture', 'Fixture', [
+        {'id': 'short', 'name': 'short.txt', 'sourceType': 'text', 'content': short},
+        {'id': 'long', 'name': 'long.txt', 'sourceType': 'text', 'content': long}])
+    settings.update_settings({'top_k': '3', 'context_radius': '0'})
+    monkeypatch.setenv('RAG_MCP_WHOLE_DOCUMENT_CHARS', str(len(short)))
+    arguments = dict(workspace_id='fixture', source_ids=['short', 'long'], workspace_revision=saved['revision'])
+    retrieved = execute_run('Cedar', mode='retrieve', **arguments)
+    names = [p['name'] for p in retrieved['retrieved_passages']]
+    assert names.count('short.txt') == 2 and 'long.txt' in names, names
+    captured = []
+    def answer(question, passages, config):
+        captured.extend(passages)
+        return 'Ada owns it. [1]'
+    monkeypatch.setattr(openrouter_pipeline, 'synthesize_answer', answer)
+    assert execute_run('Cedar', **arguments)['status'] == 'success'
+    texts = [p['original_content'] for p in captured]
+    assert texts.count(short) == 1 and len(captured) == 2, texts
+    assert texts[1 - texts.index(short)] == 'Cedar archive moved to the vault.'
 
 
 def test_cli_control_and_environment_share_bounded_revisioned_setting(isolated, monkeypatch):

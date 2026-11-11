@@ -7,6 +7,15 @@ import pytest
 from rag import fetch
 
 
+@pytest.fixture(autouse=True)
+def _chunks_without_titles(monkeypatch):
+    """These tests compare exact chunk text; titles in chunks are tested in test_retrieval_options."""
+    from rag.index_config import RAG_CONFIG_V2
+
+    monkeypatch.setitem(RAG_CONFIG_V2, "title_context", False)
+
+
+
 @pytest.mark.parametrize('error', [RuntimeError('provider failed'), fetch.PipelineClosedError('retired')])
 def test_query_retry_is_bounded_and_only_for_closed_pipeline(monkeypatch, error):
     from unittest.mock import Mock

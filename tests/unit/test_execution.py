@@ -9,6 +9,14 @@ from rag.execution import execute_run, retrieval_response
 from rag.workspaces import WorkspaceStore
 
 
+@pytest.fixture(autouse=True)
+def _passages_as_retrieved(monkeypatch):
+    """The fake engines here have no answer-context step; never read the developer's saved setting."""
+    monkeypatch.setenv('RAG_MCP_CONTEXT_RADIUS', '0')
+    monkeypatch.setenv('RAG_MCP_WHOLE_DOCUMENT_CHARS', '0')
+
+
+
 def stored_path(store, document_id, workspace_id='book'):
     """The local file of one saved document, as a query reads it."""
     return next(Path(path) for path, document in store.local_snapshot(workspace_id)[2].items()

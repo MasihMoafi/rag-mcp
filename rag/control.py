@@ -19,7 +19,7 @@ def read_config():
 
 
 def patch_config(changes):
-    fields = {'context_radius': ['context_radius'], 'top': ['top_k'], 'candidates': ['candidate_k'], 'answer_model': ['answer_model'],
+    fields = {'context_radius': ['context_radius'], 'whole_documents': ['whole_document_chars'], 'top': ['top_k'], 'candidates': ['candidate_k'], 'answer_model': ['answer_model'],
               'reranker': ['reranker_type', 'reranker_model'], 'contextual_retrieval': ['contextual_retrieval'],
               'embedding_provider': ['embed_provider'], 'embedding_model': ['embed_model'],
               'embedding_source': [], 'embedding_runtime': ['embed_base_url', 'embed_api_key']}

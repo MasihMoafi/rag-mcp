@@ -12,6 +12,15 @@ import server
 from rag import core, fetch, openrouter_pipeline
 
 
+@pytest.fixture(autouse=True)
+def _chunks_without_titles(monkeypatch):
+    """These tests compare exact chunk text; titles in chunks are tested in test_retrieval_options."""
+    from rag.index_config import RAG_CONFIG_V2
+
+    monkeypatch.setitem(RAG_CONFIG_V2, "title_context", False)
+
+
+
 class RecordingEmbedder:
     """Fake provider that records every document text it is asked to embed."""
 

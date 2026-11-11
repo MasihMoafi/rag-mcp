@@ -213,7 +213,10 @@ def test_multi_part_question_retrieves_facets_but_synthesizes_once(
     monkeypatch.setattr(
         server.importlib,
         "import_module",
-        lambda _name: types.SimpleNamespace(fetchExternalKnowledge=fetch),
+        lambda _name: types.SimpleNamespace(
+            fetchExternalKnowledge=fetch,
+            expand_answer_context=lambda passages, *_args: passages,
+        ),
     )
     monkeypatch.setattr(openrouter_pipeline, "synthesize_answer", synthesize)
     query = (

@@ -36,6 +36,8 @@ _IDENTIFIER_BOUNDARY = re.compile(
 class LanceDBBackend:
     """Embedded LanceDB backend supporting vector, FTS (Tantivy BM25), and hybrid search."""
 
+    keyword_stemming = False  # set per instance in __init__
+
     def __init__(
         self,
         table_name: str,

@@ -263,8 +263,10 @@ def test_lancedb_record_batches_and_fts_contract(dense, fts_failure, capsys):
     options = {
         "replace": True,
         "with_position": True,
+        "language": "English",
         "stem": False,
         "remove_stop_words": False,
+        "ascii_folding": False,
     }
     assert indexes == (
         [("content", options)]

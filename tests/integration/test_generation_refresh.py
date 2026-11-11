@@ -11,6 +11,15 @@ import pytest
 from rag import core, fetch, ingestion, index_lifecycle
 
 
+@pytest.fixture(autouse=True)
+def _chunks_without_titles(monkeypatch):
+    """These tests compare exact chunk text; titles in chunks are tested in test_retrieval_options."""
+    from rag.index_config import RAG_CONFIG_V2
+
+    monkeypatch.setitem(RAG_CONFIG_V2, "title_context", False)
+
+
+
 @pytest.mark.parametrize('phase', ['storage', 'before', 'after'])
 @pytest.mark.parametrize('backend', ['lancedb', 'qdrant'])
 def test_process_exit_around_publication_keeps_complete_searchable_index(tmp_path, phase, backend, monkeypatch):

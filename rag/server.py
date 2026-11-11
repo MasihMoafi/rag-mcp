@@ -105,6 +105,7 @@ class _GetRagModelsArguments(TypedDict):
 
 class _SetRagSettingsArguments(TypedDict, total=False):
     context_radius: int
+    whole_documents: int
     top: int
     candidates: int
     answer_max_tokens: int
@@ -1201,9 +1202,11 @@ def _query_knowledge_base(  # pyright: ignore[reportUnusedFunction] -- called by
             from rag.passage_answers import PassageAnswerError
 
             if not retrieval_only:
-                radius = int(retrieval_config()['context_radius'])
-                if radius:
-                    value = module.expand_answer_context(value, fetch_doc_path, fetch_scope, radius)
+                answer_context = retrieval_config()
+                radius = int(answer_context['context_radius'])
+                whole = int(answer_context['whole_document_chars'])
+                if radius or whole:
+                    value = module.expand_answer_context(value, fetch_doc_path, fetch_scope, radius, whole)
             tracing.passages('synthesis_evidence', value)
             if retrieval_only:
                 return json.dumps({'result': 'Retrieval completed.'})

@@ -37,16 +37,17 @@ RAG_CONFIG_V2 = {
     "bm25_b": 0.75,
     "distance_metric": "cosine",  # Vector distance metric
     "backend": _env_str("RAG_MCP_BACKEND", "lancedb"),  # lancedb | qdrant
-    # Off by default until a benchmark shows each helps (EnterpriseRAG-Bench, Nov 2026).
+    # On by default since EnterpriseRAG-Bench, 11 Nov 2026: together 66.3% -> 75.2% correct answers
+    # (evals/experiments/enterprise-options-2026-11-10/). Set the variable to 0 to turn one off.
     # title_context: the file's title heads every chunk, for both searches.
     # keyword_stemming: English stemming and stop words in keyword search (prose, not code).
     # balanced_candidates: each search keeps an equal share of the candidates before reranking.
-    "title_context": _env_int("RAG_MCP_TITLE_CONTEXT", 0) == 1,
-    "keyword_stemming": _env_int("RAG_MCP_KEYWORD_STEMMING", 0) == 1,
-    "balanced_candidates": _env_int("RAG_MCP_BALANCED_CANDIDATES", 0) == 1,
+    "title_context": _env_int("RAG_MCP_TITLE_CONTEXT", 1) == 1,
+    "keyword_stemming": _env_int("RAG_MCP_KEYWORD_STEMMING", 1) == 1,
+    "balanced_candidates": _env_int("RAG_MCP_BALANCED_CANDIDATES", 1) == 1,
 }
 
-# Index-shaping options; they enter the stamp only when on, so existing indexes stay valid.
+# Index-shaping options; a change rebuilds the index once (the stamp records those that are on).
 INDEX_OPTIONS = ("title_context", "keyword_stemming")
 
 

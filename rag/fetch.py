@@ -293,12 +293,12 @@ def fetchExternalKnowledge(
                                     exclude_global_archive=exclude_global_archive, scope=scope)
 
 
-def expand_answer_context(passages, doc_path, scope, radius):
+def expand_answer_context(passages, doc_path, scope, radius, whole_chars=0):
     """Use this scope's published chunks without changing its index or rankings."""
     from .context_window import expand_passage_windows
     from .ingestion import read_documents, source_files
     from .index_lifecycle import RebuildRequired
-    if radius == 0:
+    if radius == 0 and whole_chars == 0:
         return passages
     key = _pipeline_key(doc_path, scope)
     try:
@@ -308,13 +308,14 @@ def expand_answer_context(passages, doc_path, scope, radius):
             if pipeline is None:
                 return passages
             with pipeline._queries.query(), tracing.span('selection.context', context_radius=radius,
+                                                         whole_document_chars=whole_chars,
                                                          input_count=len(passages)):
                 result = expand_passage_windows(passages, read_documents(pipeline), pipeline._extract_content,
-                                                radius, set(source_files(pipeline)))
-                tracing.annotate(output_count=len(result), expanded_count=sum(
-                    (before.get('start_offset'), before.get('end_offset')) !=
-                    (after.get('start_offset'), after.get('end_offset'))
-                    for before, after in zip(passages, result)))
+                                                radius, set(source_files(pipeline)), whole_chars)
+                tracing.annotate(output_count=len(result),
+                                 expanded_count=sum(all(row is not passage for passage in passages)
+                                                    for row in result),
+                                 whole_count=sum(bool(row.get('whole_document')) for row in result))
                 return result
     except (OSError, RebuildRequired, PipelineClosedError):
         return passages

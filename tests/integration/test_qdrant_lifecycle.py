@@ -10,6 +10,15 @@ from rag import core, fetch
 from rag.qdrant_backend import QdrantVectorDB
 
 
+@pytest.fixture(autouse=True)
+def _chunks_without_titles(monkeypatch):
+    """These tests compare exact chunk text; titles in chunks are tested in test_retrieval_options."""
+    from rag.index_config import RAG_CONFIG_V2
+
+    monkeypatch.setitem(RAG_CONFIG_V2, "title_context", False)
+
+
+
 class Embedder:
     def embed_documents(self, texts):
         return [[1.0, 0.0] if "Cedar" in text else [0.0, 1.0] for text in texts]
