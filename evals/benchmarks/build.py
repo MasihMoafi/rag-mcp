@@ -225,7 +225,7 @@ if SCHEMA is not None:
     )
     install = f"""import subprocess, sys
 subprocess.run([sys.executable, '-m', 'pip', 'install',
-    'ragmcp[full] @ git+https://github.com/MasihMoafi/rag-mcp@{rag_ref}',
+    'ragmcp-cli[full] @ git+https://github.com/MasihMoafi/rag-mcp@{rag_ref}',
     'huggingface_hub', 'pyarrow'], check=True)
 """
     notebook = {

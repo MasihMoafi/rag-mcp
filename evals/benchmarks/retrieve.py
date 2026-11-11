@@ -458,12 +458,12 @@ def main():
     embedding = EMBEDDINGS[args.embedding_size]
     arms = list(dict.fromkeys(args.arm or ARMS))
     models = preflight_models(embedding) if "hybrid_qwen" in arms else {}
-    dist = importlib.metadata.distribution("ragmcp")
+    dist = importlib.metadata.distribution("ragmcp-cli")
     direct = json.loads(dist.read_text("direct_url.json") or "{}")
     commit = args.rag_commit or direct.get("vcs_info", {}).get("commit_id")
     if not commit:
         raise ValueError(
-            "Install ragmcp from GitHub main; pip must record its commit in direct_url.json"
+            "Install ragmcp-cli from GitHub main; pip must record its commit in direct_url.json"
         )
     manifest = {
         "schema": "rag-bench.retrieval.v1",
