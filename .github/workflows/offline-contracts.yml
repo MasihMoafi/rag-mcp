@@ -39,7 +39,7 @@ jobs:
           env -u PYTHONPATH /tmp/rag-installed/bin/python "$GITHUB_WORKSPACE/docs/audits/2026-09-22-readiness/verify_package.py"
       - name: Exercise release artifacts offline
         run: |
-          export WHEEL=$(echo /tmp/rag-dist/ragmcp-*.whl)
+          export WHEEL=$(echo /tmp/rag-dist/ragmcp_cli-*.whl)
           export NPM_TGZ=$(echo /tmp/rag-dist/ragmcp-*.tgz)
           export FACTS="$GITHUB_WORKSPACE/tests/install/facts.md"
           cd /tmp
