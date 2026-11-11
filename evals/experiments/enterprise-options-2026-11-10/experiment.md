@@ -6,7 +6,7 @@
 
 - Corpus: the 100k-document sample of 9 Nov (every gold document plus 100,000 others, `normalize(..., 500, 100000, True)`), all 499 questions with or without gold.
 - Models: Qwen3-Embedding-0.6B, Qwen3-Reranker-4B, 100 candidates, chunk size 700 (as on 9 Nov).
-- Answers: Sol through Codex on Masih's ChatGPT login, direct (no VPN), the partial-answer prompt; graded by Onyx's own judge prompt (`regrade_onyx.py`).
+- Answers: Sol through Codex on Masih's ChatGPT login, direct (no VPN), the 9 Nov answer prompt, as A (corrected 11 Nov before any B or C answer: the partial-answer wording had not helped and would have confounded A); graded by Onyx's own judge prompt (`regrade_onyx.py`).
 
 | Arm | Retrieval | Answer reads |
 |---|---|---|
