@@ -8,13 +8,13 @@
     "source": "github"
   },
   "websiteUrl": "https://github.com/MasihMoafi/rag-mcp",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "packages": [
     {
       "registryType": "pypi",
       "registryBaseUrl": "https://pypi.org",
       "identifier": "ragmcp-cli",
-      "version": "0.2.1",
+      "version": "0.3.0",
       "runtimeHint": "uvx",
       "transport": {
         "type": "stdio"

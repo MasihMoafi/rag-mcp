@@ -1,0 +1,35 @@
+{
+  "questions": 499,
+  "documents": 100721,
+  "judge": "Onyx EnterpriseRAG-Bench correctness prompt, run with gpt-6.1-sol",
+  "arms": {
+    "A": {"label": "rag 0.2 (9 Nov)", "correct": 66.3, "recall_at_10": 0.802, "recall_at_5": 0.736, "mrr": 0.691, "refusals": 114},
+    "B": {"label": "+ titles, stemming, balanced shortlist", "correct": 75.2, "recall_at_10": 0.846, "recall_at_5": 0.806, "mrr": 0.766, "refusals": 80},
+    "C": {"label": "+ short documents read whole", "correct": 81.0, "recall_at_10": 0.846, "recall_at_5": 0.806, "mrr": 0.766, "refusals": 65},
+    "D": {"label": "C + lenient refusal rule (rejected)", "correct": 78.6, "recall_at_10": 0.846, "recall_at_5": 0.806, "mrr": 0.766, "refusals": 1}
+  },
+  "keyword_only_recall_at_10": {"A": 0.705, "B": 0.765},
+  "mcnemar": {
+    "A_to_B": {"gained": 57, "lost": 13, "p": 1.0e-7},
+    "B_to_C": {"gained": 35, "lost": 6, "p": 4.9e-6},
+    "C_to_D": {"gained": 3, "lost": 15, "p": 0.008}
+  },
+  "categories": {
+    "basic": {"n": 175, "A": 81.1, "C": 92.6},
+    "semantic": {"n": 125, "A": 54.4, "C": 68.0},
+    "intra_document_reasoning": {"n": 40, "A": 62.5, "C": 92.5},
+    "project_related": {"n": 40, "A": 30.0, "C": 47.5},
+    "constrained": {"n": 30, "A": 56.7, "C": 86.7},
+    "completeness": {"n": 20, "A": 35.0, "C": 50.0},
+    "miscellaneous": {"n": 20, "A": 100.0, "C": 100.0},
+    "info_not_found": {"n": 20, "A": 100.0, "C": 100.0},
+    "conflicting_info": {"n": 19, "A": 73.7, "C": 94.7},
+    "high_level": {"n": 10, "A": 60.0, "C": 70.0}
+  },
+  "paper_reference": {
+    "source": "arXiv 2605.05253, Table 6",
+    "system": "BM25 (OpenSearch), GPT-5.4 answers and judge, all 511,962 documents",
+    "correct": 68.8,
+    "document_recall": 68.4
+  }
+}

@@ -7,7 +7,7 @@ type: scoped hybrid-RAG CLI and MCP server for agents and document workflows
 
 <div align="center">
 
-<img src="assets/retrieval-hero.svg" alt="rag-mcp retrieval, October 2026: 127 of 153 questions exact, against 107 in August" width="720">
+<img src="assets/enterprise-answers.svg" alt="EnterpriseRAG-Bench, 499 questions on a 100,721-document sample: rag 0.2 answers 66.3% correctly, rag 0.3 81.0%; the dataset paper's best system scores 68.8% on the full corpus" width="760">
 
 <br>
 
@@ -18,7 +18,7 @@ type: scoped hybrid-RAG CLI and MCP server for agents and document workflows
 
 **A coding agent should not have to choose between opening files one at a time and dumping an entire repository into context.**
 
-Beta · v0.2.1 · Linux (verified; Python 3.13)
+Beta · v0.3.0 · Linux (verified; Python 3.13)
 
 [Install](#quick-start) • [Evals](#benchmark--retrieval-evaluations) • [How it works](#how-it-works) • [Deep-Dive Post](https://masihmoafi.com/projects/rag-mcp)
 
@@ -283,6 +283,18 @@ when answering. The default is `0` (off), with a maximum of `3`. Search rankings
 and retrieval-only results stay unchanged; changing this setting does not rebuild
 the index. Windows use verified source text and are capped at 16,000 characters.
 
+`rag config whole_documents 8000` (the default) gives the answer model a whole
+source file of at most 8,000 characters, once, in place of its matched passages;
+longer files keep their passages. `0` turns it off. Search results stay unchanged.
+
+Three search settings are on by default since 0.3 (see
+[EnterpriseRAG-Bench](#enterpriserag-bench-november-2026)): each file's name, as
+words, heads its chunks (`RAG_MCP_TITLE_CONTEXT`); keyword search stems English
+prose, so "deploy" finds "deployment" (`RAG_MCP_KEYWORD_STEMMING`; code symbols
+are not stemmed); and each search keeps its share of the candidates before
+reranking (`RAG_MCP_BALANCED_CANDIDATES`). Set a variable to `0` to turn one off.
+Indexes built by 0.2 are rebuilt once on their first query, which re-embeds them.
+
 The CLI checks a path's file types and folder-size limits before first-use model
 setup. For a saved-page folder containing Markdown chapters plus HTML and asset
 copies, use `--type md` deliberately; an oversized mixed folder is rejected
@@ -380,9 +392,33 @@ These are design choices, not novelty claims:
 
 ### Benchmark and retrieval evaluations
 
-No third-party logo or benchmark — the image above is the actual [retrieval-accuracy evidence](#retrieval-accuracy) this repo ships, not decoration.
+Per-question results for every recorded run are under [`evals/`](evals/).
 
-The current measurement is under [Benchmark & Retrieval Evaluations](#benchmark--retrieval-evaluations). Per-question results for every recorded run are under [`evals/`](evals/).
+#### EnterpriseRAG-Bench, November 2026
+
+[EnterpriseRAG-Bench](https://arxiv.org/abs/2605.05253) (Onyx, 2026) is a public benchmark of company-internal knowledge: Slack, email, tickets, docs and code, with 500 questions of ten types. rag ran on a 100,721-document sample (every gold document plus 100,000 others) and all 499 questions that sample supports. Answers came from GPT-6.1 Sol reading rag's passages; each answer was graded with the benchmark's own judge prompt. The chart at the top shows each step:
+
+- **rag 0.2:** 66.3% correct.
+- **+ document titles, stemmed keyword search and a balanced shortlist:** 75.2%. Search finds a gold document in the top 10 for 84.6% of questions, against 80.2%.
+- **+ short documents read whole** (up to 8,000 characters, instead of their passages): **81.0%**. This is rag 0.3.
+- **A lenient refusal rule** (answer from partial evidence) lowered it to 78.6%, so it was not adopted.
+
+Each adopted step beats the one before on the same questions (paired McNemar test, p < 0.001). Questions with no answer in the corpus are still all declined (100%).
+
+![Correct answers by question type, rag 0.2 vs 0.3](assets/enterprise-categories.svg)
+
+| Search, 499 questions | rag 0.2 | rag 0.3 |
+| :--- | :---: | :---: |
+| Gold document in the top 10 (hybrid) | 80.2% | **84.6%** |
+| Gold document in the top 5 (hybrid) | 73.6% | **80.6%** |
+| Rank of the first gold document (MRR) | 0.69 | **0.77** |
+| Gold document in the top 10, keyword search alone | 70.5% | **76.5%** |
+
+- **Setup.** Qwen3 Embedding 0.6B, Qwen3 Reranker 4B, 100 candidates, 700-character chunks, 20 passages to the answer model; run on Kaggle. The [experiment record](evals/experiments/enterprise-options-2026-11-10/experiment.md) fixed the arms and the decision rule before the answers were graded; [`results.json`](evals/experiments/enterprise-options-2026-11-10/results.json) holds the numbers behind the charts.
+- **Not like for like with the paper.** Its best system, BM25 with GPT-5.4, scores 68.8% correct over all 511,962 documents. A larger corpus is harder (the paper shows recall falling as it grows), so the comparison needs a full-corpus run, which has not been done.
+- **Caveat.** The three search changes and whole documents were chosen after reading rag 0.2's failures on these questions; fresh questions may show a smaller gain.
+
+#### Books and code, October 2026
 
 Measured on 28 October 2026: 153 questions with known answers over five collections (a paper, a textbook, a biography, a novel and a mixed Rust, Python and notebook codebase). For each question the top 5 passages were graded **exact** (the rubric asks for a passage that states the answer), **partial** or **miss**. Opus 5.5 subagents used the same rubric to grade this run and regrade the passages saved from August. The [run record](evals/experiments/search-quality-2026-10-28/experiment.md) notes that seven answers split across passages were graded exact and that graders differed on split answers. The report, per-question grades and run traces are in [`evals/experiments/report-2026-10-28/`](evals/experiments/report-2026-10-28/).
 
