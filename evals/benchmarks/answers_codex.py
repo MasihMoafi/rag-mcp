@@ -56,6 +56,28 @@ GRADE_SCHEMA = {
     "additionalProperties": False,
 }
 MAX_CONSECUTIVE_FAILURES = 3
+STRICT_RULE = (
+    'If evidence is insufficient, return text "Insufficient evidence" and citations [].'
+)
+# Masih, 11 Nov: Sol refused 42 times on 9 Nov with every gold document in hand.
+LENIENT_RULE = (
+    "Give the best answer the evidence supports, even if it covers only part of the "
+    "question or rests on one document, and say briefly what it leaves uncertain. Return "
+    'text "Insufficient evidence" and citations [] only if no evidence concerns the '
+    "question's subject."
+)
+
+
+def lenient_answer_prompt(job):
+    """The answer prompt with a weaker refusal rule (arm D of the 10 Nov experiment)."""
+    prompt = answer_prompt(job)
+    first, _, rest = prompt.partition("\n")
+    if STRICT_RULE not in first:
+        raise ValueError("The answer prompt no longer has the strict refusal rule")
+    return first.replace(STRICT_RULE, LENIENT_RULE) + "\n" + rest
+
+
+ANSWER_PROMPTS = {"strict": answer_prompt, "lenient": lenient_answer_prompt}
 PROXY_VARIABLES = {"http_proxy", "https_proxy", "all_proxy"}
 
 
@@ -195,14 +217,14 @@ def blind_sample_ids(jobs, size):
     )
 
 
-def answer_one(job, call, model, effort, judge, blind_judge=None):
+def answer_one(job, call, model, effort, judge, blind_judge=None, prompt="strict"):
     """Answer with `model`, then grade and score with `judge`; an invalid answer gets one retry.
 
     `blind_judge` grades again in a separate session that sees only the question, the reference
     answer and the candidate: not the first grade, the arm or which model wrote the answer."""
     started = time.monotonic()
     for attempt in (1, 2):
-        answer = call(answer_prompt(job), ANSWER_SCHEMA, model, effort)
+        answer = call(ANSWER_PROMPTS[prompt](job), ANSWER_SCHEMA, model, effort)
         try:
             validate_answer(answer, job)
             break
@@ -223,6 +245,7 @@ def answer_one(job, call, model, effort, judge, blind_judge=None):
         "blind_label": blind["label"] if blind else None,
         "blind_judge": blind_judge if blind else None,
         "prompts_sha256": PROMPTS_SHA256,
+        **({"answer_prompt": prompt} if prompt != "strict" else {}),
         "question_id": job["id"],
         "arm": job["arm"],
         "status": "ok",
@@ -268,6 +291,7 @@ def run(
     judge=DEFAULT_JUDGE,
     blind_judge=BLIND_JUDGE,
     blind_sample=0,
+    prompt="strict",
 ):
     """Never raises once calls have started: failures are recorded and the summary still written."""
     output = Path(output)
@@ -295,6 +319,7 @@ def run(
                 effort,
                 judge,
                 blind_judge if job["id"] in sampled else None,
+                prompt,
             )
         except Exception as error:  # noqa: BLE001 - runbook: record and stop, never lose finished results
             row = {
@@ -344,6 +369,12 @@ def main():
         help="normalized bundle of the searched corpus: read short documents whole",
     )
     parser.add_argument("--whole-document-chars", type=int, default=8000)
+    parser.add_argument(
+        "--prompt",
+        choices=tuple(ANSWER_PROMPTS),
+        default="strict",
+        help="lenient: answer from partial evidence; refuse only off-subject",
+    )
     args = parser.parse_args()
     jobs = load_jobs(
         args.retrieval,
@@ -364,6 +395,7 @@ def main():
                 judge=None if args.answer_only else args.judge,
                 blind_judge=args.blind_judge,
                 blind_sample=0 if args.answer_only else args.blind_sample,
+                prompt=args.prompt,
             ),
             indent=2,
         )
