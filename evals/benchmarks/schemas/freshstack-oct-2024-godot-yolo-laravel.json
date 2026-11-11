@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "dataset": "freshstack",
+  "readme_sha256": "dad1bda20b30537ef6b6aff472db7e9e4712355f8e7c73236391b9d4a00b43a7",
+  "questions": {
+    "file": [
+      "freshstack--queries-oct-2024/godot/test-00000-of-00001.parquet",
+      "freshstack--queries-oct-2024/yolo/test-00000-of-00001.parquet",
+      "freshstack--queries-oct-2024/laravel/test-00000-of-00001.parquet"
+    ],
+    "id": "query_id",
+    "text": [
+      "query_title",
+      "query_text"
+    ],
+    "answer": "answer_text",
+    "gold": "nuggets[].relevant_corpus_ids",
+    "category": "$file"
+  },
+  "documents": {
+    "format": "records",
+    "globs": [
+      "godot/*.parquet",
+      "yolo/*.parquet",
+      "laravel/*.parquet"
+    ],
+    "id": "_id",
+    "text": [
+      "text"
+    ],
+    "title": "_id",
+    "title_pattern": "^(.*)_\\d+_\\d+$",
+    "duplicate_ids": "drop"
+  }
+}

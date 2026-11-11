@@ -705,3 +705,30 @@ def test_titles_from_file_names_survive_into_the_bundle(source, tmp_path):
     mapping = check_bundle(output)[1]
     assert "Release-plan-d1.txt" in {Path(name).name for name in mapping}
     assert sorted(mapping.values()) == ["d1", "d2", "d3"]
+
+
+def test_questions_from_several_files_and_titles_cut_from_record_ids(source, tmp_path):
+    # FreshStack (11 Nov): one question file per domain, two text fields, ids that end in byte ranges.
+    root, path, schema = source
+    rows = [json.loads(line) for line in (root / "questions.jsonl").read_text().splitlines()]
+    for domain, row in (("alpha", rows[0]), ("beta", rows[1])):
+        (root / domain).mkdir()
+        (root / domain / "q.jsonl").write_text(json.dumps(dict(row, title=f"T {domain}")) + "\n")
+    documents = [json.loads(line) for line in (root / "documents.jsonl").read_text().splitlines()]
+    (root / "documents.jsonl").write_text(
+        "".join(json.dumps(dict(d, path=f"repo/docs/{d['key']}.md_0_120")) + "\n" for d in documents)
+    )
+    schema["questions"].update(
+        file=["alpha/q.jsonl", "beta/q.jsonl"], text=["title", "prompt"], category="$file"
+    )
+    schema["documents"].update(title="path", title_pattern=r"^(.*)_\d+_\d+$")
+    write_json(path, schema)
+    output = tmp_path / "multi"
+    normalize(root, path, output, titles=True)
+    questions = [json.loads(line) for line in (output / "questions.jsonl").read_text().splitlines()]
+    assert [(q["category"], q["question"]) for q in questions] == [
+        ("alpha", f"T alpha\n\n{rows[0]['prompt']}"),
+        ("beta", f"T beta\n\n{rows[1]['prompt']}"),
+    ]
+    names = {Path(name).name for name in check_bundle(output)[1]}
+    assert "repo-docs-d1-md.txt" in names

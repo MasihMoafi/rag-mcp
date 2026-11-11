@@ -213,13 +213,30 @@ def prepare(dataset, root, slices=(), revision="main", hf_id=None, files=()):
             if not matches:
                 raise ValueError(f"No HF slice zip matches {pattern!r}; files={names}")
             selected.extend(matches)
+        others = {}  # FreshStack keeps questions and corpus in two repositories
         for name in dict.fromkeys(["README.md", *selected]):
-            if name not in names:
-                raise ValueError(f"Missing dataset file {name!r}; files={names}")
-            cached = Path(
-                hf_hub_download(hf_id, name, repo_type="dataset", revision=commit)
-            )
-            target = safe_path(root, name)
+            repo, _, inner = name.rpartition("::")
+            if repo:
+                if repo not in others:
+                    others[repo] = api.dataset_info(repo).sha
+                listing = api.list_repo_files(
+                    repo, repo_type="dataset", revision=others[repo]
+                )
+                if inner not in listing:
+                    raise ValueError(f"Missing dataset file {name!r}; files={listing}")
+                cached = Path(
+                    hf_hub_download(
+                        repo, inner, repo_type="dataset", revision=others[repo]
+                    )
+                )
+                target = safe_path(root, f"{repo.replace('/', '--')}/{inner}")
+            else:
+                if name not in names:
+                    raise ValueError(f"Missing dataset file {name!r}; files={names}")
+                cached = Path(
+                    hf_hub_download(hf_id, name, repo_type="dataset", revision=commit)
+                )
+                target = safe_path(root, name)
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_bytes(cached.read_bytes())
         source = {
@@ -228,6 +245,7 @@ def prepare(dataset, root, slices=(), revision="main", hf_id=None, files=()):
             "revision": commit,
             "files": selected,
             "available_files": names,
+            "other_repositories": others,
         }
     # Extract each zip separately: filenames can overlap across source slices.
     archives = sorted(root.rglob("*.zip"))
@@ -289,6 +307,15 @@ def wikipedia_text(url, cache):
     return nonempty(pages[0].get("extract"), f"Wikipedia text for {url}")
 
 
+def record_title(row, ds):
+    """A record's title: the `title` field, cut to `title_pattern`'s first group when it matches."""
+    if not ds.get("title"):
+        return ""
+    title = str(select(row, ds["title"]))
+    match = re.match(ds["title_pattern"], title) if ds.get("title_pattern") else None
+    return match.group(1) if match else title
+
+
 def title_path(title):
     """A file name that keeps the document's title readable (rag reads titles from names)."""
     words = re.sub(r"[^\w\-]+", "-", title).strip("-")[:150]
@@ -315,7 +342,13 @@ def normalize(
     if limit < 1:
         raise ValueError("--limit must be positive")
     qs = schema["questions"]
-    raw_questions = records(safe_path(root, qs["file"]), qs.get("rows_key"))
+    question_files = qs["file"] if isinstance(qs["file"], list) else [qs["file"]]
+    raw_questions = [
+        dict(row, **{"$file": Path(name).parent.name})
+        for name in question_files
+        for row in records(safe_path(root, name), qs.get("rows_key"))
+    ]
+    text_fields = qs["text"] if isinstance(qs["text"], list) else [qs["text"]]
     questions = []
     for row in raw_questions:
         gold = select(row, qs["gold"])
@@ -327,7 +360,9 @@ def normalize(
             )
         question = {
             "id": doc_id(select(row, qs["id"])),
-            "question": nonempty(select(row, qs["text"]), "question text"),
+            "question": "\n\n".join(
+                nonempty(select(row, field), "question text") for field in text_fields
+            ),
             "gold_answer": nonempty(select(row, qs["answer"]), "gold answer"),
             "gold_doc_ids": list(dict.fromkeys(doc_id(g) for g in gold)),
             "category": select(row, qs["category"]) if qs.get("category") else None,
@@ -365,7 +400,7 @@ def normalize(
                     raise ValueError(
                         "Schema: text document id must be $stem, $name or $path"
                     )
-                rows = [(selectors[ds["id"]], path.read_text(encoding="utf-8"))]
+                rows = [(selectors[ds["id"]], path.read_text(encoding="utf-8"), "")]
             elif ds["format"] == "records":
                 rows = [
                     (
@@ -373,14 +408,14 @@ def normalize(
                         "\n\n".join(
                             nonempty(select(row, field), field) for field in ds["text"]
                         ),
+                        record_title(row, ds),
                     )
                     for row in records(path, ds.get("rows_key"))
                 ]
             else:
                 raise ValueError("Schema: document format must be text or records")
-            for key, text in rows:
+            for key, text, title in rows:
                 # EnterpriseRAG-Bench names files "<document id>__<slug>.txt".
-                title = ""
                 if ds.get("id_split"):
                     key, _, title = str(key).partition(ds["id_split"])
                 key = doc_id(key)
