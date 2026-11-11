@@ -23,6 +23,25 @@ An option stays on by default if its arm is more often correct than the previous
 
 On the books (28 Oct, `parent-child-answers-2026-10-28/`) whole sections did not help (21 of 22 either way); here the 9 Nov failure analysis found 42 refusals with every gold document already retrieved.
 
-## Results
+## Results (11 Nov 2026)
 
-Pending.
+Kaggle run B: `masihmaafi/rag-bench-enterprise-100k-b-20261110`, rag commit ab229f3. Answers and grades: Sol, Onyx's judge prompt, 499 of 499 questions in every arm, no failed calls.
+
+| Arm | Hybrid recall@10 | Correct | Info Not Found | Refusals |
+|---|---|---|---|---|
+| A | 80.2% | 66.3% | 100% | 114 |
+| B | 84.6% | 75.2% | 100% | 80 |
+| C | 84.6% | **81.0%** | 100% | 65 |
+| D | 84.6% | 78.6% | 100% | 1 |
+
+Paired exact McNemar (questions gained / lost):
+
+- A to B: 57 / 13, p = 1.0e-7. Titles, stemming and the balanced shortlist pass.
+- B to C: 35 / 6, p = 4.9e-6. Whole short documents pass.
+- C to D: 3 / 15, p = 0.008. The lenient prompt fails: it hurts.
+
+By type, C over A: basic 81 to 93, semantic 54 to 68, intra-document reasoning 63 to 93, constrained 57 to 87, completeness 35 to 50, project related 30 to 48.
+
+For reference only (different corpus size): the dataset paper's best system, BM25 over all 511,962 documents with GPT-5.4, scores 68.8% correct and 68.4% document recall. This sample has 100,721 documents, and the paper shows recall falls as the corpus grows; a like-for-like claim needs the full corpus.
+
+Caveat: B and C were designed after reading A's failures on these questions.
