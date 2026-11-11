@@ -13,6 +13,7 @@
 | A | 9 Nov run (`run-100k-out`) | 20 passages, one neighbour each side |
 | B | A + `--option titles --option stemming --option balanced` (new Kaggle run) | as A |
 | C | B's retrieval | documents of up to 8,000 characters whole, longer ones as passages |
+| D | B's retrieval | as C, with `--prompt lenient`: answer from partial evidence, refuse only off-subject (added 11 Nov, before any B or C answer was graded) |
 
 ## Decision rule
 

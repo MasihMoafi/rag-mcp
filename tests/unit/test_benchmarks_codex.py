@@ -177,3 +177,22 @@ def test_short_documents_are_read_whole_once_and_long_ones_keep_passages():
         "part one ... part two",
         "a slice",
     ]
+
+
+def test_lenient_prompt_swaps_only_the_refusal_rule_and_is_recorded(tmp_path):
+    from evals.benchmarks.answers import answer_prompt
+    from evals.benchmarks.answers_codex import LENIENT_RULE, STRICT_RULE, lenient_answer_prompt
+
+    case = job(1)
+    strict, lenient = answer_prompt(case), lenient_answer_prompt(case)
+    assert STRICT_RULE in strict and STRICT_RULE not in lenient and LENIENT_RULE in lenient
+    assert strict.split("\n", 1)[1] == lenient.split("\n", 1)[1]
+    seen = []
+
+    def reply(prompt, schema, _model, _effort):
+        seen.append(prompt)
+        return {"text": "Ten [d1].", "citations": ["d1"]}
+
+    run([case], tmp_path, "m", "e", 1, call=reply, judge=None, prompt="lenient")
+    row = json.loads((tmp_path / "answers.jsonl").read_text())
+    assert row["answer_prompt"] == "lenient" and LENIENT_RULE in seen[0]
