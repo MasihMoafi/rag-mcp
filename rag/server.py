@@ -794,7 +794,7 @@ def _estimated_tokens(path: Path, size: int) -> int:
         try:
             import pymupdf
             with pymupdf.open(path) as document:
-                return document.page_count * _PDF_TOKENS_PER_PAGE
+                return len(document) * _PDF_TOKENS_PER_PAGE
         except (ImportError, OSError, RuntimeError, ValueError):
             return size // 4 + 1  # An unreadable PDF keeps the cautious byte estimate.
     return size // 4 + 1
