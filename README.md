@@ -3,6 +3,8 @@ name: rag-mcp
 type: scoped hybrid-RAG CLI and MCP server for agents and document workflows
 ---
 
+<!-- mcp-name: io.github.MasihMoafi/rag-mcp -->
+
 <div align="center">
 
 <img src="assets/retrieval-hero.svg" alt="rag-mcp retrieval, October 2026: 127 of 153 questions exact, against 107 in August" width="720">
@@ -16,7 +18,7 @@ type: scoped hybrid-RAG CLI and MCP server for agents and document workflows
 
 **A coding agent should not have to choose between opening files one at a time and dumping an entire repository into context.**
 
-Beta · v0.2.0 · Linux (verified; Python 3.13)
+Beta · v0.2.1 · Linux (verified; Python 3.13)
 
 [Install](#quick-start) • [Evals](#benchmark--retrieval-evaluations) • [How it works](#how-it-works) • [Deep-Dive Post](https://masihmoafi.com/projects/rag-mcp)
 

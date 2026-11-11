@@ -56,7 +56,7 @@ class _Tracing(Protocol):
 tracing = cast(_Tracing, importlib.import_module('rag.tracing'))
 
 _SERVER_NAME = "rag-mcp"
-_SERVER_VERSION = "0.2.0"
+_SERVER_VERSION = "0.2.1"
 _SERVER_SOURCE_SHA256 = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
 _use_content_length_framing = False
 _initialized = False

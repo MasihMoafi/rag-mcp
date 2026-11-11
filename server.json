@@ -1,0 +1,38 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.MasihMoafi/rag-mcp",
+  "title": "rag-mcp",
+  "description": "Scoped hybrid search (BM25, embeddings, reranking) and grounded answers over local files and folders",
+  "repository": {
+    "url": "https://github.com/MasihMoafi/rag-mcp",
+    "source": "github"
+  },
+  "websiteUrl": "https://github.com/MasihMoafi/rag-mcp",
+  "version": "0.2.1",
+  "packages": [
+    {
+      "registryType": "pypi",
+      "registryBaseUrl": "https://pypi.org",
+      "identifier": "ragmcp-cli",
+      "version": "0.2.1",
+      "runtimeHint": "uvx",
+      "transport": {
+        "type": "stdio"
+      },
+      "packageArguments": [
+        {
+          "type": "positional",
+          "value": "mcp"
+        }
+      ],
+      "environmentVariables": [
+        {
+          "name": "OPENROUTER_API_KEY",
+          "description": "OpenRouter key for answer synthesis and hosted reranking; exact-word search works without it",
+          "isRequired": false,
+          "isSecret": true
+        }
+      ]
+    }
+  ]
+}

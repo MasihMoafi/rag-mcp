@@ -1,6 +1,6 @@
 [project]
 name = "ragmcp-cli"
-version = "0.2.0"
+version = "0.2.1"
 description = "Scoped hybrid-RAG CLI and MCP server with BM25, vector retrieval, reranking, and answer synthesis"
 readme = "README.md"
 license = { text = "MIT" }
@@ -47,6 +47,8 @@ all = ["ragmcp-cli[full,office,qdrant,anthropic]"]
 
 [project.scripts]
 rag = "rag.cli:main"
+# Same command under the package name, so `uvx ragmcp-cli mcp` (what MCP registries generate) works.
+ragmcp-cli = "rag.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/MasihMoafi/rag-mcp"
