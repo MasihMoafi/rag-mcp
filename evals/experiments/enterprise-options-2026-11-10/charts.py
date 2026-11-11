@@ -1,26 +1,47 @@
-"""Draw the README charts for this experiment from results.json.
+"""Draw the README charts for this experiment from results.json, in light and dark versions.
 
-    python evals/experiments/enterprise-options-2026-11-10/charts.py
+    python3 evals/experiments/enterprise-options-2026-11-10/charts.py   # needs matplotlib and Inter
 
-Writes assets/enterprise-answers.svg and assets/enterprise-categories.svg. Colours follow the
-README's existing charts; the teal is stepped to pass the dark-surface palette checks.
+Writes assets/enterprise-{answers,categories}-{light,dark}.svg. Text is converted to outlines, so
+GitHub shows the same font everywhere. Colours passed the dataviz palette checks for each surface;
+the light grey sits below 3:1 contrast, so every mark carries a direct label.
 """
 
 import json
-from html import escape
 from pathlib import Path
+
+import matplotlib
+
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+from matplotlib import font_manager
+from matplotlib.lines import Line2D
+from matplotlib.patches import FancyBboxPatch
 
 HERE = Path(__file__).resolve().parent
 ASSETS = HERE.parents[2] / "assets"
-SURFACE, INK, MUTED, GRID = "#100f0e", "#efeae2", "#9a9188", "#2c2924"
-SHIPPED, CONTEXT = "#1fa396", "#6f675d"  # in rag 0.3 / baseline or rejected
-SANS = "ui-sans-serif,system-ui,sans-serif"
-STYLE = (
-    f".ax{{fill:{MUTED};font-size:11px;font-family:{SANS}}}"
-    f".lab{{fill:{INK};font-size:12.5px;font-family:{SANS}}}"
-    f".val{{fill:{MUTED};font-size:12px;font-family:{SANS}}}"
-    f".grid{{stroke:{GRID};stroke-width:1}}"
-)
+THEMES = {
+    "light": {
+        "surface": "#ffffff",
+        "ink": "#1f2328",
+        "muted": "#59636e",
+        "grid": "#e6e8eb",
+        "before": "#aeb4bd",
+        "step": "#7fbfb5",
+        "shipped": "#0a7a6d",
+        "line": "#8c959f",
+    },
+    "dark": {
+        "surface": "#0d1117",
+        "ink": "#e6edf3",
+        "muted": "#9198a1",
+        "grid": "#262c36",
+        "before": "#5c6370",
+        "step": "#14796d",
+        "shipped": "#1aa391",
+        "line": "#6e7681",
+    },
+}
 NAMES = {
     "basic": "Basic",
     "semantic": "Semantic",
@@ -35,12 +56,17 @@ NAMES = {
 }
 
 
-def svg(width, height, title, body):
-    return (
-        f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" '
-        f'viewBox="0 0 {width} {height}" role="img" aria-label="{escape(title)}">'
-        f"<title>{escape(title)}</title><style>{STYLE}</style>"
-        f'<rect width="{width}" height="{height}" fill="{SURFACE}"/>{body}</svg>\n'
+def setup():
+    if not any("Inter" in font.name for font in font_manager.fontManager.ttflist):
+        raise SystemExit("Install the Inter font first")
+    plt.rcParams.update(
+        {
+            "font.family": "Inter",
+            "svg.fonttype": "path",
+            "axes.spines.top": False,
+            "axes.spines.right": False,
+            "axes.spines.left": False,
+        }
     )
 
 
@@ -49,128 +75,316 @@ def percent(value):
     return int(value + 0.5)
 
 
-def heading(title, subtitle):
-    return (
-        f'<text x="30" y="34" fill="{INK}" font-family="ui-serif,Georgia,serif" font-size="22" '
-        f'font-weight="600">{escape(title)}</text>'
-        f'<text x="30" y="56" class="val">{escape(subtitle)}</text>'
+def frame(theme, size):
+    figure = plt.figure(figsize=size, dpi=100)
+    figure.patch.set_facecolor(theme["surface"])
+    return figure
+
+
+def titles(figure, theme, title, subtitle):
+    figure.text(
+        0.045, 0.94, title, fontsize=19, fontweight=650, color=theme["ink"], va="top"
+    )
+    figure.text(0.045, 0.865, subtitle, fontsize=11.5, color=theme["muted"], va="top")
+
+
+def footnotes(figure, theme, lines, top):
+    for index, line in enumerate(lines):
+        figure.text(
+            0.045,
+            top - index * 0.042,
+            line,
+            fontsize=9.5,
+            color=theme["muted"],
+            va="top",
+        )
+
+
+def rounded_bar(axes, x, height, width, colour, edge=None, hatch=None):
+    """A bar with rounded top corners only, anchored to the baseline."""
+    if edge:  # an outlined reference bar: square, so the hatch reads cleanly
+        axes.add_patch(
+            plt.Rectangle(
+                (x - width / 2, 0),
+                width,
+                height,
+                facecolor=colour,
+                edgecolor=edge,
+                linewidth=1.4,
+                hatch=hatch,
+            )
+        )
+        return
+    radius = 0.06
+    axes.add_patch(
+        FancyBboxPatch(
+            (x - width / 2, 0),
+            width,
+            height,
+            boxstyle=f"round,pad=0,rounding_size={radius}",
+            mutation_aspect=40,
+            facecolor=colour,
+            edgecolor=edge or colour,
+            linewidth=1.4,
+            hatch=hatch,
+        )
+    )
+    axes.add_patch(
+        plt.Rectangle(
+            (x - width / 2, 0),
+            width,
+            min(height, 3),
+            facecolor=colour,
+            edgecolor=edge or colour,
+            linewidth=1.4 if edge else 0,
+            hatch=hatch,
+        )
     )
 
 
-def legend(x, y, items):
-    out = ""
-    for colour, text in items:
-        out += (
-            f'<rect x="{x}" y="{y - 10}" width="11" height="11" rx="3" fill="{colour}"/>'
-            f'<text x="{x + 16}" y="{y}" class="val">{escape(text)}</text>'
-        )
-        x += 16 + 7 * len(text) + 24
-    return out
-
-
-def axis(left, right, top, bottom):
-    """Gridlines at 0, 25, 50, 75 and 100 percent; returns the body and the x scale."""
-    scale = lambda value: left + (right - left) * value / 100
-    body = ""
-    for tick in (0, 25, 50, 75, 100):
-        x = scale(tick)
-        body += (
-            f'<line x1="{x:.1f}" y1="{top}" x2="{x:.1f}" y2="{bottom}" class="grid"/>'
-            f'<text x="{x:.1f}" y="{bottom + 16}" class="ax" text-anchor="middle">{tick}%</text>'
-        )
-    return body, scale
-
-
-def answers_chart(results):
-    width, height = 860, 350
-    left, right, top = 300, 800, 118
-    rows = [
-        ("A", "rag 0.2", False),
-        ("B", "+ titles, stemming, balanced shortlist", True),
-        ("C", "+ short documents read whole", True),
-        ("D", "C + lenient refusal rule", False),
-    ]
-    pitch, bar = 38, 22
-    bottom = top + pitch * len(rows) + 4
-    body, scale = axis(left, right, top - 8, bottom)
+def answers(results, theme, path):
+    arms = results["arms"]
     paper = results["paper_reference"]["correct"]
-    x = scale(paper)
-    for index, (arm, label, shipped) in enumerate(rows):
-        value = results["arms"][arm]["correct"]
-        y = top + index * pitch
-        end = scale(value)
-        colour = SHIPPED if shipped else CONTEXT
-        # A value label the reference line would cross goes inside its bar.
-        inside = end < x < end + 52
-        place = (
-            f'x="{end - 8:.1f}" text-anchor="end"' if inside else f'x="{end + 8:.1f}"'
-        )
-        body += (
-            f'<text x="{left - 12}" y="{y + 15.5}" class="lab" text-anchor="end">'
-            f"{arm} · {escape(label)}</text>"
-            f'<rect x="{left}" y="{y}" width="{end - left:.1f}" height="{bar}" rx="3" fill="{colour}">'
-            f"<title>{arm}: {value}% correct</title></rect>"
-            f'<text {place} y="{y + 15.5}" class="lab">{value}%</text>'
-        )
-    body += (
-        f'<line x1="{x:.1f}" y1="{top - 14}" x2="{x:.1f}" y2="{bottom}" stroke="{INK}" '
-        f'stroke-width="1.5" stroke-dasharray="4 4"/>'
-        f'<text x="{x:.1f}" y="{top - 18}" class="val" text-anchor="middle">'
-        f"Dataset paper's best: {paper}%</text>"
-    )
-    notes = (
+    bars = [
+        ("rag 0.2", "before", arms["A"]["correct"], theme["before"], None),
         (
-            f"{results['questions']} questions, {results['documents']:,} documents. "
-            "Each step adds to the one above; B and C each beat the step before (paired test, p < 0.001)."
+            "+ titles, stemming,\nbalanced shortlist",
+            "step 1",
+            arms["B"]["correct"],
+            theme["step"],
+            None,
         ),
         (
-            "The paper's best is BM25 over all 511,962 documents with GPT-5.4; a larger corpus is harder, "
-            "so it is a reference, not a like-for-like score."
+            "+ short documents\nread whole = rag 0.3",
+            "step 2",
+            arms["C"]["correct"],
+            theme["shipped"],
+            None,
         ),
+        (
+            "Dataset paper's best\nBM25, full corpus †",
+            "reference",
+            paper,
+            theme["surface"],
+            "///",
+        ),
+    ]
+    figure = frame(theme, (10, 6.2))
+    titles(
+        figure,
+        theme,
+        "Correct answers on EnterpriseRAG-Bench",
+        f"{results['questions']} questions over company documents (Slack, email, tickets, docs, code); "
+        f"{results['documents']:,}-document sample",
     )
-    for offset, note in enumerate(notes):
-        body += f'<text x="30" y="{bottom + 44 + 18 * offset}" class="ax">{escape(note)}</text>'
-    body += legend(30, 86, [(SHIPPED, "in rag 0.3"), (CONTEXT, "before, or rejected")])
-    title = "EnterpriseRAG-Bench: correct answers"
-    subtitle = "Qwen3 embedding 0.6B and reranker 4B; answers by GPT-6.1 Sol, graded with the benchmark's own judge prompt."
-    return svg(width, height, title, heading(title, subtitle) + body)
-
-
-def categories_chart(results):
-    categories = sorted(results["categories"].items(), key=lambda item: -item[1]["n"])
-    width, pitch = 860, 30
-    left, right, top = 290, 740, 100
-    bottom = top + pitch * len(categories)
-    height = bottom + 60
-    body, scale = axis(left, right, top - 14, bottom - 6)
-    for index, (name, row) in enumerate(categories):
-        y = top + index * pitch
-        before, after = scale(row["A"]), scale(row["C"])
-        body += (
-            f'<text x="{left - 12}" y="{y + 4.5}" class="lab" text-anchor="end">'
-            f'{escape(NAMES[name])} <tspan class="ax">({row["n"]})</tspan></text>'
-            f'<line x1="{before:.1f}" y1="{y}" x2="{after:.1f}" y2="{y}" stroke="{CONTEXT}" stroke-width="2"/>'
-            f'<circle cx="{before:.1f}" cy="{y}" r="5.5" fill="{CONTEXT}" stroke="{SURFACE}" stroke-width="2">'
-            f"<title>{escape(NAMES[name])}, rag 0.2: {row['A']}%</title></circle>"
-            f'<circle cx="{after:.1f}" cy="{y}" r="5.5" fill="{SHIPPED}" stroke="{SURFACE}" stroke-width="2">'
-            f"<title>{escape(NAMES[name])}, rag 0.3: {row['C']}%</title></circle>"
-            f'<text x="{right + 22}" y="{y + 4.5}" class="val">{percent(row["A"])} → '
-            f'<tspan fill="{INK}">{percent(row["C"])}</tspan></text>'
+    axes = figure.add_axes((0.06, 0.3, 0.9, 0.48))
+    axes.set_facecolor(theme["surface"])
+    width = 0.56
+    for index, (label, _, value, colour, hatch) in enumerate(bars):
+        if hatch:
+            plt.rcParams["hatch.color"] = theme["line"]
+            rounded_bar(
+                axes, index, value, width, colour, edge=theme["line"], hatch=hatch
+            )
+        else:
+            rounded_bar(axes, index, value, width, colour)
+        axes.text(
+            index,
+            value + 2.2,
+            f"{value:.1f}%",
+            ha="center",
+            va="bottom",
+            fontsize=17,
+            fontweight=650,
+            color=theme["muted"] if hatch else theme["ink"],
         )
-    body += legend(560, 82, [(CONTEXT, "rag 0.2 (A)"), (SHIPPED, "rag 0.3 (C)")])
-    body += (
-        f'<text x="30" y="{bottom + 40}" class="ax">Question types as the benchmark defines them; '
-        "number of questions in brackets. Info-not-found questions have no answer in the corpus.</text>"
+    for start, end in ((0, 1), (1, 2)):
+        gain = bars[end][2] - bars[start][2]
+        axes.annotate(
+            "",
+            xy=(end - width / 2 - 0.04, bars[end][2] - 6),
+            xytext=(start + width / 2 + 0.04, bars[start][2] - 6),
+            arrowprops={
+                "arrowstyle": "-|>",
+                "color": theme["muted"],
+                "lw": 1.2,
+                "shrinkA": 0,
+                "shrinkB": 0,
+                "mutation_scale": 11,
+            },
+        )
+        axes.text(
+            (start + end) / 2,
+            (bars[start][2] + bars[end][2]) / 2 - 3.2,
+            f"+{gain:.1f}",
+            ha="center",
+            va="bottom",
+            fontsize=10.5,
+            fontweight=600,
+            color=theme["muted"],
+        )
+    axes.set_xlim(-0.55, len(bars) - 0.45)
+    axes.set_ylim(0, 100)
+    axes.set_yticks([0, 25, 50, 75, 100], ["0", "25", "50", "75", "100%"])
+    axes.set_xticks(range(len(bars)), [label for label, *_ in bars])
+    axes.tick_params(axis="x", length=0, pad=10, labelsize=11, labelcolor=theme["ink"])
+    axes.tick_params(axis="y", length=0, labelsize=9.5, labelcolor=theme["muted"])
+    axes.grid(axis="y", color=theme["grid"], linewidth=1)
+    axes.set_axisbelow(True)
+    axes.spines["bottom"].set_color(theme["line"])
+    footnotes(
+        figure,
+        theme,
+        [
+            "Both rag steps beat the one before on the same questions (paired McNemar test, p < 0.001).",
+            "Answers by GPT-6.1 Sol, graded with the benchmark's own judge prompt.",
+            (
+                "† Not like for like: the paper searches all 511,962 documents with GPT-5.4 answering; "
+                "a larger corpus is harder."
+            ),
+        ],
+        0.125,
     )
-    title = "Correct answers by question type"
-    subtitle = f"Same {results['questions']} questions and judge; percentage of each type answered correctly."
-    return svg(width, height, title, heading(title, subtitle) + body)
+    figure.savefig(path, facecolor=theme["surface"])
+    plt.close(figure)
+
+
+def categories(results, theme, path):
+    rows = sorted(results["categories"].items(), key=lambda item: item[1]["n"])
+    figure = frame(theme, (10, 6.6))
+    titles(
+        figure,
+        theme,
+        "Where rag 0.3 gains",
+        "Share of each question type answered correctly, rag 0.2 → 0.3 (same questions and judge)",
+    )
+    axes = figure.add_axes((0.3, 0.12, 0.52, 0.66))
+    axes.set_facecolor(theme["surface"])
+    for y, (name, row) in enumerate(rows):
+        before, after = row["A"], row["C"]
+        axes.plot(
+            [before, after],
+            [y, y],
+            color=theme["before"],
+            lw=2.4,
+            solid_capstyle="round",
+            zorder=1,
+            clip_on=False,
+        )
+        axes.scatter(
+            [before],
+            [y],
+            s=90,
+            color=theme["before"],
+            edgecolor=theme["surface"],
+            linewidth=2,
+            zorder=2,
+            clip_on=False,
+        )
+        axes.scatter(
+            [after],
+            [y],
+            s=110,
+            color=theme["shipped"],
+            edgecolor=theme["surface"],
+            linewidth=2,
+            zorder=3,
+            clip_on=False,
+        )
+        gain = percent(after) - percent(before)
+        axes.text(
+            103,
+            y,
+            f"{percent(after)}%",
+            va="center",
+            fontsize=11,
+            fontweight=650,
+            color=theme["ink"],
+        )
+        axes.text(
+            113,
+            y,
+            f"+{gain}" if gain else "±0",
+            va="center",
+            fontsize=10,
+            color=theme["muted"],
+        )
+        if before != after:
+            axes.text(
+                before - 2.2,
+                y,
+                f"{percent(before)}",
+                va="center",
+                ha="right",
+                fontsize=9.5,
+                color=theme["muted"],
+            )
+    axes.set_yticks(range(len(rows)), [f"{NAMES[name]}  " for name, _ in rows])
+    for tick, (_, row) in zip(axes.get_yticklabels(), rows):
+        tick.set_color(theme["ink"])
+    for y, (_, row) in enumerate(rows):
+        axes.text(
+            -1.5,
+            y - 0.36,
+            f"{row['n']} questions  ",
+            ha="right",
+            va="center",
+            fontsize=8.5,
+            color=theme["muted"],
+            transform=axes.transData,
+        )
+    axes.set_xlim(0, 100)
+    axes.set_ylim(-0.7, len(rows) - 0.4)
+    axes.set_xticks([0, 25, 50, 75, 100], ["0", "25", "50", "75", "100%"])
+    axes.tick_params(axis="y", length=0, labelsize=11.5, pad=4)
+    axes.tick_params(axis="x", length=0, labelsize=9.5, labelcolor=theme["muted"])
+    axes.grid(axis="x", color=theme["grid"], linewidth=1)
+    axes.set_axisbelow(True)
+    axes.spines["bottom"].set_visible(False)
+    axes.set_clip_on(False)
+    for x, colour, label in (
+        (0.3, theme["before"], "rag 0.2"),
+        (0.42, theme["shipped"], "rag 0.3"),
+    ):
+        figure.add_artist(
+            Line2D(
+                [x],
+                [0.808],
+                marker="o",
+                markersize=9,
+                color=colour,
+                linestyle="",
+                transform=figure.transFigure,
+            )
+        )
+        figure.text(
+            x + 0.014, 0.808, label, fontsize=10.5, color=theme["ink"], va="center"
+        )
+    for x, header in ((103, "rag 0.3"), (113, "gain")):
+        axes.text(
+            x, len(rows) - 0.25, header, fontsize=9, color=theme["muted"], va="center"
+        )
+    footnotes(
+        figure,
+        theme,
+        [
+            (
+                "Question types as the benchmark defines them. "
+                "Info-not-found questions have no answer in the corpus; rag declines them all."
+            )
+        ],
+        0.06,
+    )
+    figure.savefig(path, facecolor=theme["surface"])
+    plt.close(figure)
 
 
 def main():
+    setup()
     results = json.loads((HERE / "results.json").read_text())
-    (ASSETS / "enterprise-answers.svg").write_text(answers_chart(results))
-    (ASSETS / "enterprise-categories.svg").write_text(categories_chart(results))
+    for name, theme in THEMES.items():
+        answers(results, theme, ASSETS / f"enterprise-answers-{name}.svg")
+        categories(results, theme, ASSETS / f"enterprise-categories-{name}.svg")
 
 
 if __name__ == "__main__":

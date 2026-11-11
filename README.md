@@ -7,7 +7,10 @@ type: scoped hybrid-RAG CLI and MCP server for agents and document workflows
 
 <div align="center">
 
-<img src="assets/enterprise-answers.svg" alt="EnterpriseRAG-Bench, 499 questions on a 100,721-document sample: rag 0.2 answers 66.3% correctly, rag 0.3 81.0%; the dataset paper's best system scores 68.8% on the full corpus" width="760">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/enterprise-answers-dark.svg">
+  <img src="assets/enterprise-answers-light.svg" alt="Correct answers on EnterpriseRAG-Bench, 499 questions on a 100,721-document sample: rag 0.2 66.3%, with titles, stemming and a balanced shortlist 75.2%, with short documents read whole (rag 0.3) 81.0%; the dataset paper's best system scores 68.8% on the full corpus" width="760">
+</picture>
 
 <br>
 
@@ -405,7 +408,10 @@ Per-question results for every recorded run are under [`evals/`](evals/).
 
 Each adopted step beats the one before on the same questions (paired McNemar test, p < 0.001). Questions with no answer in the corpus are still all declined (100%).
 
-![Correct answers by question type, rag 0.2 vs 0.3](assets/enterprise-categories.svg)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/enterprise-categories-dark.svg">
+  <img src="assets/enterprise-categories-light.svg" alt="Correct answers by question type, rag 0.2 vs 0.3" width="760">
+</picture>
 
 | Search, 499 questions | rag 0.2 | rag 0.3 |
 | :--- | :---: | :---: |
