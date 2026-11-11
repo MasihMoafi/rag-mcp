@@ -77,7 +77,50 @@ def lenient_answer_prompt(job):
     return first.replace(STRICT_RULE, LENIENT_RULE) + "\n" + rest
 
 
-ANSWER_PROMPTS = {"strict": answer_prompt, "lenient": lenient_answer_prompt}
+TEXT_SCHEMA = {
+    "type": "object",
+    "properties": {"text": {"type": "string"}},
+    "required": ["text"],
+    "additionalProperties": False,
+}
+
+
+def rag_answer(job, call, model, effort):
+    """rag's own answer step (`synthesize_answer`, as `rag query` runs it: no citations), with its one
+    model request sent to `model` instead of OpenRouter. rag's prompt, evidence format and refusal
+    are used unchanged; a refusal becomes "Insufficient evidence"."""
+    from unittest import mock
+
+    from rag import openrouter_pipeline
+    from rag.passage_answers import ABSTENTION
+
+    def post(_path, payload, **_options):
+        prompt = "\n\n".join(message["content"] for message in payload["messages"])
+        text = call(prompt, TEXT_SCHEMA, model, effort)["text"]
+        return {"choices": [{"finish_reason": "stop", "message": {"content": text}}]}
+
+    passages = [
+        {"content": p["text"], "original_content": p["text"], "file_path": p["doc_id"]}
+        for p in job["passages"]
+    ]
+    with (
+        mock.patch.object(openrouter_pipeline, "_post", post),
+        mock.patch.object(
+            openrouter_pipeline, "openrouter_key", lambda _config: "unused"
+        ),
+    ):
+        text = openrouter_pipeline.synthesize_answer(
+            job["question"], passages, {"cite_sources": False, "answer_max_tokens": 700}
+        )
+    refused = text.strip() == ABSTENTION
+    return {"text": "Insufficient evidence" if refused else text, "citations": []}
+
+
+ANSWER_PROMPTS = {
+    "strict": answer_prompt,
+    "lenient": lenient_answer_prompt,
+    "rag": None,
+}
 PROXY_VARIABLES = {"http_proxy", "https_proxy", "all_proxy"}
 
 
@@ -118,7 +161,7 @@ def run_codex(prompt, schema, model, effort):
                 str(folder / "schema.json"),
                 "--output-last-message",
                 str(folder / "reply.json"),
-                prompt,
+                prompt.replace("\0", ""),  # an argument cannot hold a null byte
             ],
             capture_output=True,
             text=True,
@@ -217,20 +260,28 @@ def blind_sample_ids(jobs, size):
     )
 
 
+def validated_answer(job, call, model, effort, build_prompt):
+    """A cited answer; an invalid one gets one retry."""
+    answer = call(build_prompt(job), ANSWER_SCHEMA, model, effort)
+    try:
+        return validate_answer(answer, job)
+    except ValueError:
+        answer = call(build_prompt(job), ANSWER_SCHEMA, model, effort)
+        return validate_answer(answer, job)
+
+
 def answer_one(job, call, model, effort, judge, blind_judge=None, prompt="strict"):
     """Answer with `model`, then grade and score with `judge`; an invalid answer gets one retry.
 
     `blind_judge` grades again in a separate session that sees only the question, the reference
     answer and the candidate: not the first grade, the arm or which model wrote the answer."""
     started = time.monotonic()
-    for attempt in (1, 2):
-        answer = call(ANSWER_PROMPTS[prompt](job), ANSWER_SCHEMA, model, effort)
-        try:
-            validate_answer(answer, job)
-            break
-        except ValueError:
-            if attempt == 2:
-                raise
+    # rag answers without citations, so its answer has nothing to validate.
+    answer = (
+        rag_answer(job, call, model, effort)
+        if prompt == "rag"
+        else validated_answer(job, call, model, effort, ANSWER_PROMPTS[prompt])
+    )
     if judge is None:  # answer only; grading runs separately (regrade_onyx)
         grade, verdict = {"label": None, "reason": None}, None
     else:

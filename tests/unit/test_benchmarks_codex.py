@@ -196,3 +196,19 @@ def test_lenient_prompt_swaps_only_the_refusal_rule_and_is_recorded(tmp_path):
     run([case], tmp_path, "m", "e", 1, call=reply, judge=None, prompt="lenient")
     row = json.loads((tmp_path / "answers.jsonl").read_text())
     assert row["answer_prompt"] == "lenient" and LENIENT_RULE in seen[0]
+
+
+def test_rag_prompt_runs_rags_own_answer_step_and_maps_its_refusal(tmp_path):
+    from rag.passage_answers import ABSTENTION
+
+    seen = []
+
+    def reply(prompt, schema, _model, _effort):
+        seen.append(prompt)
+        return {"text": ABSTENTION if len(seen) == 2 else "Ten."}
+
+    run([job(1), job(2)], tmp_path, "m", "e", 1, call=reply, judge=None, prompt="rag")
+    rows = [json.loads(line) for line in (tmp_path / "answers.jsonl").read_text().splitlines()]
+    assert [row["answer"]["text"] for row in rows] == ["Ten.", "Insufficient evidence"]
+    assert all(row["answer_prompt"] == "rag" for row in rows)
+    assert "<passage 1>\nTen.\n</passage 1>" in seen[0] and "answer that part" in seen[0]
