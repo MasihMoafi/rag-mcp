@@ -51,4 +51,4 @@ with tempfile.TemporaryDirectory(prefix='rag-package-smoke-') as temp:
     print(json.dumps({'installed_server': server.__file__, 'cli_help': 'passed',
                       'mcp_initialize_and_tools': 'passed', 'real_lexical_index_with_fake_hosted_providers': 'passed',
                       'provider_requests': 'simulated only',
-                      'versions': {name: importlib.metadata.version(name) for name in ('ragmcp', 'lancedb', 'openai', 'filelock')}}, indent=2))
+                      'versions': {name: importlib.metadata.version(name) for name in ('ragmcp-cli', 'lancedb', 'openai', 'filelock')}}, indent=2))
