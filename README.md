@@ -136,6 +136,37 @@ only a readable answer from the requested document scope.
 
 </details>
 
+## Demo
+
+A first run of 0.3.1 in a clean home folder, with no account and no key (recorded 12 Nov 2026). Bare
+`rag` opens the menu, and a question returns the matching passages with file and lines:
+
+```text
+$ rag
+rag · search your documents from this terminal or from your coding agent
+Exact-word search: on · Meaning search: off · Written answers: off: questions return the matching passages
+◆ What would you like to do?
+ ❯ Ask about a file or folder
+   Connect your coding agent (Claude Code, Codex, ...)
+   Add or change the embedding model (meaning search)
+   ...
+
+$ rag query "What are the upload limits?" --path ./docs
+Best matching passages (no answer model is set up; sign in to Codex with `codex login`, or add an OpenRouter key with `rag key set`, for written answers):
+
+[1] limits.md (L1-L4)
+# Limits
+
+Uploads are limited to 10 MiB per file and 50 MiB per request.
+```
+
+Signed in to Codex, the same kind of question gets a written answer:
+
+```text
+$ rag query "How long do we keep customer files after an account closes?" --path ./docs
+Customer files are kept for 30 days after an account closes, then deleted.
+```
+
 ## What it is
 
 `rag-mcp` is an answer-producing hybrid RAG CLI and MCP server. Point it at an
