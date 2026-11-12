@@ -14,7 +14,7 @@ def isolated(tmp_path, monkeypatch):
         'RAG_MCP_CONFIG': str(tmp_path / 'config.json'), 'RAG_MCP_DATA_DIR': str(tmp_path / 'indexes'),
         'RAG_MCP_TRACE_DIR': str(tmp_path / 'traces'), 'RAG_MCP_WORKSPACE_DIR': str(tmp_path / 'workspaces'),
         'RAG_MCP_EMBED_PROVIDER': 'none', 'RAG_MCP_RERANKER_TYPE': 'off',
-        'RAG_MCP_CONTEXTUAL_RETRIEVAL': 'off', 'OPENROUTER_API_KEY': '',
+        'RAG_MCP_CONTEXTUAL_RETRIEVAL': 'off', 'OPENROUTER_API_KEY': 'test-only',  # synthesis is replaced
     }.items():
         monkeypatch.setenv(key, value)
     monkeypatch.delenv('RAG_MCP_CONTEXT_RADIUS', raising=False)
