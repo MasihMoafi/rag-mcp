@@ -45,3 +45,19 @@ By type, C over A: basic 81 to 93, semantic 54 to 68, intra-document reasoning 6
 For reference only (different corpus size): the dataset paper's best system, BM25 over all 511,962 documents with GPT-5.4, scores 68.8% correct and 68.4% document recall. This sample has 100,721 documents, and the paper shows recall falls as the corpus grows; a like-for-like claim needs the full corpus.
 
 Caveat: B and C were designed after reading A's failures on these questions.
+
+## rag's own answer step (12 Nov 2026)
+
+C's retrieval and whole documents, but answers written by rag's own answer step (`synthesize_answer`,
+its prompt and evidence format, as `rag query` runs it), still with Sol; harness `--prompt rag`.
+
+| Arm | rag prompt | Correct | Refusals |
+|---|---|---|---|
+| E | 0.3.0 | 79.1% (498 graded; one harness failure) | 34 |
+| E2 | 0.3.1 | 80.9% (498 graded; one Codex timeout) | 31 |
+
+- C to E: 2 / 11, p = 0.02. The 0.3.0 prompt hedged settled facts ("pending", "unconfirmed") and
+  added conditions the documents do not state.
+- E to E2: 12 / 3, p = 0.035. 0.3.1 drops that wording.
+- C to E2: 6 / 6. rag's own answer step now matches the benchmark prompt.
+

@@ -6,13 +6,18 @@
     "A": {"label": "rag 0.2 (9 Nov)", "correct": 66.3, "recall_at_10": 0.802, "recall_at_5": 0.736, "mrr": 0.691, "refusals": 114},
     "B": {"label": "+ titles, stemming, balanced shortlist", "correct": 75.2, "recall_at_10": 0.846, "recall_at_5": 0.806, "mrr": 0.766, "refusals": 80},
     "C": {"label": "+ short documents read whole", "correct": 81.0, "recall_at_10": 0.846, "recall_at_5": 0.806, "mrr": 0.766, "refusals": 65},
-    "D": {"label": "C + lenient refusal rule (rejected)", "correct": 78.6, "recall_at_10": 0.846, "recall_at_5": 0.806, "mrr": 0.766, "refusals": 1}
+    "D": {"label": "C + lenient refusal rule (rejected)", "correct": 78.6, "recall_at_10": 0.846, "recall_at_5": 0.806, "mrr": 0.766, "refusals": 1},
+    "E": {"label": "C retrieval, rag 0.3.0's answer step", "correct": 79.1, "graded": 498, "refusals": 34},
+    "E2": {"label": "C retrieval, rag 0.3.1's answer step", "correct": 80.9, "graded": 498, "refusals": 31}
   },
   "keyword_only_recall_at_10": {"A": 0.705, "B": 0.765},
   "mcnemar": {
     "A_to_B": {"gained": 57, "lost": 13, "p": 1.0e-7},
     "B_to_C": {"gained": 35, "lost": 6, "p": 4.9e-6},
-    "C_to_D": {"gained": 3, "lost": 15, "p": 0.008}
+    "C_to_D": {"gained": 3, "lost": 15, "p": 0.008},
+    "C_to_E": {"gained": 2, "lost": 11, "p": 0.0225},
+    "E_to_E2": {"gained": 12, "lost": 3, "p": 0.035},
+    "C_to_E2": {"gained": 6, "lost": 6, "p": 1.0}
   },
   "categories": {
     "basic": {"n": 175, "A": 81.1, "C": 92.6},
