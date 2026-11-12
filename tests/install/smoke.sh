@@ -37,11 +37,9 @@ python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); assert any("Cedar L
 python3 -c 'import re,sys; q=set(re.findall(r"\w+", "nocturnal beacon")); words=set(re.findall(r"\w+", open(sys.argv[1]).read().lower())); assert q.isdisjoint(words)' "$FACTS"
 "$rag" search 'nocturnal beacon' --workspace smoke --json > "$scratch/lexical-miss.json"
 python3 -c 'import json,sys; assert not json.load(open(sys.argv[1]))["passages"]' "$scratch/lexical-miss.json"
-if "$rag" query 'launch codename' --path "$FACTS" --format json > "$scratch/answer.json" 2> "$scratch/answer.err"; then
-  echo 'FAIL: an answer with evidence succeeded without an OpenRouter key' >&2
-  exit 1
-fi
-python3 -c 'import json,sys; assert "RAG answer synthesis failed (ValueError)" in json.load(open(sys.argv[1]))["error"]' "$scratch/answer.json"
+# Without an OpenRouter key, a question returns the matching passages instead of an answer.
+"$rag" query 'launch codename' --path "$FACTS" --format json > "$scratch/answer.json" 2> "$scratch/answer.err"
+python3 -c 'import json,sys; r=json.load(open(sys.argv[1]))["result"]; assert r.startswith("Best matching passages") and "Cedar Lantern" in r' "$scratch/answer.json"
 printf '%s\n%s\n%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize"}' '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"search_workspace","arguments":{"workspace_id":"smoke","query":"launch codename","include_content":true}}}' |
   "$rag" mcp > "$scratch/mcp.jsonl"
 python3 -c 'import json,sys; r=[json.loads(x) for x in open(sys.argv[1])]; assert any(t["name"]=="query_knowledge_base" for t in r[1]["result"]["tools"]); result=r[2]["result"]; assert not result.get("isError",False); assert "Cedar Lantern" in result["content"][0]["text"]' "$scratch/mcp.jsonl"
