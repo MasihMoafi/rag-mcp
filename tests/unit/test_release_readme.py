@@ -6,7 +6,7 @@ ROOT = Path(__file__).resolve().parents[2]
 
 def test_release_quick_start_and_security_disclosures():
     readme = (ROOT / "README.md").read_text()
-    assert "Bare `rag` prints help" in readme
+    assert "Bare `rag` opens the menu at a terminal and prints help otherwise" in readme
     assert "RAG_MCP_ALLOWED_ROOTS" in readme
     assert "trusted like a shell" in readme
     assert "host is responsible" in readme

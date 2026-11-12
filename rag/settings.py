@@ -456,7 +456,7 @@ def finish_setup(
         except Exception:
             stderr.write("Embedding verification failed. Check the model, credentials and provider availability; nothing was saved.\n")
             return 1
-        stdout.write(f"Works: {dimensions} dimensions.\n")
+        stdout.write(f"\nWorks: {dimensions} dimensions.\n")  # after any download bar, on its own line
     path = update_settings(config, environ)
     stdout.write(f"Saved to {path}\nEmbedding: {describe_embedding(config)}\n")
     return 0

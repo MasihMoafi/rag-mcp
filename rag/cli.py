@@ -86,15 +86,6 @@ def _probe_embedding(config: Mapping[str, str]) -> int:
     return probe_dimensions(build_embedder(config))
 
 
-def _should_offer_setup(environ: Mapping[str, str], stdin: TextIO) -> bool:
-    """First interactive query with no saved choice: ask before searching."""
-    if environ.get("RAG_MCP_EMBED_PROVIDER", "").strip():
-        return False
-    if user_settings.load_settings(environ):
-        return False
-    return bool(getattr(stdin, "isatty", lambda: False)())
-
-
 _TOP_SHORTHAND = re.compile(r"^--?top-?(\d+)$")
 
 
@@ -974,12 +965,6 @@ def _main(
                     )
                 print(message, file=stderr)
                 return 2
-        if _should_offer_setup(environ, stdin):
-            code = user_settings.run_setup(
-                stdin=stdin, stdout=stdout, stderr=stderr, environ=environ, verify=embedding_probe or _probe_embedding
-            )
-            if code != 0:
-                return code
         from rag.execution import execute_run, public_response
 
         def query_fn(question, document_path, extensions=None):
