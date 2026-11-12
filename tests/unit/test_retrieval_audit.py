@@ -8,6 +8,12 @@ import pytest
 import rag.openrouter_pipeline as hosted
 from rag import embeddings, fetch, server
 
+
+@pytest.fixture(autouse=True)
+def _answer_key(monkeypatch):
+    """Synthesis is mocked here; without a key rag would return passages instead of calling it."""
+    monkeypatch.setenv('OPENROUTER_API_KEY', 'test-only')
+
 QWEN_QUERY = "Instruct: Given a web search query, retrieve relevant passages that answer the query\nQuery:question"
 
 

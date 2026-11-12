@@ -132,6 +132,22 @@ def execute_run(query: str, doc_path: str = "", extensions: list[str] | None = N
         nonlocal checked
         if name == 'synthesis_evidence':
             checked = len(passages)
+        if name == 'synthesis_evidence' and snapshot is None and mode == 'retrieve':
+            # A file or folder search (no workspace): the passages as the index located them.
+            retrieved_passages.clear()
+            for rank, passage in enumerate(passages, 1):
+                path = Path(str(passage.get('file_path') or passage.get('source') or ''))
+                text = passage.get('original_content') or passage.get('content')
+                if not isinstance(text, str):
+                    continue
+                score = passage.get('score')
+                row = {'rank': rank, 'source_id': None, 'name': str(path), 'source_type': path.suffix.lstrip('.'),
+                       'content': text, 'start_offset': None, 'end_offset': None, 'location_verified': False,
+                       'score': score if type(score) in (int, float) and math.isfinite(score) else None}
+                row.update({key: passage[key] for key in ('start_line', 'end_line')
+                            if type(passage.get(key)) is int and passage[key] > 0})
+                retrieved_passages.append(row)
+            return
         if name != 'synthesis_evidence' or snapshot is None:
             return
         evidence.clear()

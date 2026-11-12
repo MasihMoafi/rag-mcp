@@ -54,6 +54,7 @@ def test_hosted_prompt_scopes_abstention_to_supplied_evidence(monkeypatch, cite_
 
 def test_synthesis_exception_does_not_leak_private_payload(monkeypatch, tmp_path):
     monkeypatch.setenv('RAG_MCP_TRACE_DIR', 'off')
+    monkeypatch.setenv('OPENROUTER_API_KEY', 'fake')
     monkeypatch.setattr(server, '_validate_rag_scope', lambda *a: None)
     monkeypatch.setattr(fetch, 'fetchExternalKnowledge', lambda **k: [{'content': 'evidence'}])
     monkeypatch.setattr(hosted, 'synthesize_answer', Mock(side_effect=RuntimeError('private-key and document')))
@@ -67,6 +68,7 @@ def test_invalid_quote_error_is_distinct_from_provider_availability(monkeypatch,
     from rag.passage_answers import PassageAnswerError
 
     monkeypatch.setenv('RAG_MCP_TRACE_DIR', 'off')
+    monkeypatch.setenv('OPENROUTER_API_KEY', 'fake')
     monkeypatch.setattr(server, '_validate_rag_scope', lambda *a: None)
     monkeypatch.setattr(fetch, 'fetchExternalKnowledge', lambda **k: [{'content': 'evidence'}])
     monkeypatch.setattr(hosted, 'synthesize_answer', Mock(side_effect=PassageAnswerError('private document')))
@@ -249,3 +251,22 @@ def test_a_cited_answer_names_each_source_document_without_its_path(monkeypatch)
     evidence = captured['messages'][1]['content']
     assert 'Source document: Agent Skills Specification.md' in evidence
     assert '/home/someone' not in evidence
+
+
+def test_without_an_answer_key_the_matching_passages_are_the_result(monkeypatch, tmp_path):
+    monkeypatch.setenv('RAG_MCP_TRACE_DIR', 'off')
+    monkeypatch.setenv('RAG_MCP_CONFIG', str(tmp_path / 'config.json'))
+    monkeypatch.delenv('OPENROUTER_API_KEY', raising=False)
+    monkeypatch.setattr(server, '_validate_rag_scope', lambda *a: None)
+    monkeypatch.setattr(fetch, 'fetchExternalKnowledge', lambda **k: [
+        {'content': 'Limits are 10 MiB per file.', 'file_path': str(tmp_path / 'limits.md'), 'location': 'L4-L6'},
+        {'content': 'Uploads retry twice.', 'file_path': str(tmp_path / 'retry.md')},
+    ])
+    synthesis = Mock()
+    monkeypatch.setattr(hosted, 'synthesize_answer', synthesis)
+    response = json.loads(server.query_knowledge_base('What are the limits?', str(tmp_path)))
+    assert synthesis.call_count == 0
+    assert response['result'].startswith(server.NO_ANSWER_KEY_NOTE)
+    assert '[1] limits.md (L4-L6)\nLimits are 10 MiB per file.' in response['result']
+    assert '[2] retry.md\nUploads retry twice.' in response['result']
+    assert str(tmp_path) not in response['result']

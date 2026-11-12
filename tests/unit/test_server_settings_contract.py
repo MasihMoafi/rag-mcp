@@ -8,6 +8,12 @@ from rag import cli, fetch
 from rag.workspaces import WorkspaceStore
 
 
+@pytest.fixture(autouse=True)
+def _answer_key(monkeypatch):
+    """Synthesis is mocked here; without a key rag would return passages instead of calling it."""
+    monkeypatch.setenv('OPENROUTER_API_KEY', 'test-only')
+
+
 def test_settings_report_uses_captured_server_identity(monkeypatch):
     from rag import detect
 

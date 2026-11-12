@@ -378,10 +378,35 @@ def run_setup(*, stdin: TextIO, stdout: TextIO, stderr: TextIO, environ: Mapping
     from rag.setup_ui import run
 
     try:
-        return run(stdin=stdin, stdout=stdout, stderr=stderr, environ=environ, verify=verify)
+        code = run(stdin=stdin, stdout=stdout, stderr=stderr, environ=environ, verify=verify)
     except ValueError as error:
         stderr.write(f"{error}\n")
         return 2
+    if code == 0:
+        offer_answer_key(stdin=stdin, stdout=stdout, stderr=stderr, environ=environ)
+    return code
+
+
+def offer_answer_key(*, stdin: TextIO, stdout: TextIO, stderr: TextIO,
+                     environ: Mapping[str, str] | None = None) -> None:
+    """After setup, at a terminal and without a key: offer the one optional step left."""
+    from rag import prompts
+
+    env = os.environ if environ is None else environ
+    if not prompts.interactive(stdin, stdout) or resolve_openrouter_key(embedding_config(env), env):
+        return
+    stdout.write("\nSearch is ready. Your coding agent can use it now (`rag connect claude` or `rag connect codex`).\n"
+                 "For written answers in this terminal, rag needs an OpenRouter key; without one, a question\n"
+                 "returns the matching passages.\n")
+    try:
+        choice = prompts.select("Add an OpenRouter key now?", ["Not now", "Paste a key (hidden)"],
+                                stdin=stdin, stdout=stdout)
+    except prompts.Cancelled:
+        return
+    if choice == 1:
+        from rag.keys import key_command
+
+        key_command("set", stdin=stdin, stdout=stdout, stderr=stderr, environ=env)
 
 
 def auto_setup(

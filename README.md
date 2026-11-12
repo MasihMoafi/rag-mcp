@@ -21,7 +21,7 @@ type: scoped hybrid-RAG CLI and MCP server for agents and document workflows
 
 **A coding agent should not have to choose between opening files one at a time and dumping an entire repository into context.**
 
-Beta · v0.3.0 · Linux (verified; Python 3.13)
+Beta · v0.3.1 · Linux (verified; Python 3.13)
 
 [Install](#quick-start) • [Evals](#benchmark--retrieval-evaluations) • [How it works](#how-it-works) • [Deep-Dive Post](https://masihmoafi.com/projects/rag-mcp)
 
@@ -29,41 +29,55 @@ Beta · v0.3.0 · Linux (verified; Python 3.13)
 
 ## Quick start
 
+Install with one line, or with the package manager you already use:
+
 ```bash
-curl -LsSf https://raw.githubusercontent.com/MasihMoafi/rag-mcp/main/install.sh | sh
-rag setup
-rag query "What changed?" --path ./docs
+curl -LsSf https://raw.githubusercontent.com/MasihMoafi/rag-mcp/main/install.sh | sh   # adds uv if missing
+uv tool install ragmcp-cli        # or: pipx install ragmcp-cli · npm install -g ragmcp-cli
 ```
 
-The installer adds [uv](https://docs.astral.sh/uv/) if it is missing (uv provides Python), then the `rag` command.
+Then give your coding agent the tool, or ask from the terminal:
+
+```bash
+rag connect claude                # or: codex, copilot, gemini, agy
+rag query "What changed?" --path ./docs
+rag                               # menu: ask, connect an agent, add meaning search or an answer key
+```
+
+It works with no account and no key: exact-word search (BM25) is on from the start, and without an
+answer key a question returns the best matching passages, which is what an agent reads anyway.
+Two optional steps add more, both from the `rag` menu:
+
+- **Meaning search:** `rag setup` picks an embedding model (Ollama, a local CPU model, OpenRouter,
+  OpenAI, Gemini or any OpenAI-compatible server), so a search also finds passages in other words.
+- **Written answers:** `rag key set` saves an OpenRouter key, and questions get a written answer.
+
 Tested on Linux. Studio is not included in this release.
 
-Exact-word retrieval works without a key. Answer synthesis sends the question and
+What leaves your machine: answer synthesis sends the question and
 selected evidence to OpenRouter and needs an OpenRouter key (`rag key set` or
 `OPENROUTER_API_KEY`). When an OpenRouter key is available, hosted reranking is
 enabled by default and sends the query and candidate passages to OpenRouter; use
 `rag config reranker off` to disable it. Hosted embedding and optional contextual
 retrieval also send text to their configured providers. Source files and indexes
 remain local. FastEmbed may download models unless `HF_HUB_OFFLINE=1` or
-`TRANSFORMERS_OFFLINE=1` is set. Replace `./docs` with a path that exists.
-
-On success, a query prints an answer from the selected scope.
+`TRANSFORMERS_OFFLINE=1` is set.
 
 <details>
 <summary>More commands and client setup</summary>
 
 ```bash
-rag                           # print help
+rag                           # menu at a terminal; help when piped
 rag setup --auto              # take the recommendation without questions
 rag doctor
 rag query "What changed?" --path /absolute/path/to/document-or-folder --top3
 rag workspaces --json          # list local workspaces
-rag search "What changed?" --workspace personal  # retrieve passages without an answer model
+rag search "What changed?" --path ./docs   # passages only, never an answer (or --workspace ID)
 rag query "What changed?" --workspace personal --top 3
 rag connect codex             # or: claude, copilot, gemini or agy (registers the MCP server)
 ```
 
-Bare `rag` prints help. `rag setup` offers an interactive provider picker. Use explicit command flags for automation.
+Bare `rag` opens the menu at a terminal and prints help otherwise. `rag setup` offers an interactive provider picker. Use explicit command flags for automation.
 Run the installer again to update. `RAGMCP_EXTRAS=office` (or `full`, `qdrant`, `anthropic`) before `sh` adds
 extras; `RAGMCP_REF` installs a tag or branch.
 

@@ -9,15 +9,25 @@ from rag import settings as user_settings
 
 
 MENU = (
-    ("Choose an embedding model", ["setup"]),
     ("Ask about a file or folder", None),
-    ("Connect an app to RAG MCP", None),
-    ("Change RAG settings", None),
-    ("Open live Studio in your browser", ["studio"]),
-    ("Check local setup", ["doctor"]),
+    ("Connect your coding agent (Claude Code, Codex, ...)", None),
+    ("Add or change the embedding model (meaning search)", ["setup"]),
+    ("Add or change the answer key (written answers)", ["key", "set"]),
+    ("Change settings", None),
+    ("Check setup", ["doctor"]),
     ("Inspect recent runs", ["runs"]),
     ("Quit", None),
 )
+
+
+def status_line(environ: Mapping[str, str]) -> str:
+    """What works right now, in one line: search always, meaning search and answers when set up."""
+    config = user_settings.embedding_config(environ)
+    embedding = (user_settings.describe_embedding(config) if user_settings.has_embedding(config)
+                 else "off")
+    answers = ("on (OpenRouter key saved)" if user_settings.resolve_openrouter_key(config, environ)
+               else "off: questions return the matching passages")
+    return f"Exact-word search: on · Meaning search: {embedding} · Written answers: {answers}"
 
 
 def menu(
@@ -31,9 +41,8 @@ def menu(
     """Run the deliberate interactive UI; never use this path for agents."""
     from rag import prompts
 
-    stdout.write("rag · scoped document answers and MCP bridge\n")
-    stdout.write("Ask documents, configure the RAG pipeline, or connect an MCP app. Studio is the web UI.\n")
-    stdout.write("`rag mcp` runs the server; `rag studio` pairs this terminal with Studio.\n\n")
+    stdout.write("rag · search your documents from this terminal or from your coding agent\n")
+    stdout.write(status_line(environ) + "\n\n")
     selected = 0
     while True:
         try:

@@ -36,6 +36,15 @@ from rag.cli_agents import (
 from rag.cli_menu import MENU, menu as _menu  # noqa: F401 - compatibility export
 
 
+def _package_version() -> str:
+    from importlib.metadata import PackageNotFoundError, version
+
+    try:
+        return version("ragmcp-cli")
+    except PackageNotFoundError:
+        return "(source checkout)"
+
+
 def _codex_status(environ: Mapping[str, str]) -> dict[str, object]:
     executable = shutil.which("codex", path=environ.get("PATH"))
     if executable is None:
@@ -63,6 +72,15 @@ def _full_extra_installed() -> bool:
 
 
 def _probe_embedding(config: Mapping[str, str]) -> int:
+    # The download keeps its progress bar; Hugging Face's token advice would break into it.
+    os.environ.setdefault("HF_HUB_VERBOSITY", "error")
+    os.environ.setdefault("HF_HUB_DISABLE_IMPLICIT_TOKEN", "1")
+    try:
+        from huggingface_hub.utils import logging as hf_logging
+
+        hf_logging.set_verbosity_error()
+    except ImportError:
+        pass
     from rag.embeddings import build_embedder, probe_dimensions
 
     return probe_dimensions(build_embedder(config))
@@ -275,9 +293,11 @@ def _parser() -> argparse.ArgumentParser:
         default="auto",
         help="output format (default: answer text; terminals also show progress)",
     )
-    search = commands.add_parser("search", help="Retrieve passages from a shared workspace without generating an answer")
+    search = commands.add_parser("search", help="Show the matching passages from a file, folder or workspace, without an answer")
     search.add_argument("question")
-    search.add_argument("--workspace", required=True, help="Workspace shared with Studio and MCP")
+    search_scope = search.add_mutually_exclusive_group(required=True)
+    search_scope.add_argument("--path", help="file or folder to search")
+    search_scope.add_argument("--workspace", help="Workspace shared with Studio and MCP")
     search.add_argument("--source", action="append", dest="source_ids", help="Restrict to a source ID; repeat for several")
     search.add_argument("--revision", help="Reject the search if the workspace changed")
     search.add_argument("--json", action="store_true", dest="as_json")
@@ -464,6 +484,12 @@ def _main(
     environ = environ or os.environ
     raw = list(argv) if argv is not None else sys.argv[1:]
     if not raw:
+        from rag.prompts import interactive
+
+        if interactive(stdin, stdout):  # a person at a terminal gets the menu; scripts get help
+            return _menu(stdin=stdin, stdout=stdout, stderr=stderr, environ=environ,
+                         embedding_probe=embedding_probe, token_factory=token_factory,
+                         server_factory=server_factory, open_url=open_url)
         _parser().print_help(stdout)
         return 0
     args = _parser().parse_args(_normalize_argv(raw))
@@ -793,20 +819,20 @@ def _main(
         if args.as_json:
             print(json.dumps(report), file=stdout)
         else:
-            codex = report["codex"]
-            status = "signed in" if codex["authenticated"] else "not signed in"
-            print(
-                f"Python {report['python']['version']} · Codex {status} · "
-                f"Embedding: {user_settings.describe_embedding(embedding)}",
-                file=stdout,
-            )
+            from rag.cli_menu import status_line
+
+            print(f"rag {_package_version()} · Python {report['python']['version']}", file=stdout)
+            print(status_line(environ), file=stdout)
             for line in detect.describe(detection):
                 print(f"Detected: {line}", file=stdout)
             apps = [label for key, label, _ in AGENT_LABELS if report["mcp_apps"][key]]
             if apps:
-                print("MCP apps available: " + ", ".join(apps), file=stdout)
+                print("Coding agents found: " + ", ".join(apps) + " (connect one with `rag connect <name>`)",
+                      file=stdout)
             if not report["embedding"]["configured"]:
-                print("Run `rag setup` (or `rag setup --auto`) to add meaning-based search.", file=stdout)
+                print("Add meaning search: `rag setup` (or `rag setup --auto`).", file=stdout)
+            if not user_settings.resolve_openrouter_key(embedding, environ):
+                print("Add written answers: `rag key set` (an OpenRouter key).", file=stdout)
         # MCP hosts are optional integrations, not prerequisites for local RAG.
         return 0
 
@@ -880,9 +906,18 @@ def _main(
         from rag.execution import execute_run, retrieval_response
         from rag.workspaces import WorkspaceStore
 
+        if args.path:
+            path = Path(args.path).expanduser().resolve()
+            if not path.exists():
+                print(f"Path does not exist: {path}", file=stderr)
+                return 2
+            if args.source_ids or args.revision:
+                print("--source and --revision apply to --workspace only.", file=stderr)
+                return 2
         with contextlib.redirect_stdout(stderr):
-            result = execute_run(args.question, workspace_id=args.workspace, client='cli', mode='retrieve',
-                                 workspace_store=WorkspaceStore.from_environ(environ),
+            result = execute_run(args.question, str(path) if args.path else "", workspace_id=args.workspace or "",
+                                 client='cli', mode='retrieve',
+                                 workspace_store=None if args.path else WorkspaceStore.from_environ(environ),
                                  source_ids=args.source_ids, workspace_revision=args.revision)
         value = retrieval_response(result, include_content=not args.no_content)
         if args.as_json:
@@ -892,8 +927,14 @@ def _main(
         else:
             print(f"{value['passage_count']} passages · run {value['run_id']}", file=stdout)
             for passage in value['passages']:
-                print(f"\n{passage['rank']}. {passage['name']} [{passage['source_id']}]", file=stdout)
-                if not passage['location_verified']:
+                if passage['source_id'] is None:  # a file or folder search
+                    name = os.path.relpath(passage['name'], path if path.is_dir() else path.parent)
+                    lines = (f" (lines {passage['start_line']}-{passage['end_line']})"
+                             if 'start_line' in passage else '')
+                    print(f"\n{passage['rank']}. {name}{lines}", file=stdout)
+                else:
+                    print(f"\n{passage['rank']}. {passage['name']} [{passage['source_id']}]", file=stdout)
+                if passage['source_id'] is not None and not passage['location_verified']:
                     print('Source offset unavailable; this passage cannot be opened at an exact location.', file=stdout)
                 if not args.no_content:
                     print(passage['content'], file=stdout)

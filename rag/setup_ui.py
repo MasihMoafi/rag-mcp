@@ -203,7 +203,11 @@ def _api(*, stdin, stdout, environ, provider: str | None = None):
             if not models:
                 stdout.write("No embedding models were returned by this provider.\n")
             back_label = "Back" if fixed_provider is not None else "Back to providers"
-            options = [*models, back_label]
+            recommended = detect.API_ENDPOINTS.get(selected_provider.lower(), ("", ""))[1]
+            if recommended in models:
+                models = [recommended, *(name for name in models if name != recommended)]
+            options = [f"{name} · recommended" if name == recommended else name for name in models]
+            options.append(back_label)
             if selected_provider == "Other":
                 options.append("Enter an exact model ID…")
             current_model = saved["embed_model"] if base.rstrip("/") == saved_base else ""
@@ -282,6 +286,9 @@ def _size_label(size_in_gb: object) -> str:
     return f"~{size:g} GB"
 
 
+RECOMMENDED_CPU_MODEL = "BAAI/bge-small-en-v1.5"  # also detect.recommend's fallback
+
+
 def _download(*, stdin, stdout):
     stdout.write("Loading the supported local CPU model catalog…\n")
     stdout.flush()
@@ -289,11 +296,14 @@ def _download(*, stdin, stdout):
     if not models:
         stdout.write("No local CPU models are available from the installed runtime.\n")
         raise prompts.Cancelled
+    models = sorted(models, key=lambda model: model["model"] != RECOMMENDED_CPU_MODEL)
     labels = []
     for model in models:
         description = str(model.get("description") or "").split(",")
         language = next((part.strip() for part in description if any(word in part.lower() for word in ("english", "multilingual", "languages", "chinese", "german", "spanish"))), "")
         suffix = " · ".join(part for part in (language, _size_label(model.get("size_in_GB"))) if part)
+        if model["model"] == RECOMMENDED_CPU_MODEL:
+            suffix = f"{suffix} · recommended: fast on any CPU"
         labels.append(f"{model['model']} · {suffix}" if suffix else str(model["model"]))
     selected = prompts.select(
         "Which supported model should RAG download for local CPU search?",
@@ -495,9 +505,8 @@ def run(*, stdin: TextIO, stdout: TextIO, stderr: TextIO,
             return _run_line_input(stdin=stdin, stdout=stdout, stderr=stderr, environ=environ, verify=verify)
         except prompts.Cancelled as error:
             raise ValueError("Setup ended before a complete embedding choice was made.") from error
-    stdout.write("Exact-word search (BM25) is always on. Add an embedding model to match related wording.\n")
-    stdout.write("Choose where it should run; the next screen shows only models from that source.\n\n")
-    stdout.write("Retrieval only; Studio or a connected app chooses the answer model.\n\n")
+    stdout.write("Exact-word search works already. An embedding model adds meaning search: it also finds\n"
+                 "passages that use different words. Choose where the model runs (optional).\n\n")
     while True:
         stdout.flush()
         detection = detect.detect_all(environ)

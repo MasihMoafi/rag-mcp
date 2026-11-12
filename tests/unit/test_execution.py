@@ -14,6 +14,7 @@ def _passages_as_retrieved(monkeypatch):
     """The fake engines here have no answer-context step; never read the developer's saved setting."""
     monkeypatch.setenv('RAG_MCP_CONTEXT_RADIUS', '0')
     monkeypatch.setenv('RAG_MCP_WHOLE_DOCUMENT_CHARS', '0')
+    monkeypatch.setenv('OPENROUTER_API_KEY', 'test-only')  # synthesis is mocked; no key returns passages
 
 
 

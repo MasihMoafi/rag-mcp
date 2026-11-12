@@ -82,7 +82,7 @@ def test_custom_text_escape_cancels(monkeypatch):
 def test_menu_returns_after_saving_a_setting(tmp_path, monkeypatch):
     env = {"RAG_MCP_CONFIG": str(tmp_path / "config.json")}
     from rag.cli_menu import MENU
-    selections = iter([3, 0, 0, len(MENU) - 1])
+    selections = iter([4, 0, 0, len(MENU) - 1])
     monkeypatch.setattr(prompts, "interactive", lambda *_: True)
     monkeypatch.setattr(prompts, "select", lambda *a, **k: next(selections))
     assert cli._menu(stdin=io.StringIO(), stdout=io.StringIO(), stderr=io.StringIO(), environ=env) == 0
@@ -93,7 +93,7 @@ def test_cancelling_model_setup_returns_to_the_menu_without_saving(tmp_path, mon
     env = {"RAG_MCP_CONFIG": str(tmp_path / "config.json")}
     monkeypatch.setattr("rag.detect.detect_all", lambda *_: {})
     from rag.cli_menu import MENU
-    selections = iter([0, prompts.Cancelled(), len(MENU) - 1])
+    selections = iter([2, prompts.Cancelled(), len(MENU) - 1])
     monkeypatch.setattr(prompts, "interactive", lambda *_: True)
     def choose(*args, **kwargs):
         value = next(selections)

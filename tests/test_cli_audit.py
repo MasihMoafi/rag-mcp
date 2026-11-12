@@ -227,7 +227,7 @@ def test_menu_search_uses_saved_result_count(tmp_path, monkeypatch):
     monkeypatch.setattr(cli, "main", lambda argv, **_: calls.append(argv) or 0)
     assert (
         cli._menu(
-            stdin=io.StringIO("2\n.\nfact?\n\n"),
+            stdin=io.StringIO("1\n.\nfact?\n\n"),
             stdout=io.StringIO(),
             stderr=io.StringIO(),
             environ=env,

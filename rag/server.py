@@ -56,7 +56,7 @@ class _Tracing(Protocol):
 tracing = cast(_Tracing, importlib.import_module('rag.tracing'))
 
 _SERVER_NAME = "rag-mcp"
-_SERVER_VERSION = "0.3.0"
+_SERVER_VERSION = "0.3.1"
 _SERVER_SOURCE_SHA256 = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
 _use_content_length_framing = False
 _initialized = False
@@ -308,8 +308,9 @@ _TOOL = {
         "only when evidence is insufficient: try exact terms, synonyms, and counterclaims before "
         "broadening the scope. For coverage or absence claims, use multiple differently worded "
         "questions. On a scan-limit error, narrow doc_path and continue. With conversation_id, "
-        "continue and save a turn in the shared workspace conversation. Returns the answer and "
-        "run/conversation IDs for that mode; chunks, paths, scores, and retrieval metadata remain internal."
+        "continue and save a turn in the shared workspace conversation. Returns a written answer when the "
+        "user has an answer key; otherwise it returns the best matching passages, numbered with file name "
+        "and lines, for you to read and answer from. Scores and retrieval metadata remain internal."
     ),
     "inputSchema": {
         "type": "object",
@@ -1085,6 +1086,25 @@ def _validate_rag_scope(path: Path, extensions: list[str] | None = None, *, work
     return manifest
 
 
+NO_ANSWER_KEY_NOTE = (
+    'Best matching passages (no answer model is set up; add an OpenRouter key with '
+    '`rag key set` for written answers):'
+)
+
+
+def _passages_without_answer(passages: list[Mapping[str, Any]]) -> str:
+    """Without an answer key, the evidence itself is the result: an agent reads it, a person skims it."""
+    if not passages:
+        return 'No passage in the selected scope matches the question.'
+    blocks: list[str] = []
+    for rank, passage in enumerate(passages, 1):
+        name = str(passage.get('name') or Path(str(passage.get('file_path') or passage.get('source') or '?')).name)
+        location = str(passage.get('location') or '')
+        text = str(passage.get('original_content') or passage.get('content') or '').strip()
+        blocks.append(f"[{rank}] {name}{f' ({location})' if location else ''}\n{text}")
+    return NO_ANSWER_KEY_NOTE + '\n\n' + '\n\n'.join(blocks)
+
+
 def _query_failure(stage: str, exc: Exception, advice: str) -> str:
     # Exception messages and provider payloads must never enter logs or traces.
     known = (ValueError, TypeError, RuntimeError, OSError, ImportError, TimeoutError, UnicodeDecodeError)
@@ -1216,6 +1236,12 @@ def _query_knowledge_base(  # pyright: ignore[reportUnusedFunction] -- called by
                     path = str(passage.get('file_path') or passage.get('source'))
                     named_passages.append({**passage, **({'name': source_names[path]} if path in source_names else {})})
                 value = named_passages
+            from rag.settings import resolve_openrouter_key
+
+            if not resolve_openrouter_key(embedding_config()):
+                tracing.annotate(skipped_reason='no_answer_key')
+                return json.dumps({'result': _passages_without_answer(cast(list[Mapping[str, Any]], value))
+                                   + (f'\n\n{notice}' if notice else '')})
             try:
                 answer = synthesize_answer(
                     query,
