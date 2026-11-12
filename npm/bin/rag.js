@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// `npx ragmcp <args>` runs the Python `rag` CLI through uv, pinned to this
+// `npx ragmcp-cli <args>` runs the Python `rag` CLI through uv, pinned to this
 // package's version. RAGMCP_EXTRAS=full,ocr adds optional extras;
 // RAGMCP_UVX_FROM=<wheel or spec> overrides the source (used by the install tests).
 "use strict"

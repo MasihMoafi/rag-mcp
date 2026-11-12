@@ -1,5 +1,5 @@
 {
-  "name": "ragmcp",
+  "name": "ragmcp-cli",
   "version": "0.3.0",
   "description": "Local hybrid-RAG CLI and MCP server: exact-word BM25 always on, plus the embedding model you choose. Thin launcher for the Python package through uv.",
   "bin": {
