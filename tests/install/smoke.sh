@@ -26,7 +26,7 @@ npx --yes "file:$NPM_TGZ" --help | python3 -c 'import sys; assert "setup" in sys
 pnpm --package="$NPM_TGZ" dlx rag --help | python3 -c 'import sys; assert "setup" in sys.stdin.read()'
 node_bin=$(command -v node)
 mkdir "$scratch/no-uv"
-if PATH="$scratch/no-uv" "$node_bin" "$scratch/launcher/node_modules/ragmcp/bin/rag.js" --help 2> "$scratch/no-uv.err"; then
+if PATH="$scratch/no-uv" "$node_bin" "$scratch/launcher/node_modules/ragmcp-cli/bin/rag.js" --help 2> "$scratch/no-uv.err"; then
   echo 'FAIL: launcher succeeded without uv' >&2
   exit 1
 fi
