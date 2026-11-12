@@ -254,6 +254,9 @@ def test_a_cited_answer_names_each_source_document_without_its_path(monkeypatch)
 
 
 def test_without_an_answer_key_the_matching_passages_are_the_result(monkeypatch, tmp_path):
+    from rag import codex_answers
+
+    monkeypatch.setattr(codex_answers, 'signed_in', lambda: False)
     monkeypatch.setenv('RAG_MCP_TRACE_DIR', 'off')
     monkeypatch.setenv('RAG_MCP_CONFIG', str(tmp_path / 'config.json'))
     monkeypatch.delenv('OPENROUTER_API_KEY', raising=False)
@@ -270,3 +273,41 @@ def test_without_an_answer_key_the_matching_passages_are_the_result(monkeypatch,
     assert '[1] limits.md (L4-L6)\nLimits are 10 MiB per file.' in response['result']
     assert '[2] retry.md\nUploads retry twice.' in response['result']
     assert str(tmp_path) not in response['result']
+
+
+def test_codex_sign_in_writes_the_answer_with_rags_prompt(monkeypatch, tmp_path):
+    from rag import codex_answers
+
+    monkeypatch.setenv('RAG_MCP_TRACE_DIR', 'off')
+    monkeypatch.setenv('RAG_MCP_CONFIG', str(tmp_path / 'config.json'))
+    monkeypatch.delenv('OPENROUTER_API_KEY', raising=False)
+    monkeypatch.setattr(codex_answers, 'signed_in', lambda: True)
+    monkeypatch.setattr(server, '_validate_rag_scope', lambda *a: None)
+    monkeypatch.setattr(fetch, 'fetchExternalKnowledge', lambda **k: [{'content': 'Limits are 10 MiB per file.'}])
+    sent = []
+
+    def codex(request, config):
+        sent.append(request)
+        return {'choices': [{'finish_reason': 'stop', 'message': {'content': 'The limit is 10 MiB per file.'}}]}
+
+    monkeypatch.setattr(codex_answers, 'complete', codex)
+    monkeypatch.setattr(hosted, '_post', Mock(side_effect=AssertionError('OpenRouter must not be called')))
+    response = json.loads(server.query_knowledge_base('What is the limit?', str(tmp_path)))
+    assert response == {'result': 'The limit is 10 MiB per file.'}
+    assert 'Limits are 10 MiB per file.' in sent[0]['messages'][1]['content']
+
+
+def test_off_returns_passages_even_when_codex_is_signed_in(monkeypatch, tmp_path):
+    from rag import codex_answers
+
+    monkeypatch.setenv('RAG_MCP_CONFIG', str(tmp_path / 'config.json'))
+    monkeypatch.setenv('RAG_MCP_ANSWER_PROVIDER', 'off')
+    monkeypatch.setenv('OPENROUTER_API_KEY', 'fake')
+    monkeypatch.setattr(codex_answers, 'signed_in', lambda: True)
+    from rag.settings import answer_provider
+
+    assert answer_provider() == 'none'
+    monkeypatch.setenv('RAG_MCP_ANSWER_PROVIDER', 'openrouter')
+    assert answer_provider() == 'openrouter'
+    monkeypatch.setenv('RAG_MCP_ANSWER_PROVIDER', 'auto')
+    assert answer_provider() == 'codex'

@@ -822,8 +822,9 @@ def _main(
                       file=stdout)
             if not report["embedding"]["configured"]:
                 print("Add meaning search: `rag setup` (or `rag setup --auto`).", file=stdout)
-            if not user_settings.resolve_openrouter_key(embedding, environ):
-                print("Add written answers: `rag key set` (an OpenRouter key).", file=stdout)
+            if user_settings.answer_provider(environ) == "none":
+                print("Add written answers: `codex login` (your ChatGPT plan) or `rag key set` (an OpenRouter key).",
+                      file=stdout)
         # MCP hosts are optional integrations, not prerequisites for local RAG.
         return 0
 

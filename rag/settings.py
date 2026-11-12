@@ -127,6 +127,8 @@ RETRIEVAL_DEFAULTS = {
     "answer_model": "deepseek/deepseek-v4.1-flash",
     "answer_max_tokens": "700",
     "answer_timeout": "90",
+    "answer_provider": "auto",
+    "codex_model": "",
     **CONTEXTUAL_DEFAULTS,
 }
 RETRIEVAL_ENV = {
@@ -140,6 +142,8 @@ RETRIEVAL_ENV = {
     "answer_model": "RAG_MCP_ANSWER_MODEL",
     "answer_max_tokens": "RAG_MCP_ANSWER_MAX_TOKENS",
     "answer_timeout": "RAG_MCP_ANSWER_TIMEOUT",
+    "answer_provider": "RAG_MCP_ANSWER_PROVIDER",
+    "codex_model": "RAG_MCP_CODEX_MODEL",
     **CONTEXTUAL_ENV,
 }
 RERANKER_CHOICES = ("off", "auto", "fastembed", "openrouter")
@@ -251,6 +255,28 @@ def resolve_openrouter_key(config: Mapping[str, Any], environ: Mapping[str, str]
     return dedicated or legacy or env.get('OPENROUTER_API_KEY', '').strip()
 
 
+ANSWER_PROVIDERS = ("auto", "codex", "openrouter", "off")
+
+
+def answer_provider(environ: Mapping[str, str] | None = None) -> str:
+    """Who writes answers: `codex` (the user's Codex sign-in), `openrouter` (a key) or `none` (passages).
+
+    `auto` prefers a Codex sign-in, which costs nothing beyond the user's ChatGPT plan, then an
+    OpenRouter key. An explicit choice is honoured only while it can work.
+    """
+    from rag import codex_answers
+
+    choice = retrieval_config(environ).get("answer_provider", "auto")
+    has_key = bool(resolve_openrouter_key(embedding_config(environ), environ))
+    if choice == "off":
+        return "none"
+    if choice in ("auto", "codex") and codex_answers.signed_in():
+        return "codex"
+    if choice in ("auto", "openrouter") and has_key:
+        return "openrouter"
+    return "none"
+
+
 def resolve_openrouter_embedding_key(config: Mapping[str, Any], environ: Mapping[str, str] | None = None) -> str:
     from urllib.parse import urlsplit
     env = os.environ if environ is None else environ
@@ -335,6 +361,8 @@ def describe_contextual_retrieval(config: Mapping[str, str]) -> str:
 
 def describe_settings(environ: Mapping[str, str] | None = None) -> list[str]:
     embedding = embedding_config(environ)
+    from rag import codex_answers
+
     retrieval = retrieval_config(environ)
     return [
         f"Embedding: {describe_embedding(embedding)}",
@@ -343,7 +371,11 @@ def describe_settings(environ: Mapping[str, str] | None = None) -> list[str]:
         f"Neighbouring chunks per match: {retrieval['context_radius']}",
         f"Whole documents up to: {retrieval['whole_document_chars']} characters (0 is off)",
         f"Reranker: {describe_reranker(retrieval)}",
-        f"Answer model: OpenRouter · {retrieval['answer_model']}",
+        "Answer model: " + {
+            "codex": f"Codex (ChatGPT sign-in) · {codex_answers.model(retrieval.get('codex_model', ''))}",
+            "openrouter": f"OpenRouter · {retrieval['answer_model']}",
+            "none": "none · questions return the matching passages",
+        }[answer_provider(environ)],
         f"Contextual retrieval: {describe_contextual_retrieval(retrieval)}",
         f"Config file: {config_path(environ)}",
     ]
@@ -393,11 +425,11 @@ def offer_answer_key(*, stdin: TextIO, stdout: TextIO, stderr: TextIO,
     from rag import prompts
 
     env = os.environ if environ is None else environ
-    if not prompts.interactive(stdin, stdout) or resolve_openrouter_key(embedding_config(env), env):
+    if not prompts.interactive(stdin, stdout) or answer_provider(env) != "none":
         return
     stdout.write("\nSearch is ready. Your coding agent can use it now (`rag connect claude` or `rag connect codex`).\n"
-                 "For written answers in this terminal, rag needs an OpenRouter key; without one, a question\n"
-                 "returns the matching passages.\n")
+                 "For written answers in this terminal, sign in to Codex (`codex login`, uses your ChatGPT plan)\n"
+                 "or add an OpenRouter key; without either, a question returns the matching passages.\n")
     try:
         choice = prompts.select("Add an OpenRouter key now?", ["Not now", "Paste a key (hidden)"],
                                 stdin=stdin, stdout=stdout)

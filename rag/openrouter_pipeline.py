@@ -294,8 +294,13 @@ def synthesize_answer(query: str, passages: Sequence[Mapping[str, Any]], config:
     # A long answer over many passages can outgrow the cap; a cut-off answer is never shown.
     response: dict[str, Any] = {}
     for max_tokens in dict.fromkeys((answer_cap, max(answer_cap, min(answer_cap * 4, 8192)))):
-        response = _post("/chat/completions", {**request, "max_tokens": max_tokens},
-                         key=openrouter_key(config), timeout=float(config.get("answer_timeout", 90)))
+        if config.get("answer_provider") == "codex":
+            from .codex_answers import complete
+
+            response = complete(request, {**config, "answer_timeout": max(float(config.get("answer_timeout", 90)), 180)})
+        else:
+            response = _post("/chat/completions", {**request, "max_tokens": max_tokens},
+                             key=openrouter_key(config), timeout=float(config.get("answer_timeout", 90)))
         choices = response.get("choices")
         if not (isinstance(choices, list) and choices and isinstance(choices[0], dict)
                 and choices[0].get('finish_reason') == 'length'):

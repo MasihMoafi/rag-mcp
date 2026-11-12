@@ -1087,8 +1087,8 @@ def _validate_rag_scope(path: Path, extensions: list[str] | None = None, *, work
 
 
 NO_ANSWER_KEY_NOTE = (
-    'Best matching passages (no answer model is set up; add an OpenRouter key with '
-    '`rag key set` for written answers):'
+    'Best matching passages (no answer model is set up; sign in to Codex with `codex login`, or add an '
+    'OpenRouter key with `rag key set`, for written answers):'
 )
 
 
@@ -1236,9 +1236,10 @@ def _query_knowledge_base(  # pyright: ignore[reportUnusedFunction] -- called by
                     path = str(passage.get('file_path') or passage.get('source'))
                     named_passages.append({**passage, **({'name': source_names[path]} if path in source_names else {})})
                 value = named_passages
-            from rag.settings import resolve_openrouter_key
+            from rag.settings import answer_provider
 
-            if not resolve_openrouter_key(embedding_config()):
+            provider = answer_provider()
+            if provider == 'none':
                 tracing.annotate(skipped_reason='no_answer_key')
                 return json.dumps({'result': _passages_without_answer(cast(list[Mapping[str, Any]], value))
                                    + (f'\n\n{notice}' if notice else '')})
@@ -1246,7 +1247,7 @@ def _query_knowledge_base(  # pyright: ignore[reportUnusedFunction] -- called by
                 answer = synthesize_answer(
                     query,
                     cast(list[Mapping[str, Any]], value),
-                    {**embedding_config(), **retrieval_config(), 'cite_sources': cite_sources,
+                    {**embedding_config(), **retrieval_config(), 'answer_provider': provider, 'cite_sources': cite_sources,
                      **({'answer_model': answer_model} if answer_model is not None else {})},
                 )
             except PassageAnswerError:

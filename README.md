@@ -45,17 +45,19 @@ rag                               # menu: ask, connect an agent, add meaning sea
 ```
 
 It works with no account and no key: exact-word search (BM25) is on from the start, and without an
-answer key a question returns the best matching passages, which is what an agent reads anyway.
+answer model a question returns the best matching passages, which is what an agent reads anyway.
 Two optional steps add more, both from the `rag` menu:
 
 - **Meaning search:** `rag setup` picks an embedding model (Ollama, a local CPU model, OpenRouter,
   OpenAI, Gemini or any OpenAI-compatible server), so a search also finds passages in other words.
-- **Written answers:** `rag key set` saves an OpenRouter key, and questions get a written answer.
+- **Written answers:** if you are signed in to Codex (`codex login`, with a ChatGPT plan), rag writes
+  answers with it at no extra cost; otherwise `rag key set` saves an OpenRouter key.
+  `RAG_MCP_ANSWER_PROVIDER` picks `auto` (Codex first), `codex`, `openrouter` or `off`.
 
 Tested on Linux. Studio is not included in this release.
 
 What leaves your machine: answer synthesis sends the question and
-selected evidence to OpenRouter and needs an OpenRouter key (`rag key set` or
+selected evidence to Codex (your ChatGPT sign-in) or to OpenRouter (`rag key set` or
 `OPENROUTER_API_KEY`). When an OpenRouter key is available, hosted reranking is
 enabled by default and sends the query and candidate passages to OpenRouter; use
 `rag config reranker off` to disable it. Hosted embedding and optional contextual

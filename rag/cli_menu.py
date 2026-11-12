@@ -12,7 +12,7 @@ MENU = (
     ("Ask about a file or folder", None),
     ("Connect your coding agent (Claude Code, Codex, ...)", None),
     ("Add or change the embedding model (meaning search)", ["setup"]),
-    ("Add or change the answer key (written answers)", ["key", "set"]),
+    ("Add an OpenRouter key (written answers without Codex)", ["key", "set"]),
     ("Change settings", None),
     ("Check setup", ["doctor"]),
     ("Inspect recent runs", ["runs"]),
@@ -25,8 +25,8 @@ def status_line(environ: Mapping[str, str]) -> str:
     config = user_settings.embedding_config(environ)
     embedding = (user_settings.describe_embedding(config) if user_settings.has_embedding(config)
                  else "off")
-    answers = ("on (OpenRouter key saved)" if user_settings.resolve_openrouter_key(config, environ)
-               else "off: questions return the matching passages")
+    answers = {"codex": "on (Codex, your ChatGPT sign-in)", "openrouter": "on (OpenRouter key)",
+               "none": "off: questions return the matching passages"}[user_settings.answer_provider(environ)]
     return f"Exact-word search: on · Meaning search: {embedding} · Written answers: {answers}"
 
 
