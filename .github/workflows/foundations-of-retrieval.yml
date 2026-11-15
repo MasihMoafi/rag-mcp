@@ -35,6 +35,17 @@ jobs:
       - uses: astral-sh/setup-uv@v6
         with:
           version: '0.8.22'
+      - name: Reclaim unused SDK space on the disposable runner
+        run: |
+          if ! command -v gio >/dev/null; then
+            sudo apt-get update -qq
+            sudo apt-get install -y libglib2.0-bin
+          fi
+          for sdk in /usr/local/lib/android /usr/share/dotnet; do
+            if [ -d "$sdk" ]; then sudo gio trash "$sdk"; fi
+          done
+          sudo gio trash --empty
+          df -h "$RUNNER_TEMP"
       - name: Install the pinned official toolkits
         shell: bash
         run: |

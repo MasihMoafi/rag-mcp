@@ -50,6 +50,41 @@ def module(name, *args):
     return [PYTHON, "-m", name, *args]
 
 
+def prebuilt_index(name, metadata_file):
+    # Read the jar's pinned registry from raw content: its unauthenticated
+    # GitHub directory-list API is rate-limited on shared Actions addresses.
+    url = "https://raw.githubusercontent.com/castorini/prebuilt-indexes/367560b4de7d9c3486f666dcc2df7783ca7758f2/lucene/" + metadata_file
+    with urllib.request.urlopen(url, timeout=60) as response:
+        entry, = [item for item in json.load(response) if item["name"] == name]
+    (EVIDENCE / f"{name}-input.json").write_text(json.dumps(entry, indent=2) + "\n")
+
+    class CheckedStream:
+        def __init__(self, source):
+            self.source = source
+            self.digest = hashlib.md5()
+            self.bytes_read = 0
+
+        def read(self, size=-1):
+            chunk = self.source.read(size)
+            self.digest.update(chunk)
+            self.bytes_read += len(chunk)
+            return chunk
+
+    # Stream the exact published archive into extraction, retaining its hash
+    # without needing two additional 26 GB temporary copies on the runner.
+    with urllib.request.urlopen(entry["urls"][0], timeout=120) as source:
+        checked = CheckedStream(source)
+        with tarfile.open(fileobj=checked, mode="r|gz") as archive:
+            archive.extractall(ROOT / "indexes", filter="data")
+        while checked.read(1024 * 1024):
+            pass
+    assert checked.bytes_read == entry["size"], checked.bytes_read
+    assert checked.digest.hexdigest() == entry["md5"], checked.digest.hexdigest()
+    index = ROOT / "indexes" / entry["filename"].removesuffix(".tar.gz")
+    assert index.is_dir(), index
+    return index
+
+
 def evaluate(label, qrels, ranking, expected, *options):
     run(label, java("trec_eval", "-c", *options, qrels, ranking))
     found = {}
@@ -139,9 +174,11 @@ def msmarco_bm25():
 def msmarco_dense():
     data = msmarco_data(full=False)
     queries, qrels = data / "queries.dev.small.tsv", data / "qrels.trec"
-    run("prebuilt-bm25-search", java("io.anserini.search.SearchCollection", "-index", "msmarco-v1-passage", "-topics", queries, "-topicReader", "TsvInt", "-output", RUNS / "prebuilt-bm25.trec", "-parallelism", "4", "-bm25", "-bm25.k1", "0.82", "-bm25.b", "0.68", "-hits", "1000"))
+    inverted = prebuilt_index("msmarco-v1-passage", "msmarco-v1-passage-inverted.json")
+    run("prebuilt-bm25-search", java("io.anserini.search.SearchCollection", "-index", inverted, "-topics", queries, "-topicReader", "TsvInt", "-output", RUNS / "prebuilt-bm25.trec", "-parallelism", "4", "-bm25", "-bm25.k1", "0.82", "-bm25.b", "0.68", "-hits", "1000"))
     evaluate("prebuilt-bm25-mrr", qrels, RUNS / "prebuilt-bm25.trec", {"recip_rank": 0.1875}, "-M", "10", "-m", "recip_rank")
-    run("prebuilt-bge-search", java("io.anserini.search.SearchHnswDenseVectors", "-index", "msmarco-v1-passage.bge-base-en-v1.5.hnsw", "-topics", queries, "-topicReader", "TsvInt", "-output", RUNS / "prebuilt-bge.trec", "-encoder", "BgeBaseEn15", "-hits", "1000", "-threads", "4"))
+    dense = prebuilt_index("msmarco-v1-passage.bge-base-en-v1.5.hnsw", "msmarco-v1-passage-hnsw.json")
+    run("prebuilt-bge-search", java("io.anserini.search.SearchHnswDenseVectors", "-index", dense, "-topics", queries, "-topicReader", "TsvInt", "-output", RUNS / "prebuilt-bge.trec", "-encoder", "BgeBaseEn15", "-hits", "1000", "-threads", "4"))
     evaluate("prebuilt-bge-mrr", qrels, RUNS / "prebuilt-bge.trec", {"recip_rank": 0.3521}, "-M", "10", "-m", "recip_rank")
 
 
