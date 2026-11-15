@@ -1,0 +1,63 @@
+name: Foundations of Retrieval
+
+on:
+  push:
+    branches: [work/jimmy-onboarding]
+    paths:
+      - .github/workflows/foundations-of-retrieval.yml
+      - evals/experiments/castorini-onboarding/**
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  reproduce:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        part: [nfcorpus, msmarco-bm25, msmarco-dense]
+    env:
+      OMP_NUM_THREADS: '4'
+      OPENBLAS_NUM_THREADS: '4'
+      MKL_NUM_THREADS: '4'
+      TOKENIZERS_PARALLELISM: 'false'
+      NVIDIA_TF32_OVERRIDE: '0'
+      JAVA_TOOL_OPTIONS: -Xmx6g -XX:ActiveProcessorCount=4
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: '0.8.22'
+      - name: Install the pinned official toolkits
+        shell: bash
+        run: |
+          set -euo pipefail
+          course="$RUNNER_TEMP/castorini-course"
+          mkdir -p "$course/evidence"
+          git clone https://github.com/castorini/anserini.git "$course/anserini"
+          git -C "$course/anserini" checkout 7b08f2954d8390a85370e68ab3a3ff8164f7dd0b
+          git clone https://github.com/castorini/pyserini.git "$course/pyserini"
+          git -C "$course/pyserini" checkout 33712371e8964c42fe83faaac4b8f36ebb077839
+          uv venv --python 3.12 "$course/.venv"
+          uv pip install --python "$course/.venv/bin/python" --torch-backend cpu -e "$course/pyserini" faiss-cpu
+          uv pip freeze --python "$course/.venv/bin/python" > "$course/evidence/requirements.txt"
+      - name: Reproduce the published benchmark
+        run: >-
+          "$RUNNER_TEMP/castorini-course/.venv/bin/python"
+          evals/experiments/castorini-onboarding/run.py
+          ${{ matrix.part }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: foundations-${{ matrix.part }}
+          path: |
+            ${{ runner.temp }}/castorini-course/evidence
+            ${{ runner.temp }}/castorini-course/runs
+          retention-days: 14
