@@ -62,8 +62,9 @@ def test_instruction_only_query_keeps_its_search_text():
 
 def test_return_can_request_content_instead_of_an_answer_format():
     query = "Which country is discussed? Return its history."
-
-    assert decompose_query(query) == ["Which country is discussed?", "Return its history."]
+    facets = decompose_query(query)
+    assert facets[0] == query
+    assert any(facet.startswith("Return its history.") and query in facet for facet in facets)
 
 
 def test_alternative_evidence_topics_have_separate_searches():
@@ -100,3 +101,40 @@ def test_balanced_passages_represents_every_facet_and_keeps_five():
 
     assert [item["content"] for item in selected] == ["shared", "b1", "c1", "c3", "b2"]
     assert len(selected) == 5
+
+
+@pytest.mark.parametrize('query', [
+    'Which storage engines have reported errors, and what are the corresponding ticket IDs?',
+    'Which services have an exception to the network policy, and how long does each exception last?',
+    'Which database uses signed tokens? How are they rotated?',
+    'The transport standard disallows caching, but ADR-7 describes a cache. What is the actual policy, and how should operators describe outage behavior?',
+])
+def test_dependent_facets_keep_original_query_and_subject(query):
+    facets = decompose_query(query)
+    assert facets[0] == query
+    assert 1 < len(facets) <= 3
+    assert all(query in facet for facet in facets)
+
+
+def test_independent_questions_stay_separate():
+    query = 'Which database is used? Where is the backup stored?'
+    assert decompose_query(query) == ['Which database is used?', 'Where is the backup stored?']
+
+
+def test_unrelated_background_does_not_merge_independent_questions():
+    query = 'The database runs on Linux. What is the backup schedule? Where is Paris?'
+    assert decompose_query(query) == [
+        'The database runs on Linux.', 'What is the backup schedule?', 'Where is Paris?',
+    ]
+
+
+def test_dependent_facets_respect_query_and_passage_budgets():
+    query = 'Which service owns the key, and how is it rotated, and where is its backup?'
+    facets = decompose_query(query, max_facets=2)
+    assert len(facets) == 2 and facets[0] == query
+    assert all(query in facet for facet in facets)
+    groups = [[{'id': 'shared', 'content': 'shared'}, {'id': str(i), 'content': str(i)}]
+              for i in range(len(facets))]
+    selected = balanced_passages(groups, limit=2)
+    assert len(selected) == 2
+    assert len({p['id'] for p in selected}) == 2

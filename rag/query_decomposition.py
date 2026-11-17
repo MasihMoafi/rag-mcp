@@ -27,6 +27,11 @@ _EVIDENCE_ALTERNATIVES = re.compile(
     r'(?:show|describe|discuss|warn against|help someone) )(.+)\?',
     re.IGNORECASE,
 )
+_DEPENDENT_REFERENCE = re.compile(
+    r'\b(?:it|its|they|their|them|this|that|these|those|each|corresponding|'
+    r'such|same|former|latter)\b', re.IGNORECASE,
+)
+_CONTEXTUAL_FOLLOWUP = re.compile(r'\b(?:actual|correct|appropriate)\b', re.IGNORECASE)
 
 
 def _searchable_instruction(text: str) -> str:
@@ -67,10 +72,12 @@ def decompose_query(query: str, *, max_facets: int = 3) -> list[str]:
     normalized = " ".join(query.split())
     sentences = [part.strip() for part in re.split(r"(?<=[?!.])\s+", normalized) if part.strip()]
     facets: list[str] = []
+    searchable_sentences: list[str] = []
     for sentence in sentences:
         sentence = _searchable_instruction(sentence)
         if not sentence:
             continue
+        searchable_sentences.append(sentence)
         parts = re.split(
             rf",?\s+and\s+(?=(?:{_FACET_START})\b)",
             sentence,
@@ -82,6 +89,18 @@ def decompose_query(query: str, *, max_facets: int = 3) -> list[str]:
         if len(facets) > max_facets:
             facets = facets[:max_facets - 1] + [' '.join(facets[max_facets - 1:])]
         return facets
+    dependent = any(_DEPENDENT_REFERENCE.search(facet) for facet in facets[1:])
+    background = (len(searchable_sentences) > 1
+                  and not searchable_sentences[0].endswith('?')
+                  and any(_CONTEXTUAL_FOLLOWUP.search(facet) for facet in facets[1:]))
+    if dependent or background:
+        context = ' '.join(searchable_sentences)
+        if max_facets <= 1:
+            return [context]
+        # The original preserves every subject; use remaining searches for the
+        # later focused requests and keep their shared context intact.
+        focused = facets[-(max_facets - 1):]
+        return [context] + [f'{facet} Context: {context}' for facet in focused]
     if len(facets) > max_facets:
         facets = facets[:max_facets - 1] + [' '.join(facets[max_facets - 1:])]
     rewritten = _evaluation_lifecycle_facets(facets, normalized, max_facets)

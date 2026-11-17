@@ -250,6 +250,37 @@ def test_multi_part_question_retrieves_facets_but_synthesizes_once(
     }
 
 
+def test_dependent_question_searches_original_and_contextual_facets(monkeypatch, tmp_path):
+    import json
+    import types
+    from rag import openrouter_pipeline
+
+    monkeypatch.setenv("RAG_MCP_CONFIG", str(tmp_path / "config.json"))
+    document = tmp_path / "notes.md"
+    document.write_text("Evidence.")
+    calls = []
+    captured = {}
+
+    def fetch(**kwargs):
+        calls.append(kwargs["query"])
+        return [{"id": "shared", "content": "shared"},
+                {"id": str(len(calls)), "content": f"unique {len(calls)}"}]
+
+    def synthesize(query, passages, config):
+        captured["passages"] = passages
+        return "Answer."
+
+    monkeypatch.setattr(server.importlib, "import_module", lambda _: types.SimpleNamespace(
+        fetchExternalKnowledge=fetch, expand_answer_context=lambda passages, *_args: passages))
+    monkeypatch.setattr(openrouter_pipeline, "synthesize_answer", synthesize)
+    query = "Which service owns the key, and how is it rotated?"
+    assert json.loads(server.query_knowledge_base(query, str(document))) == {"result": "Answer."}
+    assert calls[0] == query and len(calls) <= 3
+    assert all(query in facet for facet in calls)
+    assert len(captured["passages"]) <= 5
+    assert sum(p["content"] == "shared" for p in captured["passages"]) == 1
+
+
 def test_single_content_facet_retrieves_without_answer_instructions(
     monkeypatch, tmp_path
 ):
