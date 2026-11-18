@@ -48,7 +48,7 @@ def _judgments(workspace_id, revision, labels):
     return answers, judged
 
 
-def _score(relevant_ranks, answers_found, answer_count, passage_count):
+def _score(relevant_ranks, gain_ranks, answers_found, answer_count, passage_count):
     if not passage_count:
         return {'hit': 0.0, 'recall': 0.0, 'mrr': 0.0, 'ndcg': 0.0, 'precision': 0.0}
     ideal = sum(1 / math.log2(rank + 1) for rank in range(1, min(answer_count, passage_count) + 1))
@@ -56,7 +56,7 @@ def _score(relevant_ranks, answers_found, answer_count, passage_count):
         'hit': 1.0 if relevant_ranks else 0.0,
         'recall': answers_found / answer_count,
         'mrr': 1 / relevant_ranks[0] if relevant_ranks else 0.0,
-        'ndcg': sum(1 / math.log2(rank + 1) for rank in relevant_ranks) / ideal,
+        'ndcg': sum(1 / math.log2(rank + 1) for rank in gain_ranks) / ideal,
         'precision': len(relevant_ranks) / passage_count,
     }
 
@@ -81,15 +81,20 @@ def score_batch(workspace_id: str, batch_id: str, labels: EvaluationLabelStore |
             continue
         passages = sorted((item for item in result['evidence'] if isinstance(item, dict)), key=lambda item: item['rank'])
         found = set()
+        gain_ranks = []
         for passage in passages:
-            hits = [index for index, group in enumerate(groups) if any(_matches(passage, span) for span in group)]
+            hits = {index for index, group in enumerate(groups) if any(_matches(passage, span) for span in group)}
             if hits:
                 entry['relevant_ranks'].append(passage['rank'])
+                # The ideal ranking contains each judged answer once. A passage
+                # earns one binary gain when it brings new relevant evidence.
+                if hits - found:
+                    gain_ranks.append(passage['rank'])
                 found.update(hits)
             elif not any(_matches(passage, span) for span in judged.get(row['question_id'], [])):
                 unjudged_passages += 1
         if groups:
-            entry.update(_score(entry['relevant_ranks'], len(found), len(groups), len(passages)))
+            entry.update(_score(entry['relevant_ranks'], gain_ranks, len(found), len(groups), len(passages)))
     scored = [entry for entry in questions if entry['hit'] is not None]
     mean = (lambda key: round(sum(entry[key] for entry in scored) / len(scored), 4)) if scored else (lambda key: None)
     return {

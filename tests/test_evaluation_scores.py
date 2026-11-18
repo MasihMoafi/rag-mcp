@@ -64,6 +64,23 @@ def test_right_answers_carry_to_another_configuration_on_the_same_sources(stores
     assert q2['gold_count'] == 0 and q2['hit'] is None
 
 
+@pytest.mark.parametrize(('retrieved', 'expected'), [
+    ([ANSWER, NEAR_ANSWER], 1.0),
+    ([NOISE, ANSWER, NEAR_ANSWER], 0.6309297535714575),
+    ([ANSWER, NEAR_ANSWER, OTHER_NOISE], (1 + 0.5) / (1 + 0.6309297535714575)),
+])
+def test_ndcg_only_rewards_first_coverage_of_relevant_evidence(stores, retrieved, expected):
+    judged = [ANSWER, OTHER_NOISE] if OTHER_NOISE in retrieved else [ANSWER]
+    runs = save_batch(stores, 'a' * 32, {'q1': judged})
+    for rank in range(1, len(judged) + 1):
+        mark(stores, 'a' * 32, runs['q1'], rank, 'relevant')
+    save_batch(stores, 'b' * 32, {'q1': retrieved})
+    item = score_batch('book', 'b' * 32, stores[3])['questions'][0]
+    assert item['ndcg'] == pytest.approx(expected)
+    assert item['recall'] == 1
+    assert item['precision'] == pytest.approx(1 - retrieved.count(NOISE) / len(retrieved))
+
+
 def test_a_miss_scores_zero_and_unlabelled_passages_are_counted(stores):
     labelled = save_batch(stores, 'a' * 32, {'q1': [ANSWER]})
     mark(stores, 'a' * 32, labelled['q1'], 1, 'relevant')
