@@ -182,11 +182,15 @@ def test_repeated_passage_uses_verified_index_offsets(workspace, monkeypatch):
     assert result['evidence'][0]['start_offset'] == len(content[:start].encode('utf-16-le')) // 2
 
 
-@pytest.mark.parametrize('offsets', [{}, {'start_offset': 1, 'end_offset': 7}])
-def test_repeated_passage_without_valid_offsets_stays_unlinked(workspace, monkeypatch, offsets):
+@pytest.mark.parametrize(('content', 'offsets'), [
+    ('Cedar. Cedar.', {}),
+    ('Cedar. Cedar.', {'start_offset': 1, 'end_offset': 7}),
+    ('Oak.\nCedar.', {}),
+])
+def test_unverified_passage_without_valid_offsets_stays_unlinked(workspace, monkeypatch, content, offsets):
     old = workspace.snapshot('book')
     workspace.replace('book', 'Book', [
-        {'id': 'chapter', 'name': 'chapter.txt', 'sourceType': 'text', 'content': 'Cedar. Cedar.'},
+        {'id': 'chapter', 'name': 'chapter.txt', 'sourceType': 'text', 'content': content},
     ], expected_revision=old['revision'])
     source = stored_path(workspace, 'chapter')
     monkeypatch.setattr(server.importlib, 'import_module', lambda _: types.SimpleNamespace(

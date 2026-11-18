@@ -27,6 +27,7 @@ def preview_workspace_chunks(
     *,
     limit: int = 50,
     offset: int = 0,
+    around_offset: int | None = None,
 ) -> dict[str, Any]:
     if not isinstance(revision, str) or not revision:
         raise ValueError("A workspace revision is required.")
@@ -51,6 +52,22 @@ def preview_workspace_chunks(
     size = RAG_CONFIG_V2["chunk_size"]
     overlap = RAG_CONFIG_V2["chunk_overlap"]
     chunks = chunk_document_spans(source_content, file_path=path.name, chunk_size=size, chunk_overlap=overlap)
+    if around_offset is not None:
+        if type(around_offset) is not int or around_offset < 0 or offset != 0:
+            raise ValueError("Use one nonnegative source offset or a chunk page offset.")
+        # Browser offsets are UTF-16. In overlapping chunks prefer the
+        # closest start, so reopening a hit returns the passage that matched.
+        boundaries = _utf16_positions(source_content, {
+            item[key] for item in chunks for key in ("start_offset", "end_offset")
+            if item[key] is not None
+        })
+        matches = [(item["start_offset"], ordinal) for ordinal, item in enumerate(chunks)
+                   if item["start_offset"] is not None and item["end_offset"] is not None
+                   and boundaries[item["start_offset"]] <= around_offset < boundaries[item["end_offset"]]]
+        if not matches:
+            raise ValueError("No chunk covers that source offset.")
+        _, anchor = max(matches)
+        offset = max(0, min(anchor - limit // 2, len(chunks) - limit))
     end = min(len(chunks), offset + limit)
     selected: list[dict[str, Any]] = []
     for ordinal, item in enumerate(chunks[offset:end], start=offset):
@@ -91,16 +108,22 @@ def inspect_workspace_chunks(
     document_id: str,
     revision: str | None = None,
     *,
-    limit: int = 50,
+    limit: int | None = None,
     offset: int = 0,
+    around_offset: int | None = None,
     include_content: bool = False,
 ) -> dict[str, Any]:
     """CLI/MCP projection: metadata by default, page text only on explicit opt-in."""
     if type(include_content) is not bool:
         raise ValueError("include_content must be a boolean.")
     if revision is None:
+        if around_offset is not None:
+            raise ValueError("Use the workspace revision from the search result with a source offset.")
         revision = store.get(workspace_id)["revision"]
-    preview = preview_workspace_chunks(store, workspace_id, document_id, revision, limit=limit, offset=offset)
+    if limit is None:
+        limit = 3 if around_offset is not None else 50
+    preview = preview_workspace_chunks(store, workspace_id, document_id, revision, limit=limit,
+                                       offset=offset, around_offset=around_offset)
     return {
         **{key: value for key, value in preview.items() if key not in {"source_content", "chunks"}},
         "chunks": [{key: value for key, value in item.items() if include_content or key not in {"content", "heading"}}

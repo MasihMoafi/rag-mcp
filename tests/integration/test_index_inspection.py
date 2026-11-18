@@ -14,6 +14,42 @@ from rag.index_inspection import inspect_published_chunks
 from rag.workspaces import WorkspaceStore
 
 
+def test_read_around_workspace_hit_from_cli_and_mcp(tmp_path, monkeypatch):
+    root = tmp_path / "workspaces"
+    monkeypatch.setenv("RAG_MCP_WORKSPACE_DIR", str(root))
+    content = "\n".join(f"# Record {i}\n" + ("🌲 " * 40) + f"needle-{i}\n" for i in range(7))
+    saved = WorkspaceStore(root).replace("book", "Book", [
+        {"id": "notes", "name": "notes.md", "source_type": "markdown", "content": content},
+    ])
+    revision = saved["revision"]
+    for i in (0, 3, 6):
+        before = content[:content.index(f"needle-{i}")]
+        position = len(before.encode("utf-16-le")) // 2
+        out = io.StringIO()
+        assert cli.main(["chunks", "book", "notes", "--revision", revision, "--around-offset",
+                         str(position), "--json", "--content"], stdout=out) == 0
+        chunks = json.loads(out.getvalue())["chunks"]
+        assert len(chunks) == 3
+        matching = [chunk for chunk in chunks if chunk["start_offset"] <= position < chunk["end_offset"]]
+        assert any(f"needle-{i}" in chunk["content"] for chunk in matching)
+
+    replies = []
+    monkeypatch.setattr(server, "_initialized", True)
+    monkeypatch.setattr(server, "_result", lambda _id, result: replies.append(result))
+    args = {"workspace_id": "book", "source_id": "notes", "revision": revision, "around_offset": position}
+    def request(arguments):
+        server._handle_request({"id": 1, "method": "tools/call",
+                                "params": {"name": "get_workspace_chunks", "arguments": arguments}})
+        return replies[-1]
+
+    metadata = json.loads(request(args)["content"][0]["text"])
+    assert [x["ordinal"] for x in metadata["chunks"]] == [x["ordinal"] for x in chunks]
+    assert all("content" not in x and "heading" not in x for x in metadata["chunks"])
+    for invalid in ({"revision": "old"}, {"around_offset": position + 1000}, {"view": "indexed"}, {"offset": 0}):
+        assert request({**args, **invalid})["isError"]
+    assert request({k: v for k, v in args.items() if k != "revision"})["isError"]
+
+
 def test_published_chunks_follow_default_shared_query_scope(tmp_path, monkeypatch):
     monkeypatch.setenv("RAG_MCP_WORKSPACE_DIR", str(tmp_path / "workspaces"))
     monkeypatch.setenv("RAG_MCP_DATA_DIR", str(tmp_path / "indexes"))

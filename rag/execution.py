@@ -173,13 +173,18 @@ def execute_run(query: str, doc_path: str = "", extensions: list[str] | None = N
                 # repeated passage could point at another occurrence.
                 normalized = content.replace('\f', ' ')
                 line = passage.get('start_line', 0)
-                lower = sum(len(part) for part in normalized.splitlines(keepends=True)[:line - 1]) if type(line) is int and line > 0 else 0
+                has_line = type(line) is int and line > 0
+                lower = 0
+                if has_line:
+                    # Ingestion counts literal newlines for 1-based line numbers.
+                    suffix = normalized.split('\n', line - 1)[-1]
+                    lower = len(normalized) - len(suffix)
                 start = normalized.find(text, lower)
-                if start < 0:
+                if not text or start < 0 or (has_line and normalized.count('\n', 0, start) + 1 != line):
                     retrieved_passages.append(row)
                     continue
                 next_match = normalized.find(text, start + 1)
-                if next_match >= 0 and (not line or normalized.count('\n', start, next_match) == 0):
+                if next_match >= 0 and (not has_line or normalized.count('\n', start, next_match) == 0):
                     retrieved_passages.append(row)
                     continue
                 end = start + len(text)

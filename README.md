@@ -408,6 +408,17 @@ when `include_content` is true. `rag chunks` and MCP `get_workspace_chunks`
 provide paged chunk previews with text opt-in. Workspace mutations use revisions
 to reject stale changes. See [run inspection and privacy](docs/observability.md).
 
+To read the text around a verified search hit, copy its source ID and
+`start_offset`, and the search result's `workspace_revision`:
+
+```sh
+rag chunks WORKSPACE SOURCE --revision REVISION --around-offset START_OFFSET --content
+```
+
+This reads up to three neighbouring chunks from that revision. Use `--limit 1`
+for just the matching chunk. Through MCP, pass `around_offset`, `revision`, and
+`include_content: true` to `get_workspace_chunks`.
+
 `rag evaluations`, `rag labels`, and `rag conversations` manage workspace
 questions, judgments, and answer conversations. Their MCP counterparts share
 the same records.

@@ -332,8 +332,10 @@ def _parser() -> argparse.ArgumentParser:
     chunks.add_argument("workspace_id", help="Shared workspace ID")
     chunks.add_argument("source_id", help="Source ID in that workspace")
     chunks.add_argument("--revision", help="Expected workspace revision; reject a stale source")
-    chunks.add_argument("--limit", type=int, default=50, help="Chunks per page (1–100)")
-    chunks.add_argument("--offset", type=int, default=0, help="First chunk ordinal in this page")
+    chunks.add_argument("--limit", type=int, help="Chunks per page (1–100). Default 3 around a hit, 50 otherwise")
+    position = chunks.add_mutually_exclusive_group()
+    position.add_argument("--around-offset", type=int, help="Read around a search hit's UTF-16 start_offset with --revision")
+    position.add_argument("--offset", type=int, default=0, help="First chunk ordinal in this page")
     chunks.add_argument("--content", action="store_true", help="Explicitly show private text for this page's chunks")
     chunks.add_argument("--view", choices=["preview", "indexed"], default="preview", help="Next-build preview or published index metadata")
     chunks.add_argument("--scope-source", action="append", dest="scope_source_ids", help="Source ID in the published query scope; repeat to inspect a selected subset")
@@ -706,17 +708,20 @@ def _main(
         try:
             if args.scope_source_ids is not None and args.view != "indexed":
                 raise ValueError("--scope-source requires --view indexed.")
+            if args.view == "indexed" and args.around_offset is not None:
+                raise ValueError("--around-offset requires --view preview.")
             store = WorkspaceStore.from_environ(environ)
             if args.view == "indexed":
                 from rag.index_inspection import inspect_published_chunks
                 revision = args.revision or store.get(args.workspace_id)["revision"]
                 value = inspect_published_chunks(store, args.workspace_id, args.source_id, revision,
-                                                 limit=args.limit, offset=args.offset, include_content=args.content,
+                                                 limit=50 if args.limit is None else args.limit, offset=args.offset, include_content=args.content,
                                                  scope_source_ids=args.scope_source_ids)
             else:
                 from rag.chunk_preview import inspect_workspace_chunks
                 value = inspect_workspace_chunks(store, args.workspace_id, args.source_id, args.revision,
-                                                 limit=args.limit, offset=args.offset, include_content=args.content)
+                                                 limit=args.limit, offset=args.offset, around_offset=args.around_offset,
+                                                 include_content=args.content)
         except (ValueError, OSError) as error:
             print(f"Cannot inspect chunks: {error}", file=stderr)
             return 2
